@@ -8,7 +8,7 @@ namespace GestionGastos.Api.Dominio;
 /// decisión D-03 de research.md, y es lo que vuelve verificables los bordes de mes —febrero
 /// bisiesto incluido— sin esperar a que llegue la fecha.
 /// </summary>
-public readonly record struct RangoDelMes(DateOnly Primero, DateOnly Ultimo)
+public readonly record struct RangoDelMes(DateOnly Desde, DateOnly Hasta)
 {
     /// <summary>
     /// El rango del mes al que pertenece <paramref name="hoy"/>.

@@ -5,6 +5,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.18" />
+
+    <!-- Pomelo 9.0.0 depende de Relational 9.0.0, y el resto del proyecto va en 9.0.18. Sin fijar
+         la versión acá, el proyecto de tests no resuelve el conflicto y el build falla con MSB3277.
+         No es una dependencia nueva: ya estaba en el grafo como transitiva, y esto sólo elige cuál
+         de las dos versiones gana. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.18" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.18">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

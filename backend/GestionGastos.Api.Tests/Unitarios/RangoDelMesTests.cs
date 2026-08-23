@@ -27,8 +27,8 @@ public class RangoDelMesTests
     {
         var rango = RangoDelMes.De(DateOnly.Parse(hoy));
 
-        Assert.Equal(DateOnly.Parse(primero), rango.Primero);
-        Assert.Equal(DateOnly.Parse(ultimo), rango.Ultimo);
+        Assert.Equal(DateOnly.Parse(primero), rango.Desde);
+        Assert.Equal(DateOnly.Parse(ultimo), rango.Hasta);
     }
 
     [Theory]
@@ -42,8 +42,8 @@ public class RangoDelMesTests
 
         var rango = RangoDelMes.De(fecha);
 
-        Assert.Equal(new DateOnly(2026, 3, 1), rango.Primero);
-        Assert.Equal(new DateOnly(2026, 3, 31), rango.Ultimo);
-        Assert.True(fecha >= rango.Primero && fecha <= rango.Ultimo);
+        Assert.Equal(new DateOnly(2026, 3, 1), rango.Desde);
+        Assert.Equal(new DateOnly(2026, 3, 31), rango.Hasta);
+        Assert.True(fecha >= rango.Desde && fecha <= rango.Hasta);
     }
 }
