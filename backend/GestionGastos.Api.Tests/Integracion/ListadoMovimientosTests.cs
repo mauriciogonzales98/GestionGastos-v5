@@ -100,6 +100,48 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         Assert.Empty(json.RootElement.EnumerateArray());
     }
 
+    /// <summary>
+    /// AC-22 (RF-17): el listado muestra gastos e ingresos juntos, y cada uno con su tipo. Es lo
+    /// que permite distinguirlos sin abrir cada fila.
+    /// </summary>
+    [Fact]
+    public async Task Devuelve_Gastos_E_Ingresos_Del_Mes_Cada_Uno_Con_Su_Tipo_AC22()
+    {
+        await _baseDeDatos.LimpiarMovimientosAsync();
+
+        await using (var contexto = _baseDeDatos.CrearContexto())
+        {
+            contexto.Movimientos.AddRange(
+                new Movimiento
+                {
+                    UsuarioId = UsuarioSemilla.IdSemilla,
+                    Tipo = TipoMovimiento.Gasto,
+                    Monto = 100m,
+                    MonedaId = 1,
+                    CategoriaId = 1,
+                    Fecha = new DateOnly(2026, 8, 10),
+                },
+                new Movimiento
+                {
+                    UsuarioId = UsuarioSemilla.IdSemilla,
+                    Tipo = TipoMovimiento.Ingreso,
+                    Monto = 50000m,
+                    MonedaId = 1,
+                    CategoriaId = 8,
+                    Fecha = new DateOnly(2026, 8, 20),
+                });
+            await contexto.SaveChangesAsync();
+        }
+
+        var listado = await ListadoAsync(new DateOnly(2026, 8, 15));
+
+        Assert.Equal(2, listado.Count);
+        Assert.Equal("ingreso", listado[0].GetProperty("tipo").GetString());
+        Assert.Equal("Sueldo", listado[0].GetProperty("categoriaNombre").GetString());
+        Assert.Equal("gasto", listado[1].GetProperty("tipo").GetString());
+        Assert.Equal("Comida", listado[1].GetProperty("categoriaNombre").GetString());
+    }
+
     private async Task<List<long>> SembrarAsync(params DateOnly[] fechas)
     {
         await using var contexto = _baseDeDatos.CrearContexto();

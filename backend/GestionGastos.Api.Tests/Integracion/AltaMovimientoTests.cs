@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using GestionGastos.Api.Dominio;
 using GestionGastos.Api.Persistencia;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -104,6 +105,33 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
 
         using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
         Assert.Equal("2026-03-07", json.RootElement.GetProperty("fecha").GetString());
+    }
+
+    /// <summary>
+    /// AC-16 (RF-11): un ingreso se registra igual que un gasto y queda marcado como ingreso. Si
+    /// el tipo no se persistiera bien, el listado y el dashboard sumarían el ingreso como gasto.
+    /// </summary>
+    [Fact]
+    public async Task Registra_Un_Ingreso_Y_La_Fila_Queda_Con_Tipo_Ingreso_AC16()
+    {
+        await _baseDeDatos.LimpiarMovimientosAsync();
+        using var factoria = CrearFactoria(new DateOnly(2026, 8, 23));
+        using var cliente = factoria.CreateClient();
+
+        // Categoría 8 = Sueldo, del catálogo de ingreso.
+        using var respuesta = await cliente.PostAsJsonAsync(
+            new Uri("/api/movimientos", UriKind.Relative),
+            new { tipo = "ingreso", monto = 50000m, categoriaId = 8, fecha = "2026-08-23" });
+
+        Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+        Assert.Equal("ingreso", json.RootElement.GetProperty("tipo").GetString());
+        Assert.Equal("Sueldo", json.RootElement.GetProperty("categoriaNombre").GetString());
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        var fila = await contexto.Movimientos.SingleAsync();
+        Assert.Equal(TipoMovimiento.Ingreso, fila.Tipo);
     }
 
     private static FactoriaConReloj CrearFactoria(DateOnly hoy) => new(hoy);

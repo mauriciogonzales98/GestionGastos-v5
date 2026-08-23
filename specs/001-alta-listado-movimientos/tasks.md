@@ -146,13 +146,13 @@ en el listado, sin necesitar ninguna otra funcionalidad.
 **Independent Test**: completar el formulario de un ingreso y verificar que queda persistido y
 visible en el listado, marcado como ingreso y no como gasto.
 
-- [ ] T050 [TEST] [US2] Agregar en `backend/GestionGastos.Api.Tests/Integracion/AltaMovimientoTests.cs` el test de alta de ingreso: `201` y la fila queda con `tipo = ingreso`. **Nombrar AC-16**. Mostrar el rojo
-- [ ] T051 [TEST] [US2] Agregar en `backend/GestionGastos.Api.Tests/Integracion/ListadoMovimientosTests.cs` el test de listado mixto: con gastos e ingresos del mes, devuelve los dos y cada uno con su tipo. **Nombrar AC-22**. Mostrar el rojo
-- [ ] T052 [US2] Extender el alta y el listado en `backend/GestionGastos.Api/Movimientos/` para aceptar y devolver `tipo = ingreso` (FR-002)
-- [ ] T053 [TEST] [US2] Agregar en `frontend/tests/FormularioMovimiento.test.tsx` el test del cambio de tipo: al pasar a `ingreso` el selector ofrece exactamente las 3 categorías de ingreso, ninguna de gasto, **y la selección anterior se limpia**. **Nombrar AC-10**. Mostrar el rojo
-- [ ] T054 [US2] Implementar en `FormularioMovimiento.tsx` el repoblado del selector al cambiar el tipo, limpiando la selección previa para que la combinación imposible no sea alcanzable
-- [ ] T055 [TEST] [US2] Agregar en `frontend/tests/ListadoMovimientos.test.tsx` el test de que gasto e ingreso se distinguen por texto, no sólo por color. Mostrar el rojo
-- [ ] T056 [VERIFY] [US2] Puerta completa de frontend y backend
+- [X] T050 [TEST] [US2] Agregar en `backend/GestionGastos.Api.Tests/Integracion/AltaMovimientoTests.cs` el test de alta de ingreso: `201` y la fila queda con `tipo = ingreso`. **Nombrar AC-16**. Mostrar el rojo
+- [X] T051 [TEST] [US2] Agregar en `backend/GestionGastos.Api.Tests/Integracion/ListadoMovimientosTests.cs` el test de listado mixto: con gastos e ingresos del mes, devuelve los dos y cada uno con su tipo. **Nombrar AC-22**. Mostrar el rojo
+- [X] T052 [US2] Extender el alta y el listado en `backend/GestionGastos.Api/Movimientos/` para aceptar y devolver `tipo = ingreso` (FR-002)
+- [X] T053 [TEST] [US2] Agregar en `frontend/tests/FormularioMovimiento.test.tsx` el test del cambio de tipo: al pasar a `ingreso` el selector ofrece exactamente las 3 categorías de ingreso, ninguna de gasto, **y la selección anterior se limpia**. **Nombrar AC-10**. Mostrar el rojo
+- [X] T054 [US2] Implementar en `FormularioMovimiento.tsx` el repoblado del selector al cambiar el tipo, limpiando la selección previa para que la combinación imposible no sea alcanzable
+- [X] T055 [TEST] [US2] Agregar en `frontend/tests/ListadoMovimientos.test.tsx` el test de que gasto e ingreso se distinguen por texto, no sólo por color. Mostrar el rojo
+- [X] T056 [VERIFY] [US2] Puerta completa de frontend y backend
 
 **Checkpoint**: US1 y US2 funcionan juntas. El dominio está completo en su camino feliz.
 
