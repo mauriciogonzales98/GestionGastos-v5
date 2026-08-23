@@ -120,20 +120,20 @@ en el listado, sin necesitar ninguna otra funcionalidad.
 
 ### Frontend
 
-- [ ] T036 [TEST] [P] [US1] Escribir en `frontend/tests/CampoConError.test.tsx` los tests del componente de campo: renderiza `label` asociado por `for`/`id`, y con error presente pone `aria-invalid="true"`, `aria-describedby="{campo}-error"` y un contenedor con `role="alert"`. Mostrar el rojo
-- [ ] T037 [US1] Implementar el componente único de campo en `frontend/src/ui/CampoConError.tsx`, según el punto 2 del *Contrato de marcado de la UI* en [plan.md](./plan.md). Ninguna pantalla arma la tripleta `label` + control + error a mano
-- [ ] T038 [TEST] [US1] Escribir en `frontend/tests/FormularioMovimiento.test.tsx` el test del formulario: arranca en `gasto` con la fecha de hoy, el selector ofrece las 7 categorías de gasto y ninguna de ingreso. **Nombrar AC-10**. Mostrar el rojo
-- [ ] T039 [US1] Implementar `frontend/src/movimientos/FormularioMovimiento.tsx` como `<form>` real con `<button type="submit">`, usando `CampoConError` para cada campo y un `<select>` nativo para categoría
-- [ ] T040 [TEST] [P] [US1] Escribir en `frontend/tests/ListadoMovimientos.test.tsx` los tests del listado: tabla con `<th scope="col">`, tipo mostrado **como texto** y no sólo por color, y el mensaje de vacío cuando no hay filas. Mostrar el rojo
-- [ ] T041 [US1] Implementar `frontend/src/movimientos/ListadoMovimientos.tsx` con las cuatro columnas de [contracts/ui-pantalla.md](./contracts/ui-pantalla.md)
-- [ ] T042 [US1] Implementar el cliente HTTP en `frontend/src/api/cliente.ts`, tipado contra `tipos.ts`, con errores tipados y sin ningún catch silencioso (`AGENTS.md`, *Architecture conventions*)
-- [ ] T043 [TEST] [US1] Escribir en `frontend/tests/PantallaMovimientos.test.tsx` el test del ciclo completo: guardar un gasto lo inserta **en su posición** en el listado, vacía el formulario y devuelve el foco al primer campo. **Nombrar AC-15 y FR-014**. Mostrar el rojo
-- [ ] T044 [TEST] [US1] Agregar el test de AC-55 con `user-event`: recorrer el formulario entero sólo con `Tab`, completarlo y enviarlo con `Enter`, sin usar el mouse. **Nombrar AC-55**. Mostrar el rojo
-- [ ] T045 [US1] Implementar `frontend/src/movimientos/PantallaMovimientos.tsx` uniendo formulario y listado en una sola pantalla (FR-013) y aplicando el ciclo post-guardado de FR-014
-- [ ] T046 [US1] Crear `frontend/src/estilos/` con la regla `l-*` / `c-*` del punto 3 del *Contrato de marcado*, y el foco visible con `:focus-visible` sin anular `outline`. Sin colores ni espaciados: eso es del ticket 6
-- [ ] T047 [TEST] [US1] Agregar el test del movimiento guardado fuera del mes actual: se registra pero no aparece en el listado, y la confirmación lo dice en vez de sugerir que se perdió. Mostrar el rojo
-- [ ] T048 [US1] Implementar ese aviso en `PantallaMovimientos.tsx`
-- [ ] T049 [VERIFY] [US1] Puerta completa de frontend y backend
+- [X] T036 [TEST] [P] [US1] Escribir en `frontend/tests/CampoConError.test.tsx` los tests del componente de campo: renderiza `label` asociado por `for`/`id`, y con error presente pone `aria-invalid="true"`, `aria-describedby="{campo}-error"` y un contenedor con `role="alert"`. Mostrar el rojo
+- [X] T037 [US1] Implementar el componente único de campo en `frontend/src/ui/CampoConError.tsx`, según el punto 2 del *Contrato de marcado de la UI* en [plan.md](./plan.md). Ninguna pantalla arma la tripleta `label` + control + error a mano
+- [X] T038 [TEST] [US1] Escribir en `frontend/tests/FormularioMovimiento.test.tsx` el test del formulario: arranca en `gasto` con la fecha de hoy, el selector ofrece las 7 categorías de gasto y ninguna de ingreso. **Nombrar AC-10**. Mostrar el rojo
+- [X] T039 [US1] Implementar `frontend/src/movimientos/FormularioMovimiento.tsx` como `<form>` real con `<button type="submit">`, usando `CampoConError` para cada campo y un `<select>` nativo para categoría
+- [X] T040 [TEST] [P] [US1] Escribir en `frontend/tests/ListadoMovimientos.test.tsx` los tests del listado: tabla con `<th scope="col">`, tipo mostrado **como texto** y no sólo por color, y el mensaje de vacío cuando no hay filas. Mostrar el rojo
+- [X] T041 [US1] Implementar `frontend/src/movimientos/ListadoMovimientos.tsx` con las cuatro columnas de [contracts/ui-pantalla.md](./contracts/ui-pantalla.md)
+- [X] T042 [US1] Implementar el cliente HTTP en `frontend/src/api/cliente.ts`, tipado contra `tipos.ts`, con errores tipados y sin ningún catch silencioso (`AGENTS.md`, *Architecture conventions*)
+- [X] T043 [TEST] [US1] Escribir en `frontend/tests/PantallaMovimientos.test.tsx` el test del ciclo completo: guardar un gasto lo inserta **en su posición** en el listado, vacía el formulario y devuelve el foco al primer campo. **Nombrar AC-15 y FR-014**. Mostrar el rojo
+- [X] T044 [TEST] [US1] Agregar el test de AC-55 con `user-event`: recorrer el formulario entero sólo con `Tab`, completarlo y enviarlo con `Enter`, sin usar el mouse. **Nombrar AC-55**. Mostrar el rojo
+- [X] T045 [US1] Implementar `frontend/src/movimientos/PantallaMovimientos.tsx` uniendo formulario y listado en una sola pantalla (FR-013) y aplicando el ciclo post-guardado de FR-014
+- [X] T046 [US1] Crear `frontend/src/estilos/` con la regla `l-*` / `c-*` del punto 3 del *Contrato de marcado*, y el foco visible con `:focus-visible` sin anular `outline`. Sin colores ni espaciados: eso es del ticket 6
+- [X] T047 [TEST] [US1] Agregar el test del movimiento guardado fuera del mes actual: se registra pero no aparece en el listado, y la confirmación lo dice en vez de sugerir que se perdió. Mostrar el rojo
+- [X] T048 [US1] Implementar ese aviso en `PantallaMovimientos.tsx`
+- [X] T049 [VERIFY] [US1] Puerta completa de frontend y backend
 
 **Checkpoint**: **el MVP funciona.** Se puede cargar un gasto y verlo. Entregable por sí solo.
 

@@ -1,0 +1,36 @@
+/*
+ * Lo semántico: los elementos se estilan por su selector cuando la regla vale para todos, y la
+ * clase se agrega sólo cuando hace falta distinguir un caso.
+ *
+ * Colores, espaciados y tipografía son del ticket 6. Acá va únicamente lo que sale caro
+ * retrofitear.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+/*
+ * El foco visible NUNCA se anula sin reemplazo. Un `outline: none` sin sustituto deja a quien
+ * navega con teclado sin saber dónde está parado, y eso es un fallo de la regla, no una cuestión
+ * de gusto. Se refuerza el indicador del navegador en vez de quitarlo.
+ */
+:focus-visible {
+  outline: 3px solid currentcolor;
+  outline-offset: 2px;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+th {
+  text-align: start;
+}

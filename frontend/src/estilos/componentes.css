@@ -1,0 +1,20 @@
+/*
+ * `c-*` es el elemento que ES la cosa.
+ *
+ * Un elemento con `c-` no define su propia posición ni su propio margen externo: dónde va lo
+ * decide su contenedor `l-`. Es lo que permite reubicar un componente en el ticket 6 sin editarlo.
+ */
+
+.c-formulario-movimiento fieldset {
+  border: 1px solid;
+}
+
+.c-campo__error {
+  margin: 0;
+}
+
+.c-listado-movimientos th,
+.c-listado-movimientos td {
+  border-bottom: 1px solid;
+  padding: 0.5rem;
+}
