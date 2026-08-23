@@ -18,9 +18,19 @@ on:
 permissions:
   contents: read
 
-# Un push nuevo sobre el mismo PR cancela la corrida anterior: lo que importa es el último commit.
+# Un push nuevo sobre la misma rama cancela la corrida anterior: lo que importa es el último commit.
+#
+# El grupo incluye `event_name` por una razón que costó un merge bloqueado: con un PR abierto, un
+# push dispara DOS corridas del mismo commit —una por `push` y otra por `pull_request`— y sin el
+# evento en el grupo caen las dos en el mismo balde y se cancelan entre sí. La check-run cancelada
+# queda pegada al commit, arrastra el agregado de checks a FAILURE y el ruleset de main bloquea el
+# merge aunque los dos jobs requeridos estén en verde.
+#
+# El costo es correr el pipeline dos veces por push mientras hay un PR abierto. Se paga a gusto:
+# la alternativa era limitar `on: push` a main y perder lo que este archivo declara arriba, que una
+# rama vea su propio pipeline mientras se construye.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
