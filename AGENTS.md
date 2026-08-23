@@ -47,7 +47,7 @@ en todos lados.
 | Package manager | pnpm |
 | Install | `pnpm --dir frontend install --frozen-lockfile` |
 | Lint (frontend) | `pnpm --dir frontend lint` |
-| Format (frontend) | `pnpm --dir frontend format` |
+| Format (frontend) | `pnpm --dir frontend format` — `prettier --check`: **verifica sin modificar archivos**, para que el paso del CI pueda ponerse en rojo. Para formatear de verdad: `pnpm --dir frontend format:fix` |
 | Typecheck | `pnpm --dir frontend exec tsc --noEmit` |
 | Test (frontend) | `pnpm --dir frontend test` |
 | Lint (backend) | `dotnet format backend/GestionGastos.sln --verify-no-changes` — espejo de `prettier --check`: verifica sin modificar archivos |

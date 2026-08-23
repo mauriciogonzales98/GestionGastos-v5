@@ -93,6 +93,7 @@ puerta en rojo.
 ```bash
 # Frontend
 pnpm --dir frontend lint
+pnpm --dir frontend format      # prettier --check: verifica sin escribir
 pnpm --dir frontend exec tsc --noEmit
 pnpm --dir frontend test
 
