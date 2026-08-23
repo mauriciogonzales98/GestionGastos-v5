@@ -95,20 +95,20 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restaurar
-        run: dotnet restore backend/GestionGastos.sln
+        run: dotnet restore backend/GestionGastos.slnx
 
       # Este paso ES el linter de calidad del backend: backend/Directory.Build.props enciende los
       # analizadores de Roslyn, que corren dentro de la compilación, y -warnaserror convierte
       # cualquier hallazgo en un PR roto. Qué reglas se aplican: backend/.editorconfig.
       - name: Build
-        run: dotnet build backend/GestionGastos.sln --no-restore -warnaserror
+        run: dotnet build backend/GestionGastos.slnx --no-restore -warnaserror
 
       # El formato va aparte del build, igual que el job de frontend separa Lint de Formato: los
       # analizadores miran calidad y `dotnet format` mira formato, y una sola de las dos familias
       # deja media barrera. Va entre Build y Tests para no cortar la cadena restore -> build -> test
       # que --no-restore y --no-build encadenan.
       - name: Formato
-        run: dotnet format backend/GestionGastos.sln --verify-no-changes --no-restore
+        run: dotnet format backend/GestionGastos.slnx --verify-no-changes --no-restore
 
       # El fixture crea y migra gestiongastos_test por su cuenta; acá sólo hace falta que el
       # servidor esté arriba y que la variable exista. Sin ella el fixture lanza a propósito, en vez
@@ -119,7 +119,7 @@ jobs:
       # significa algo.
       - name: Tests
         run: >-
-          dotnet test backend/GestionGastos.sln --no-build
+          dotnet test backend/GestionGastos.slnx --no-build
           --filter "FullyQualifiedName!~Rendimiento"
         env:
           ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
@@ -131,10 +131,13 @@ jobs:
       #
       # Va después de Tests porque recompila con un DTO modificado, igual que la barrera del linter:
       # correrlo antes invalidaría el --no-build del paso de Tests.
-      - name: Barrera del contrato
-        run: ./backend/verificar-contrato.sh
-        env:
-          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+      # DESACTIVADO hasta T024, que es la tarea que crea el script. Mientras no exista, este paso
+      # falla con exit 127 y deja el job en rojo por una razón que no es la que el paso vigila.
+      # T024 lo vuelve a encender: descomentar estas cuatro líneas.
+      # - name: Barrera del contrato
+      #   run: ./backend/verificar-contrato.sh
+      #   env:
+      #     ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
 
       # La barrera del linter es configuración, y una barrera de configuración se puede desarmar en
       # silencio: alguien pone EnforceCodeStyleInBuild en false y el build sigue verde. Este paso es
@@ -143,5 +146,7 @@ jobs:
       #
       # Va ÚLTIMO a propósito: compila con un archivo temporal adentro, así que correrlo antes
       # invalidaría el --no-build del paso de Tests.
-      - name: Barrera del linter
-        run: ./backend/verificar-linter.sh
+      # DESACTIVADO hasta T025, que es la tarea que crea el script. Mismo motivo que la barrera
+      # del contrato. T025 lo vuelve a encender: descomentar estas dos líneas.
+      # - name: Barrera del linter
+      #   run: ./backend/verificar-linter.sh

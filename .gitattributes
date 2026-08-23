@@ -1,0 +1,8 @@
+# El repositorio vive en un filesystem de Windows montado en WSL, donde las herramientas de .NET
+# generan CRLF. La puerta usa `dotnet format --verify-no-changes` y `prettier --check`, que exigen
+# LF, así que se normaliza acá y no a mano en cada archivo generado.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
