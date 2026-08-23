@@ -17,21 +17,19 @@ public static class MovimientosEndpoints
             IUsuarioActual usuarioActual,
             TimeProvider reloj) =>
         {
-            // La validación completa —monto, categoría, tipo— es de US3 (T057-T062). Acá sólo se
-            // resuelve lo que el camino feliz necesita, y la entrada inválida se rechaza sin
-            // llegar a la base ni reventar con un 500.
-            if (!TipoMovimientoTexto.TryDesdeTexto(peticion.Tipo, out var tipo) ||
-                peticion.Monto is not { } monto ||
-                peticion.CategoriaId is not { } categoriaId)
+            var categoria = peticion.CategoriaId is { } id
+                ? await contexto.Categorias.FirstOrDefaultAsync(c => c.Id == id)
+                : null;
+
+            // Se valida TODO antes de tocar la base: la respuesta junta los errores de los cuatro
+            // campos en una sola pasada, en vez de hacer corregir de a uno.
+            var errores = ValidacionDelAlta.Validar(peticion, categoria, out var tipo);
+            if (errores.Count > 0)
             {
-                return Results.ValidationProblem(new Dictionary<string, string[]>(StringComparer.Ordinal));
+                return Results.ValidationProblem(errores);
             }
 
-            var categoria = await contexto.Categorias.FirstOrDefaultAsync(c => c.Id == categoriaId);
-            if (categoria is null)
-            {
-                return Results.ValidationProblem(new Dictionary<string, string[]>(StringComparer.Ordinal));
-            }
+            var monto = peticion.Monto!.Value;
 
             // FR-009: la moneda sale de la predeterminada del catálogo, no de una constante.
             var moneda = await contexto.Monedas.FirstAsync(m => m.EsPredeterminada);
@@ -48,7 +46,7 @@ public static class MovimientosEndpoints
                 Tipo = tipo,
                 Monto = monto,
                 MonedaId = moneda.Id,
-                CategoriaId = categoria.Id,
+                CategoriaId = categoria!.Id,
                 Fecha = fecha,
             };
 

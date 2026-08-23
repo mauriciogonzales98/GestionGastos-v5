@@ -165,18 +165,18 @@ visible en el listado, marcado como ingreso y no como gasto.
 **Independent Test**: intentar guardar cada variante inválida y verificar que se muestra el motivo y
 que la cantidad de movimientos registrados no cambia.
 
-- [ ] T057 [TEST] [US3] Escribir en `backend/GestionGastos.Api.Tests/Integracion/ValidacionMovimientoTests.cs` los tests de monto: vacío, `0`, negativo, `10.999` y `1000000000.00` devuelven `400` con `ProblemDetails` cuyo `errors` tiene la clave `monto`, y **la cantidad de filas no cambia**. Incluir los bordes que sí pasan: `0.01` y `999999999.99`. **Nombrar AC-18**. Mostrar el rojo
-- [ ] T058 [US3] Implementar la validación de monto en `backend/GestionGastos.Api/Movimientos/`, cubriendo FR-004 y FR-004b. El techo es una validación declarada, **no** un error genérico del almacenamiento
-- [ ] T059 [TEST] [US3] Agregar los tests de categoría: sin categoría, con categoría inexistente y con categoría de tipo distinto al del movimiento devuelven `400` con la clave `categoriaId` en `errors`. **Nombrar AC-40 y FR-011**. Mostrar el rojo
-- [ ] T060 [US3] Implementar las validaciones de categoría en `backend/GestionGastos.Api/Movimientos/` (FR-005 y FR-011), aplicándolas en la capa de aplicación y no sólo en el formulario
-- [ ] T061 [TEST] [US3] Agregar el test de `tipo` ausente o distinto de `gasto`/`ingreso`: `400` con la clave `tipo`. Mostrar el rojo
-- [ ] T062 [US3] Implementar esa validación y verificar que el formato de error es el mismo `ProblemDetails` para las cuatro familias ([research.md D-07](./research.md))
-- [ ] T063 [TEST] [US3] Escribir en `frontend/tests/ValidacionFormulario.test.tsx` los tests del cliente: cada mensaje aparece junto a su campo, con `aria-invalid` y `aria-describedby` puestos, y el formulario **conserva lo cargado**. **Nombrar AC-18 y AC-40**. Mostrar el rojo
-- [ ] T064 [TEST] [US3] Agregar el test de que un error devuelto por el servidor se enruta al **mismo lugar** que uno del cliente, mapeando la clave de `errors` al campo. Mostrar el rojo
-- [ ] T065 [US3] Implementar en `FormularioMovimiento.tsx` la validación de cliente y el mapeo de `errors` del servidor a `CampoConError`. Nada de `alert()`, notificaciones flotantes ni un bloque de errores agrupado arriba
-- [ ] T066 [TEST] [US3] Agregar el test del error sin campo: un fallo al persistir se muestra en la región de error del formulario, con `role="alert"`, conservando lo cargado. Mostrar el rojo
-- [ ] T067 [US3] Implementar la región de error del formulario y el estado *Enviando* que deshabilita el botón hasta la respuesta, evitando el doble envío
-- [ ] T068 [VERIFY] [US3] Puerta completa de frontend y backend
+- [X] T057 [TEST] [US3] Escribir en `backend/GestionGastos.Api.Tests/Integracion/ValidacionMovimientoTests.cs` los tests de monto: vacío, `0`, negativo, `10.999` y `1000000000.00` devuelven `400` con `ProblemDetails` cuyo `errors` tiene la clave `monto`, y **la cantidad de filas no cambia**. Incluir los bordes que sí pasan: `0.01` y `999999999.99`. **Nombrar AC-18**. Mostrar el rojo
+- [X] T058 [US3] Implementar la validación de monto en `backend/GestionGastos.Api/Movimientos/`, cubriendo FR-004 y FR-004b. El techo es una validación declarada, **no** un error genérico del almacenamiento
+- [X] T059 [TEST] [US3] Agregar los tests de categoría: sin categoría, con categoría inexistente y con categoría de tipo distinto al del movimiento devuelven `400` con la clave `categoriaId` en `errors`. **Nombrar AC-40 y FR-011**. Mostrar el rojo
+- [X] T060 [US3] Implementar las validaciones de categoría en `backend/GestionGastos.Api/Movimientos/` (FR-005 y FR-011), aplicándolas en la capa de aplicación y no sólo en el formulario
+- [X] T061 [TEST] [US3] Agregar el test de `tipo` ausente o distinto de `gasto`/`ingreso`: `400` con la clave `tipo`. Mostrar el rojo
+- [X] T062 [US3] Implementar esa validación y verificar que el formato de error es el mismo `ProblemDetails` para las cuatro familias ([research.md D-07](./research.md))
+- [X] T063 [TEST] [US3] Escribir en `frontend/tests/ValidacionFormulario.test.tsx` los tests del cliente: cada mensaje aparece junto a su campo, con `aria-invalid` y `aria-describedby` puestos, y el formulario **conserva lo cargado**. **Nombrar AC-18 y AC-40**. Mostrar el rojo
+- [X] T064 [TEST] [US3] Agregar el test de que un error devuelto por el servidor se enruta al **mismo lugar** que uno del cliente, mapeando la clave de `errors` al campo. Mostrar el rojo
+- [X] T065 [US3] Implementar en `FormularioMovimiento.tsx` la validación de cliente y el mapeo de `errors` del servidor a `CampoConError`. Nada de `alert()`, notificaciones flotantes ni un bloque de errores agrupado arriba
+- [X] T066 [TEST] [US3] Agregar el test del error sin campo: un fallo al persistir se muestra en la región de error del formulario, con `role="alert"`, conservando lo cargado. Mostrar el rojo
+- [X] T067 [US3] Implementar la región de error del formulario y el estado *Enviando* que deshabilita el botón hasta la respuesta, evitando el doble envío
+- [X] T068 [VERIFY] [US3] Puerta completa de frontend y backend
 
 **Checkpoint**: las tres historias completas. Nada inválido entra a la base.
 
