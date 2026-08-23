@@ -72,8 +72,8 @@ FEAT-001c se escribió, se verificó y se mergeó sin linter, porque el linter n
 
 ### Dominio y persistencia
 
-- [ ] T013 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Unitarios/RangoDelMesTests.cs` los tests de `RangoDelMes.De(DateOnly)`: primer y último día del mes, con fechas fijas para un mes de 31, uno de 30, febrero común y febrero bisiesto. **Nombrar AC-25**. Correr y mostrar el rojo
-- [ ] T014 Implementar el tipo puro `RangoDelMes` con `De(DateOnly hoy)` en `backend/GestionGastos.Api/Dominio/RangoDelMes.cs`. Parametrizado por fecha, nunca lee `DateTime.Now` ([research.md D-03](./research.md))
+- [X] T013 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Unitarios/RangoDelMesTests.cs` los tests de `RangoDelMes.De(DateOnly)`: primer y último día del mes, con fechas fijas para un mes de 31, uno de 30, febrero común y febrero bisiesto. **Nombrar AC-25**. Correr y mostrar el rojo
+- [X] T014 Implementar el tipo puro `RangoDelMes` con `De(DateOnly hoy)` en `backend/GestionGastos.Api/Dominio/RangoDelMes.cs`. Parametrizado por fecha, nunca lee `DateTime.Now` ([research.md D-03](./research.md))
 - [ ] T015 [P] Crear las entidades de `backend/GestionGastos.Api/Dominio/`: `Movimiento.cs`, `Categoria.cs`, `Moneda.cs`, `Usuario.cs` y el enum `TipoMovimiento`, con los campos de [data-model.md](./data-model.md)
 - [ ] T016 Crear `backend/GestionGastos.Api/Persistencia/GestionGastosDbContext.cs` con las configuraciones de [data-model.md](./data-model.md): `decimal(11,2)` y `CHECK (monto > 0)` en `monto`, `date` en `fecha`, `categoria.usuario_id` nullable, `UNIQUE (usuario_id, nombre, tipo)` en categoría, y el índice `(usuario_id, fecha DESC, id DESC)` en movimiento
 - [ ] T017 Crear `backend/GestionGastos.Api/Persistencia/IUsuarioActual.cs` y su única implementación, que devuelve el id de la fila semilla ([research.md D-05](./research.md))
