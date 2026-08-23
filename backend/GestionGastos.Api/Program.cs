@@ -1,4 +1,5 @@
 using GestionGastos.Api.Categorias;
+using GestionGastos.Api.Movimientos;
 using GestionGastos.Api.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,11 +20,15 @@ builder.Services.AddDbContext<GestionGastosDbContext>(o =>
 
 builder.Services.AddSingleton<IUsuarioActual, UsuarioSemilla>();
 
+// El reloj es un servicio para que los tests puedan clavarlo en una fecha (D-03, AC-17).
+builder.Services.AddSingleton(TimeProvider.System);
+
 var app = builder.Build();
 
 app.MapGet("/", () => "GestionGastos API");
 
 app.MapCategorias();
+app.MapMovimientos();
 
 app.Run();
 

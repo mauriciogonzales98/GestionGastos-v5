@@ -106,9 +106,9 @@ en el listado, sin necesitar ninguna otra funcionalidad.
 
 ### Backend — alta
 
-- [ ] T028 [TEST] [US1] Escribir en `backend/GestionGastos.Api.Tests/Integracion/AltaMovimientoTests.cs` el test de `POST /api/movimientos` con gasto válido: responde `201`, devuelve el movimiento completo y queda una fila con el `usuario_id` del usuario semilla. **Nombrar AC-15**. Mostrar el rojo
-- [ ] T029 [TEST] [US1] Agregar en el mismo archivo el test de la fecha por defecto: petición sin `fecha` queda registrada con el día que se le inyecta como "hoy", no con `DateTime.Now`. **Nombrar AC-17**. Mostrar el rojo
-- [ ] T030 [US1] Implementar `POST /api/movimientos` en `backend/GestionGastos.Api/Movimientos/`, con su DTO de petición y de respuesta según [contracts/api-http.md](./contracts/api-http.md). La moneda sale de la predeterminada del catálogo (FR-009) y el propietario de `IUsuarioActual`, asignado a mano en el `INSERT` (FR-010)
+- [X] T028 [TEST] [US1] Escribir en `backend/GestionGastos.Api.Tests/Integracion/AltaMovimientoTests.cs` el test de `POST /api/movimientos` con gasto válido: responde `201`, devuelve el movimiento completo y queda una fila con el `usuario_id` del usuario semilla. **Nombrar AC-15**. Mostrar el rojo
+- [X] T029 [TEST] [US1] Agregar en el mismo archivo el test de la fecha por defecto: petición sin `fecha` queda registrada con el día que se le inyecta como "hoy", no con `DateTime.Now`. **Nombrar AC-17**. Mostrar el rojo
+- [X] T030 [US1] Implementar `POST /api/movimientos` en `backend/GestionGastos.Api/Movimientos/`, con su DTO de petición y de respuesta según [contracts/api-http.md](./contracts/api-http.md). La moneda sale de la predeterminada del catálogo (FR-009) y el propietario de `IUsuarioActual`, asignado a mano en el `INSERT` (FR-010)
 
 ### Backend — listado
 

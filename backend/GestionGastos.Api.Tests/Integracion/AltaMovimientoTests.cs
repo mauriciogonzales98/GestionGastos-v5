@@ -1,0 +1,110 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using GestionGastos.Api.Persistencia;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace GestionGastos.Api.Tests.Integracion;
+
+/// <summary>
+/// El alta de un movimiento (FR-001, FR-002).
+/// </summary>
+[Collection(BaseDeDatosSuite.Nombre)]
+public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
+{
+    private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
+
+    /// <summary>
+    /// AC-15 (RF-10): completado monto, categoría y fecha de un gasto, al guardar el gasto queda
+    /// registrado y disponible para el listado. Acá se verifica el lado del servidor: la respuesta
+    /// y la fila.
+    /// </summary>
+    [Fact]
+    public async Task Registra_Un_Gasto_Valido_Y_Devuelve_El_Movimiento_Entero_AC15()
+    {
+        await _baseDeDatos.LimpiarMovimientosAsync();
+        using var factoria = CrearFactoria(new DateOnly(2026, 8, 23));
+        using var cliente = factoria.CreateClient();
+
+        using var respuesta = await cliente.PostAsJsonAsync(
+            new Uri("/api/movimientos", UriKind.Relative),
+            new { tipo = "gasto", monto = 1250.50m, categoriaId = 1, fecha = "2026-08-23" });
+
+        Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+        var creado = json.RootElement;
+
+        // Devolver el movimiento entero —y no sólo el id— es lo que permite a la pantalla
+        // insertarlo en el listado sin volver a pedirlo (FR-014).
+        Assert.True(creado.GetProperty("id").GetInt64() > 0);
+        Assert.Equal("gasto", creado.GetProperty("tipo").GetString());
+        Assert.Equal(1250.50m, creado.GetProperty("monto").GetDecimal());
+        Assert.Equal(1, creado.GetProperty("categoriaId").GetInt32());
+        Assert.Equal("Comida", creado.GetProperty("categoriaNombre").GetString());
+        Assert.Equal("ARS", creado.GetProperty("monedaCodigo").GetString());
+        Assert.Equal("2026-08-23", creado.GetProperty("fecha").GetString());
+
+        // La fila existe y es del usuario semilla. FR-010: el propietario se asigna en el INSERT,
+        // a mano, y no por un default del esquema.
+        await using var contexto = _baseDeDatos.CrearContexto();
+        var fila = await contexto.Movimientos.SingleAsync();
+        Assert.Equal(UsuarioSemilla.IdSemilla, fila.UsuarioId);
+        Assert.Equal(1250.50m, fila.Monto);
+        Assert.Equal(new DateOnly(2026, 8, 23), fila.Fecha);
+    }
+
+    /// <summary>
+    /// AC-17 (RF-12): completados monto y categoría sin tocar el campo fecha, el movimiento queda
+    /// registrado con la fecha del día actual.
+    ///
+    /// El "hoy" se inyecta. Si el servidor leyera DateTime.Now, este test pasaría igual el día que
+    /// corre y sería incapaz de detectar que lee mal — por eso la fecha inyectada es una que no es
+    /// hoy.
+    /// </summary>
+    [Fact]
+    public async Task Sin_Fecha_Queda_Registrado_Con_El_Hoy_Inyectado_AC17()
+    {
+        await _baseDeDatos.LimpiarMovimientosAsync();
+        var hoyInyectado = new DateOnly(2026, 3, 7);
+        using var factoria = CrearFactoria(hoyInyectado);
+        using var cliente = factoria.CreateClient();
+
+        using var respuesta = await cliente.PostAsJsonAsync(
+            new Uri("/api/movimientos", UriKind.Relative),
+            new { tipo = "gasto", monto = 100m, categoriaId = 1 });
+
+        Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+        Assert.Equal("2026-03-07", json.RootElement.GetProperty("fecha").GetString());
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        var fila = await contexto.Movimientos.SingleAsync();
+        Assert.Equal(hoyInyectado, fila.Fecha);
+        Assert.NotEqual(DateOnly.FromDateTime(DateTime.Now), fila.Fecha);
+    }
+
+    [Fact]
+    public async Task Fecha_Nula_Explicita_Tambien_Cae_En_El_Hoy_Inyectado_AC17()
+    {
+        await _baseDeDatos.LimpiarMovimientosAsync();
+        using var factoria = CrearFactoria(new DateOnly(2026, 3, 7));
+        using var cliente = factoria.CreateClient();
+
+        // El contrato dice "ausente o null": mandar null explícito no puede comportarse distinto.
+        using var respuesta = await cliente.PostAsJsonAsync(
+            new Uri("/api/movimientos", UriKind.Relative),
+            new { tipo = "gasto", monto = 100m, categoriaId = 1, fecha = (string?)null });
+
+        Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+        Assert.Equal("2026-03-07", json.RootElement.GetProperty("fecha").GetString());
+    }
+
+    private static FactoriaConReloj CrearFactoria(DateOnly hoy) => new(hoy);
+}
