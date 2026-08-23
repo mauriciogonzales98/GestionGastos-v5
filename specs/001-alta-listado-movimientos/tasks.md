@@ -82,9 +82,9 @@ FEAT-001c se escribió, se verificó y se mergeó sin linter, porque el linter n
 
 ### El catálogo de categorías (FR-006) — lo que le da a las barreras algo real que proteger
 
-- [ ] T020 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Integracion/CategoriasEndpointTests.cs` el test de `GET /api/categorias`: devuelve exactamente 10 categorías, 7 de tipo `gasto` y 3 de tipo `ingreso`, con `tipo` como cadena. **Nombrar AC-10**. Mostrar el rojo
-- [ ] T021 Implementar `GET /api/categorias` en `backend/GestionGastos.Api/Categorias/`, con el DTO y el mapeo de `tipo` a cadena según [contracts/api-http.md](./contracts/api-http.md)
-- [ ] T022 Crear `frontend/src/api/tipos.ts` con la interfaz `Categoria` y el tipo `TipoMovimiento`. **Este archivo es la fuente de verdad del contrato** ([research.md D-09](./research.md))
+- [X] T020 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Integracion/CategoriasEndpointTests.cs` el test de `GET /api/categorias`: devuelve exactamente 10 categorías, 7 de tipo `gasto` y 3 de tipo `ingreso`, con `tipo` como cadena. **Nombrar AC-10**. Mostrar el rojo
+- [X] T021 Implementar `GET /api/categorias` en `backend/GestionGastos.Api/Categorias/`, con el DTO y el mapeo de `tipo` a cadena según [contracts/api-http.md](./contracts/api-http.md)
+- [X] T022 Crear `frontend/src/api/tipos.ts` con la interfaz `Categoria` y el tipo `TipoMovimiento`. **Este archivo es la fuente de verdad del contrato** ([research.md D-09](./research.md))
 
 ### Las barreras (Principio V)
 

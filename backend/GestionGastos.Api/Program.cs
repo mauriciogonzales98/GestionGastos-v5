@@ -1,3 +1,4 @@
+using GestionGastos.Api.Categorias;
 using GestionGastos.Api.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +22,8 @@ builder.Services.AddSingleton<IUsuarioActual, UsuarioSemilla>();
 var app = builder.Build();
 
 app.MapGet("/", () => "GestionGastos API");
+
+app.MapCategorias();
 
 app.Run();
 
