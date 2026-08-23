@@ -169,7 +169,7 @@ specs/001-alta-listado-movimientos/
 
 ```text
 backend/
-├── GestionGastos.sln
+├── GestionGastos.slnx
 ├── Directory.Build.props          # Enciende los analizadores de Roslyn
 ├── .editorconfig                  # Qué reglas se aplican y cuáles se apagan, con su motivo
 ├── verificar-linter.sh            # Barrera: prueba que el linter sabe romper el build

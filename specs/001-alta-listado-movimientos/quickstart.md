@@ -98,15 +98,15 @@ pnpm --dir frontend exec tsc --noEmit
 pnpm --dir frontend test
 
 # Backend
-dotnet format backend/GestionGastos.sln --verify-no-changes
-dotnet build backend/GestionGastos.sln -warnaserror
+dotnet format backend/GestionGastos.slnx --verify-no-changes
+dotnet build backend/GestionGastos.slnx -warnaserror
 dotnet test backend/
 ```
 
 **Antes de cerrar la feature**, además:
 
 ```bash
-dotnet test backend/GestionGastos.sln --settings backend/cobertura.runsettings
+dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings
 ./backend/verificar-contrato.sh    # ~90 s: corre dotnet test tres veces
 ./backend/verificar-linter.sh      # compila con un archivo temporal adentro; va al final
 ```

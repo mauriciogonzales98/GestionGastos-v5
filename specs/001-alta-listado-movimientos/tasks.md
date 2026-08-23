@@ -41,7 +41,7 @@ Web app: `backend/` y `frontend/`, como fija `AGENTS.md` y detalla *Project Stru
 `.editorconfig`, `verificar-contrato.sh` y `verificar-linter.sh`. El CI falla en el primer push
 mientras no estén. Registrado en *Complexity Tracking* de [plan.md](./plan.md).
 
-- [X] T001 Crear la solución y los dos proyectos en `backend/GestionGastos.sln`: `GestionGastos.Api` (web, .NET 10) y `GestionGastos.Api.Tests` (xUnit), con la referencia de tests a Api
+- [X] T001 Crear la solución y los dos proyectos en `backend/GestionGastos.slnx`: `GestionGastos.Api` (web, .NET 10) y `GestionGastos.Api.Tests` (xUnit), con la referencia de tests a Api
 - [X] T002 Agregar los paquetes del backend en `backend/GestionGastos.Api/GestionGastos.Api.csproj`: `Microsoft.EntityFrameworkCore` 9.0.18 y `Pomelo.EntityFrameworkCore.MySql` 9.0.0
 - [X] T003 Crear `backend/Directory.Build.props` encendiendo los analizadores de Roslyn (`EnableNETAnalyzers`, `AnalysisLevel`, `EnforceCodeStyleInBuild`) para todos los proyectos de la solución
 - [X] T004 Crear `backend/.editorconfig` con las reglas activas y, para cada regla apagada, un comentario con el motivo. Excluir `Migrations/` del análisis: es código generado
@@ -52,7 +52,7 @@ mientras no estén. Registrado en *Complexity Tracking* de [plan.md](./plan.md).
 - [X] T009 Configurar Vitest con entorno `jsdom` en `frontend/vite.config.ts` y definir en `frontend/package.json` los scripts `dev`, `build`, `lint`, `format`, `test` que `.github/workflows/ci.yml` invoca. **`format` tiene que ser `prettier --check .`**, que verifica sin escribir: el CI lo corre como paso de verificación y `AGENTS.md` lo declara el espejo de `dotnet format --verify-no-changes`. Si saliera como `--write`, ese paso jamás podría ponerse en rojo y encima modificaría archivos en el runner. Para formatear de verdad va un script aparte, `format:fix`, con `prettier --write .`
 - [X] T010 Escribir el primer test del frontend en `frontend/tests/humo.test.ts` —una aserción trivial sobre el entorno— y correr `pnpm --dir frontend test` para ver la suite en verde. **Sin `--passWithNoTests`**: Vitest falla cuando no encuentra tests, y esa señal se apaga con la bandera en vez de arreglarse. Con TDD siempre hay un test antes que su código, así que la bandera nunca hace falta
 - [X] T011 Actualizar `.gitignore` en la raíz para `bin/`, `obj/`, `node_modules/`, `dist/` y los archivos de user-secrets
-- [X] T012 [VERIFY] Puerta del andamiaje, con los mismos comandos que corre el CI: `dotnet build backend/GestionGastos.sln -warnaserror`, `dotnet format backend/GestionGastos.sln --verify-no-changes`, `pnpm --dir frontend lint`, `pnpm --dir frontend format`, `pnpm --dir frontend exec tsc --noEmit`, `pnpm --dir frontend test`. Verde es cero fallos **y cero warnings**
+- [X] T012 [VERIFY] Puerta del andamiaje, con los mismos comandos que corre el CI: `dotnet build backend/GestionGastos.slnx -warnaserror`, `dotnet format backend/GestionGastos.slnx --verify-no-changes`, `pnpm --dir frontend lint`, `pnpm --dir frontend format`, `pnpm --dir frontend exec tsc --noEmit`, `pnpm --dir frontend test`. Verde es cero fallos **y cero warnings**
 
 **Checkpoint**: la solución compila vacía y el frontend arranca. Las barreras todavía no existen.
 
@@ -185,7 +185,7 @@ que la cantidad de movimientos registrados no cambia.
 
 - [ ] T069 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Rendimiento/RendimientoAltaTests.cs` la medición de AC-34: p95 del guardado < 1 s sobre 100 ejecuciones. **Nombrar AC-34**
 - [ ] T070 Agregar el guardarraíl del sembrado de rendimiento: una función pura parametrizada por fecha, anclada al año en curso, y una confirmación explícita de que el mes sembrado tiene filas. Sin ese guardarraíl el test pasa en verde midiendo una consulta vacía — es la lección que el plan `DISC-001` deja escrita en FIX-004
-- [ ] T071 Correr la cobertura con `dotnet test backend/GestionGastos.sln --settings backend/cobertura.runsettings` y revisar que el código de `Contrato/` quede medido
+- [ ] T071 Correr la cobertura con `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings` y revisar que el código de `Contrato/` quede medido
 - [ ] T072 [P] Revisar que ningún AC de SC-005 quede sin test que lo nombre: AC-10, AC-15, AC-16, AC-17, AC-18, AC-22, AC-25, AC-34, AC-40, AC-55. Un AC sin test cubierto no cuenta como implementado (Principio II)
 - [ ] T073 [P] Revisar que no haya ningún `any` sin comentario justificativo ni ningún catch silencioso en `frontend/src/` y `backend/GestionGastos.Api/`
 - [ ] T074 Escribir el ADR de la excepción de estructura —los tests de `Contrato/` leyendo `frontend/src/api/tipos.ts`— que `AGENTS.md` referencia pero que todavía no existe en el repositorio

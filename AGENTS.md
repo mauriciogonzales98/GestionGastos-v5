@@ -50,9 +50,9 @@ en todos lados.
 | Format (frontend) | `pnpm --dir frontend format` — `prettier --check`: **verifica sin modificar archivos**, para que el paso del CI pueda ponerse en rojo. Para formatear de verdad: `pnpm --dir frontend format:fix` |
 | Typecheck | `pnpm --dir frontend exec tsc --noEmit` |
 | Test (frontend) | `pnpm --dir frontend test` |
-| Lint (backend) | `dotnet format backend/GestionGastos.sln --verify-no-changes` — espejo de `prettier --check`: verifica sin modificar archivos |
-| Build (backend) | `dotnet build backend/GestionGastos.sln -warnaserror` — además de compilar corre los analizadores de Roslyn, así que un hallazgo de calidad rompe el build. Qué reglas se aplican y cuáles se apagan, con su motivo: `backend/.editorconfig` |
-| Cobertura (backend) | `dotnet test backend/GestionGastos.sln --settings backend/cobertura.runsettings` — mide también el código de `Contrato/`, que vive en el proyecto de tests y que coverlet no instrumenta por defecto |
+| Lint (backend) | `dotnet format backend/GestionGastos.slnx --verify-no-changes` — espejo de `prettier --check`: verifica sin modificar archivos |
+| Build (backend) | `dotnet build backend/GestionGastos.slnx -warnaserror` — además de compilar corre los analizadores de Roslyn, así que un hallazgo de calidad rompe el build. Qué reglas se aplican y cuáles se apagan, con su motivo: `backend/.editorconfig` |
+| Cobertura (backend) | `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings` — mide también el código de `Contrato/`, que vive en el proyecto de tests y que coverlet no instrumenta por defecto |
 | Barrera del contrato (backend) | `./backend/verificar-contrato.sh` — comprueba que la verificación del contrato frontend↔backend se pone en rojo cuando el contrato se desalinea, no sólo que los tests pasan. Corre `dotnet test` tres veces, así que tarda ~90 s |
 | Barrera del linter (backend) | `./backend/verificar-linter.sh` — comprueba que la barrera del linter siga en pie: una violación deliberada rompe el build en código escrito a mano y no lo rompe dentro de `Migrations/`. Compila con un archivo temporal adentro, así que va después de los tests |
 | Test (backend) | `dotnet test backend/` — requiere `ConnectionStrings__Default` apuntando a `gestiongastos_test`. CI agrega `--filter "FullyQualifiedName!~Rendimiento"`: los tests de rendimiento miden tiempo de pared y en un runner compartido dan rojos que no dicen nada. En local corren todos |
