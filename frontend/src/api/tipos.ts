@@ -26,3 +26,41 @@ export interface Categoria {
   nombre: string;
   tipo: TipoMovimiento;
 }
+
+/** Un movimiento tal como lo devuelven el alta y el listado: la misma forma en los dos. */
+export interface Movimiento {
+  id: number;
+  tipo: TipoMovimiento;
+  monto: number;
+  categoriaId: number;
+  /** Viaja junto al id para que el listado no tenga que cruzar contra el catálogo. */
+  categoriaNombre: string;
+  monedaCodigo: string;
+  /** `YYYY-MM-DD`. Sin hora ni zona horaria. */
+  fecha: string;
+}
+
+/**
+ * Lo que se manda al registrar. `fecha` es opcional: ausente o null significa hoy, y ese valor lo
+ * pone el servidor (AC-17).
+ *
+ * No lleva moneda: se registra en la predeterminada del catálogo (FR-009).
+ */
+export interface NuevoMovimiento {
+  tipo: TipoMovimiento;
+  monto: number;
+  categoriaId: number;
+  fecha?: string | null;
+}
+
+/**
+ * El formato único de error de las dos capas (RFC 9457). La clave de `errors` es el nombre del
+ * campo de la petición, y eso es lo que permite poner cada mensaje al lado de su control en vez de
+ * volcar un texto suelto.
+ */
+export interface ProblemDetails {
+  type: string;
+  title: string;
+  status: number;
+  errors?: Record<string, string[]>;
+}

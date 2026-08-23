@@ -112,11 +112,11 @@ en el listado, sin necesitar ninguna otra funcionalidad.
 
 ### Backend — listado
 
-- [ ] T031 [TEST] [US1] Escribir en `backend/GestionGastos.Api.Tests/Integracion/ListadoMovimientosTests.cs` el test de `GET /api/movimientos`: devuelve los del mes actual y **no** los de fuera, verificando los cuatro bordes con fechas fijas (último día del mes anterior, primero del actual, último del actual, primero del siguiente). **Nombrar AC-25**. Mostrar el rojo
-- [ ] T032 [TEST] [US1] Agregar el test de orden en doble capa: uno sobre el resultado (`fecha DESC`, desempate por `id DESC`) y otro que falla si el `OrderBy` desaparece de la consulta. El índice devuelve el orden correcto aunque la consulta no lo pida ([research.md D-04](./research.md)). Mostrar el rojo
-- [ ] T033 [TEST] [US1] Agregar el test de listado vacío: sin movimientos en el mes devuelve `200` con arreglo vacío, no `404`. **Nombrar FR-012**. Mostrar el rojo
-- [ ] T034 [US1] Implementar `GET /api/movimientos` en `backend/GestionGastos.Api/Movimientos/`, filtrando por `RangoDelMes.De(hoy)` con extremos incluidos y ordenando explícitamente por `fecha DESC, id DESC`
-- [ ] T035 [US1] Extender `frontend/src/api/tipos.ts` con `Movimiento`, `NuevoMovimiento` y el tipo de error `ProblemDetails`, y agregar en `backend/GestionGastos.Api.Tests/Contrato/` la verificación de esos tres tipos contra el JSON real
+- [X] T031 [TEST] [US1] Escribir en `backend/GestionGastos.Api.Tests/Integracion/ListadoMovimientosTests.cs` el test de `GET /api/movimientos`: devuelve los del mes actual y **no** los de fuera, verificando los cuatro bordes con fechas fijas (último día del mes anterior, primero del actual, último del actual, primero del siguiente). **Nombrar AC-25**. Mostrar el rojo
+- [X] T032 [TEST] [US1] Agregar el test de orden en doble capa: uno sobre el resultado (`fecha DESC`, desempate por `id DESC`) y otro que falla si el `OrderBy` desaparece de la consulta. El índice devuelve el orden correcto aunque la consulta no lo pida ([research.md D-04](./research.md)). Mostrar el rojo
+- [X] T033 [TEST] [US1] Agregar el test de listado vacío: sin movimientos en el mes devuelve `200` con arreglo vacío, no `404`. **Nombrar FR-012**. Mostrar el rojo
+- [X] T034 [US1] Implementar `GET /api/movimientos` en `backend/GestionGastos.Api/Movimientos/`, filtrando por `RangoDelMes.De(hoy)` con extremos incluidos y ordenando explícitamente por `fecha DESC, id DESC`
+- [X] T035 [US1] Extender `frontend/src/api/tipos.ts` con `Movimiento`, `NuevoMovimiento` y el tipo de error `ProblemDetails`, y agregar en `backend/GestionGastos.Api.Tests/Contrato/` la verificación de esos tres tipos contra el JSON real
 
 ### Frontend
 

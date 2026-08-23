@@ -66,5 +66,31 @@ public static class MovimientosEndpoints
 
             return Results.Created($"/api/movimientos/{movimiento.Id}", creado);
         });
+
+        rutas.MapGet("/api/movimientos", async (
+            GestionGastosDbContext contexto,
+            IUsuarioActual usuarioActual,
+            TimeProvider reloj) =>
+        {
+            // El recorte al mes actual es del servidor y no se expone como control (FR-007):
+            // ponerlo en el cliente lo convertiría en algo que el cliente puede cambiar. Los
+            // parámetros de rango llegan en FEAT-001b.
+            var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+
+            var movimientos = await MovimientosConsulta
+                .DelMes(contexto, usuarioActual.Id, RangoDelMes.De(hoy))
+                .Select(m => new MovimientoDto(
+                    m.Id,
+                    m.Tipo == TipoMovimiento.Gasto ? TipoMovimientoTexto.Gasto : TipoMovimientoTexto.Ingreso,
+                    m.Monto,
+                    m.CategoriaId,
+                    m.Categoria!.Nombre,
+                    m.Moneda!.Codigo,
+                    m.Fecha))
+                .ToListAsync();
+
+            // Arreglo vacío si no hay movimientos en el mes: NO es un 404 (FR-012).
+            return Results.Ok(movimientos);
+        });
     }
 }
