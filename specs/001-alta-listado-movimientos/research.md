@@ -155,13 +155,16 @@ con su ADR. Cambiar eso es una decisión de arquitectura que excede esta feature
 
 ## D-10 — Dependencias nuevas del frontend (requieren justificación por `AGENTS.md`)
 
-**Decisión**: agregar `@testing-library/react`, `@testing-library/user-event` y `jsdom` como
+**Decisión**: agregar `@testing-library/react`, `@testing-library/user-event` y un entorno DOM como
 dependencias **de desarrollo** del frontend. Ninguna dependencia nueva de producción.
+
+El entorno DOM en uso es **`happy-dom`**, no `jsdom` como fijaba originalmente esta decisión. El
+motivo es del entorno de trabajo y no del código, y está detallado abajo en *Revisión*.
 
 **Rationale**: AC-55 exige que el formulario se pueda recorrer, completar y enviar **íntegramente
 con el teclado**, y FR-014 exige que tras guardar el foco vuelva al primer campo. `user-event` es
 lo que simula tabulación y foco reales; sin él, AC-55 no tiene test automatizado y el Principio II
-de la constitución queda incumplido. `jsdom` es el entorno DOM que Vitest necesita para eso.
+de la constitución queda incumplido. Un entorno DOM es lo que Vitest necesita para eso.
 `@testing-library/react` es la forma estándar de montar el componente sin acoplarse a su estructura
 interna.
 
@@ -169,6 +172,22 @@ interna.
 (un AC sin test cubierto no se considera implementado). Playwright o similar — cubre el teclado de
 verdad en un navegador, pero es una dependencia mucho más pesada y un runner nuevo, y `AGENTS.md`
 fija Vitest como el runner del frontend.
+
+**Revisión (2026-08-23) — el entorno DOM pasa a `happy-dom`**: el repositorio de trabajo vive en
+`/mnt/c`, el disco de Windows montado dentro de WSL2, donde cada lectura de archivo cruza el
+protocolo 9P. Ahí **jsdom no arranca**: su árbol de módulos tarda en cargar más de los 60 s que
+Vitest espera por un worker (`START_TIMEOUT`, hardcodeado en Vitest 4 y no configurable). Medido
+sobre la misma suite: jsdom no arranca, `happy-dom` pasa en 45,6 s, y con entorno `node` el worker
+levanta en 21 s — lo que aísla la causa en la carga del entorno DOM, no en el pool ni en el test.
+Cambiar el pool no lo salva: `forks` y `threads` fallan igual. Se acompaña con `pool: 'threads'`
+por el mismo motivo. El commit es `a5017f7`.
+
+**Costo aceptado**: `happy-dom` es una reimplementación más liviana y menos fiel del DOM que jsdom,
+y AC-55 es justamente el AC que depende de la fidelidad del foco y la tabulación. Como
+`vite.config.ts` está versionado, el CI corre el mismo entorno, así que la verificación es
+consistente en todos lados pero menos exigente que lo que esta decisión eligió en su origen. Si el
+repositorio vuelve a un filesystem Linux nativo, corresponde volver a jsdom: el comentario en
+`frontend/vite.config.ts` deja la condición escrita.
 
 ---
 
