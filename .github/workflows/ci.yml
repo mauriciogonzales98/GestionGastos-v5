@@ -1,0 +1,147 @@
+name: CI
+
+# La misma puerta de calidad que exige la constitución (.specify/memory/constitution.md), corrida
+# en un runner limpio. No reemplaza la corrida local: es la red que atrapa lo que sólo se rompe
+# fuera de tu máquina (un bit de ejecución faltante, una dependencia que estaba instalada global,
+# un lockfile desalineado).
+on:
+  # Push sobre cualquier rama que no sea main, además de en los PR. Así una feature ve y mide su
+  # propio pipeline mientras se construye, en vez de descubrirlo recién al abrir el PR.
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+
+# Sólo lectura del repo: el workflow no comenta, no etiqueta y no publica nada, así que el token no
+# necesita permisos de escritura. Si algún día un job los precisa, se los agrega ese job y no el
+# archivo entero.
+permissions:
+  contents: read
+
+# Un push nuevo sobre el mismo PR cancela la corrida anterior: lo que importa es el último commit.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend — lint, tipos y tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm antes que Node: setup-node necesita encontrarlo para resolver su caché.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      # --frozen-lockfile: si el lockfile no coincide con package.json, falla en vez de resolver
+      # versiones nuevas por su cuenta. Una corrida de CI no es el lugar donde se decide una versión.
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Formato
+        run: pnpm format
+
+      # El type checker va aparte de los tests: Vitest transpila sin chequear tipos, así que un
+      # error de tipos no aparecería en la suite.
+      - name: Type checker
+        run: pnpm exec tsc --noEmit
+
+      - name: Tests
+        run: pnpm test
+
+  backend:
+    name: Backend — build y tests
+    runs-on: ubuntu-latest
+
+    # Los tests corren contra MySQL real: el tipo de columna y las restricciones del esquema son
+    # justamente lo que verifican, y un proveedor en memoria es ciego a eso. El service container
+    # corre en el propio runner —no es un servicio externo— y se destruye con el job.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          # Base efímera, sin contraseña: así no hay ningún secreto que escribir en este archivo ni
+          # que guardar en el repositorio. Vive lo que dura el job y nadie más la alcanza.
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: gestiongastos_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --host=127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restaurar
+        run: dotnet restore backend/GestionGastos.sln
+
+      # Este paso ES el linter de calidad del backend: backend/Directory.Build.props enciende los
+      # analizadores de Roslyn, que corren dentro de la compilación, y -warnaserror convierte
+      # cualquier hallazgo en un PR roto. Qué reglas se aplican: backend/.editorconfig.
+      - name: Build
+        run: dotnet build backend/GestionGastos.sln --no-restore -warnaserror
+
+      # El formato va aparte del build, igual que el job de frontend separa Lint de Formato: los
+      # analizadores miran calidad y `dotnet format` mira formato, y una sola de las dos familias
+      # deja media barrera. Va entre Build y Tests para no cortar la cadena restore -> build -> test
+      # que --no-restore y --no-build encadenan.
+      - name: Formato
+        run: dotnet format backend/GestionGastos.sln --verify-no-changes --no-restore
+
+      # El fixture crea y migra gestiongastos_test por su cuenta; acá sólo hace falta que el
+      # servidor esté arriba y que la variable exista. Sin ella el fixture lanza a propósito, en vez
+      # de adivinar contra qué base está escribiendo.
+      #
+      # Se excluyen los tests de rendimiento: miden tiempo de pared y en un runner compartido dan
+      # rojos que no dicen nada del código. Siguen corriendo en local, que es donde la medición
+      # significa algo.
+      - name: Tests
+        run: >-
+          dotnet test backend/GestionGastos.sln --no-build
+          --filter "FullyQualifiedName!~Rendimiento"
+        env:
+          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+
+      # El contrato HTTP está escrito dos veces —en los record de C# y en las interfaces de
+      # frontend/src/api/tipos.ts— y si nada compara las dos copias, un rename coherente del backend
+      # deja todo en verde y hace llegar undefined a la pantalla. Este paso comprueba que la barrera
+      # que lo detecta sigue en pie, no sólo que los tests pasan (principio V de la constitución).
+      #
+      # Va después de Tests porque recompila con un DTO modificado, igual que la barrera del linter:
+      # correrlo antes invalidaría el --no-build del paso de Tests.
+      - name: Barrera del contrato
+        run: ./backend/verificar-contrato.sh
+        env:
+          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+
+      # La barrera del linter es configuración, y una barrera de configuración se puede desarmar en
+      # silencio: alguien pone EnforceCodeStyleInBuild en false y el build sigue verde. Este paso es
+      # lo único que se pone en rojo cuando eso pasa. Verifica las dos direcciones — una violación
+      # deliberada rompe el build en código escrito a mano y no lo rompe dentro de Migrations/.
+      #
+      # Va ÚLTIMO a propósito: compila con un archivo temporal adentro, así que correrlo antes
+      # invalidaría el --no-build del paso de Tests.
+      - name: Barrera del linter
+        run: ./backend/verificar-linter.sh
