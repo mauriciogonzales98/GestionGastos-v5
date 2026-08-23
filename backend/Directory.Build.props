@@ -1,0 +1,30 @@
+<Project>
+
+  <!--
+    El linter de calidad del backend. Los analizadores de Roslyn corren DENTRO de la compilación,
+    así que con -warnaserror en el CI un hallazgo de calidad rompe el build igual que un error de
+    sintaxis. Qué reglas se aplican y cuáles se apagan, con su motivo: .editorconfig.
+
+    Esta configuración es una barrera y se puede desarmar en silencio poniendo cualquiera de estas
+    propiedades en false. Lo único que se pone en rojo cuando eso pasa es verificar-linter.sh, que
+    el CI corre en cada push.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Los analizadores del SDK, en su nivel más exigente. -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-all</AnalysisLevel>
+
+    <!-- Sin esto las reglas de estilo (IDExxxx) se evalúan en el IDE pero no en la compilación,
+         que es donde el CI mira. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- El idioma de trabajo del proyecto es el español (AGENTS.md), y eso incluye los
+         identificadores. Sin invariante global, el analizador de ortografía marca cada nombre. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Configuración de cobertura del backend.
+
+  Lo que resuelve y no es obvio: coverlet no instrumenta por defecto el código que vive en el
+  proyecto de tests, y Contrato/ vive ahí. Sin este archivo, la verificación del contrato
+  frontend<->backend no aparece medida y parece que no existe.
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <IncludeTestAssembly>true</IncludeTestAssembly>
+          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+          <!-- Las migraciones las escribe EF Core; medirlas infla el porcentaje sin decir nada. -->
+          <Exclude>[*]GestionGastos.Api.Migrations.*</Exclude>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

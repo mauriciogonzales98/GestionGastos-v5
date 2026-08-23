@@ -1,0 +1,62 @@
+# Reglas del linter del backend. Directory.Build.props enciende los analizadores; este archivo
+# decide qué se exige y qué no.
+#
+# Regla de la casa: ninguna regla se apaga sin un motivo escrito acá. Si aparece una que molesta,
+# se discute el motivo, no se borra la línea.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.{cs,csx}]
+indent_size = 4
+dotnet_sort_system_directives_first = true
+csharp_new_line_before_open_brace = all
+csharp_prefer_braces = true:warning
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:warning
+
+# --- Reglas apagadas, con su motivo -----------------------------------------------------------
+
+# CA1062: validar que los argumentos públicos no sean null.
+# Motivo: el proyecto compila con Nullable habilitado, que ya expresa esa intención en el tipo.
+# Exigir además un guard clause en cada método duplica la verificación y ensucia el código.
+dotnet_diagnostic.CA1062.severity = none
+
+# CA2007: usar ConfigureAwait(false) en cada await.
+# Motivo: no hay SynchronizationContext en ASP.NET Core, así que la llamada no cambia nada y sólo
+# agrega ruido en cada línea asíncrona.
+dotnet_diagnostic.CA2007.severity = none
+
+# CA1515: los tipos públicos de un ejecutable podrían ser internal.
+# Motivo: los tests de integración necesitan alcanzar los tipos de la API. La alternativa es
+# InternalsVisibleTo, que acopla el proyecto de producción al de tests por su nombre.
+dotnet_diagnostic.CA1515.severity = none
+
+# --- Tests ------------------------------------------------------------------------------------
+
+[GestionGastos.Api.Tests/**.cs]
+
+# CA1707: los identificadores no llevan guión bajo.
+# Motivo: los nombres de test usan guiones bajos a propósito, porque son una frase que se lee en la
+# salida del runner (Rechaza_Monto_Cero_AC18). Es la convención de xUnit y la que hace legible un
+# rojo. Se apaga SÓLO en el proyecto de tests: en producción la regla sigue vigente.
+dotnet_diagnostic.CA1707.severity = none
+
+# CA1861: no usar arreglos constantes como argumento.
+# Motivo: en los tests, el arreglo literal en línea es lo que hace legible el caso. Extraerlo a un
+# campo estático aleja el dato de la aserción que lo usa.
+dotnet_diagnostic.CA1861.severity = none
+
+# --- Código generado ---------------------------------------------------------------------------
+
+# Las migraciones las escribe EF Core, no una persona. Analizarlas produce hallazgos que no se
+# pueden arreglar sin editar código generado, que se regenera y los trae de vuelta.
+# verificar-linter.sh comprueba que esta exclusión siga en pie y que no se haya extendido de más.
+[GestionGastos.Api/Migrations/**.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
