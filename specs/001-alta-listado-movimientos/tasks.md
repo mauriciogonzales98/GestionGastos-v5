@@ -41,6 +41,10 @@ Web app: `backend/` y `frontend/`, como fija `AGENTS.md` y detalla *Project Stru
 `.editorconfig`, `verificar-contrato.sh` y `verificar-linter.sh`. El CI falla en el primer push
 mientras no estén. Registrado en *Complexity Tracking* de [plan.md](./plan.md).
 
+**Estado (2026-08-23)**: los dos pasos que invocan los scripts quedaron **comentados** en
+`.github/workflows/ci.yml` para que el job de backend no esté en rojo por un `exit 127`. T024 y
+T025 los reactivan junto con crear los scripts.
+
 - [X] T001 Crear la solución y los dos proyectos en `backend/GestionGastos.slnx`: `GestionGastos.Api` (web, .NET 10) y `GestionGastos.Api.Tests` (xUnit), con la referencia de tests a Api
 - [X] T002 Agregar los paquetes del backend en `backend/GestionGastos.Api/GestionGastos.Api.csproj`: `Microsoft.EntityFrameworkCore` 9.0.18 y `Pomelo.EntityFrameworkCore.MySql` 9.0.0
 - [X] T003 Crear `backend/Directory.Build.props` encendiendo los analizadores de Roslyn (`EnableNETAnalyzers`, `AnalysisLevel`, `EnforceCodeStyleInBuild`) para todos los proyectos de la solución
@@ -85,8 +89,8 @@ FEAT-001c se escribió, se verificó y se mergeó sin linter, porque el linter n
 ### Las barreras (Principio V)
 
 - [ ] T023 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Contrato/ContratoCategoriasTests.cs` la verificación que **lee** `frontend/src/api/tipos.ts` y compara sus campos contra el JSON que emite `GET /api/categorias`, en las dos direcciones. Es la excepción de estructura declarada en `AGENTS.md`: lectura en una sola dirección
-- [ ] T024 Crear `backend/verificar-contrato.sh`: desalinea el contrato a propósito, comprueba que el test de T023 se pone en **rojo**, restaura y comprueba que vuelve a verde. No alcanza con que los tests pasen — la barrera tiene que probar que sabe fallar
-- [ ] T025 Crear `backend/verificar-linter.sh`: introduce una violación deliberada en código escrito a mano y comprueba que rompe el build; la introduce dentro de `Migrations/` y comprueba que **no** lo rompe. Verifica las dos direcciones
+- [ ] T024 Crear `backend/verificar-contrato.sh`: desalinea el contrato a propósito, comprueba que el test de T023 se pone en **rojo**, restaura y comprueba que vuelve a verde. No alcanza con que los tests pasen — la barrera tiene que probar que sabe fallar **Además**: reactivar el paso `Barrera del contrato` en `.github/workflows/ci.yml`, que quedó comentado porque el script no existía
+- [ ] T025 Crear `backend/verificar-linter.sh`: introduce una violación deliberada en código escrito a mano y comprueba que rompe el build; la introduce dentro de `Migrations/` y comprueba que **no** lo rompe. Verifica las dos direcciones **Además**: reactivar el paso `Barrera del linter` en `.github/workflows/ci.yml`, que quedó comentado porque el script no existía
 - [ ] T026 Dar bit de ejecución a los dos scripts (`chmod +x backend/verificar-*.sh`) y confirmar que queda registrado en git con `git update-index --chmod=+x`. Sin esto el CI falla aunque el script sea correcto — es exactamente el fallo que el plan `DISC-001` registra como FIX-002
 - [ ] T027 [VERIFY] Puerta completa por primera vez: build con `-warnaserror`, `dotnet format --verify-no-changes`, `dotnet test backend/`, `./backend/verificar-contrato.sh` (~90 s) y `./backend/verificar-linter.sh`, en ese orden. Las dos barreras van al final porque recompilan e invalidarían el `--no-build`
 
