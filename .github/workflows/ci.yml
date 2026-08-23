@@ -141,13 +141,10 @@ jobs:
       #
       # Va después de Tests porque recompila con un DTO modificado, igual que la barrera del linter:
       # correrlo antes invalidaría el --no-build del paso de Tests.
-      # DESACTIVADO hasta T024, que es la tarea que crea el script. Mientras no exista, este paso
-      # falla con exit 127 y deja el job en rojo por una razón que no es la que el paso vigila.
-      # T024 lo vuelve a encender: descomentar estas cuatro líneas.
-      # - name: Barrera del contrato
-      #   run: ./backend/verificar-contrato.sh
-      #   env:
-      #     ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+      - name: Barrera del contrato
+        run: ./backend/verificar-contrato.sh
+        env:
+          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
 
       # La barrera del linter es configuración, y una barrera de configuración se puede desarmar en
       # silencio: alguien pone EnforceCodeStyleInBuild en false y el build sigue verde. Este paso es
@@ -156,7 +153,5 @@ jobs:
       #
       # Va ÚLTIMO a propósito: compila con un archivo temporal adentro, así que correrlo antes
       # invalidaría el --no-build del paso de Tests.
-      # DESACTIVADO hasta T025, que es la tarea que crea el script. Mismo motivo que la barrera
-      # del contrato. T025 lo vuelve a encender: descomentar estas dos líneas.
-      # - name: Barrera del linter
-      #   run: ./backend/verificar-linter.sh
+      - name: Barrera del linter
+        run: ./backend/verificar-linter.sh
