@@ -186,13 +186,13 @@ que la cantidad de movimientos registrados no cambia.
 
 **Purpose**: lo que se mide una sola vez, al final, sobre la feature entera.
 
-- [ ] T069 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Rendimiento/RendimientoAltaTests.cs` la medición de AC-34: p95 del guardado < 1 s sobre 100 ejecuciones. **Nombrar AC-34**
-- [ ] T070 Agregar el guardarraíl del sembrado de rendimiento: una función pura parametrizada por fecha, anclada al año en curso, y una confirmación explícita de que el mes sembrado tiene filas. Sin ese guardarraíl el test pasa en verde midiendo una consulta vacía — es la lección que el plan `DISC-001` deja escrita en FIX-004
-- [ ] T071 Correr la cobertura con `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings` y revisar que el código de `Contrato/` quede medido
-- [ ] T072 [P] Revisar que ningún AC de SC-005 quede sin test que lo nombre: AC-10, AC-15, AC-16, AC-17, AC-18, AC-22, AC-25, AC-34, AC-40, AC-55. Un AC sin test cubierto no cuenta como implementado (Principio II)
-- [ ] T073 [P] Revisar que no haya ningún `any` sin comentario justificativo ni ningún catch silencioso en `frontend/src/` y `backend/GestionGastos.Api/`
-- [ ] T074 Escribir el ADR de la excepción de estructura —los tests de `Contrato/` leyendo `frontend/src/api/tipos.ts`— que `AGENTS.md` referencia pero que todavía no existe en el repositorio
-- [ ] T075 [VERIFY] Puerta de cierre de feature, entera y con su salida a la vista: lint, **format**, typecheck y tests de frontend más build de producción; `dotnet format --verify-no-changes`, build con `-warnaserror`, `dotnet test` completo (incluida la suite `Rendimiento`, que sólo corre en local), cobertura, `./backend/verificar-contrato.sh` y `./backend/verificar-linter.sh`
+- [X] T069 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Rendimiento/RendimientoAltaTests.cs` la medición de AC-34: p95 del guardado < 1 s sobre 100 ejecuciones. **Nombrar AC-34**
+- [X] T070 Agregar el guardarraíl del sembrado de rendimiento: una función pura parametrizada por fecha, anclada al año en curso, y una confirmación explícita de que el mes sembrado tiene filas. Sin ese guardarraíl el test pasa en verde midiendo una consulta vacía — es la lección que el plan `DISC-001` deja escrita en FIX-004
+- [X] T071 Correr la cobertura con `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings` y revisar que el código de `Contrato/` quede medido
+- [X] T072 [P] Revisar que ningún AC de SC-005 quede sin test que lo nombre: AC-10, AC-15, AC-16, AC-17, AC-18, AC-22, AC-25, AC-34, AC-40, AC-55. Un AC sin test cubierto no cuenta como implementado (Principio II)
+- [X] T073 [P] Revisar que no haya ningún `any` sin comentario justificativo ni ningún catch silencioso en `frontend/src/` y `backend/GestionGastos.Api/`
+- [X] T074 Escribir el ADR de la excepción de estructura —los tests de `Contrato/` leyendo `frontend/src/api/tipos.ts`— que `AGENTS.md` referencia pero que todavía no existe en el repositorio
+- [X] T075 [VERIFY] Puerta de cierre de feature, entera y con su salida a la vista: lint, **format**, typecheck y tests de frontend más build de producción; `dotnet format --verify-no-changes`, build con `-warnaserror`, `dotnet test` completo (incluida la suite `Rendimiento`, que sólo corre en local), cobertura, `./backend/verificar-contrato.sh` y `./backend/verificar-linter.sh`
 
 ---
 

@@ -66,7 +66,8 @@ en todos lados.
 - **Folder structure — la única excepción, declarada:** los tests de
   `backend/GestionGastos.Api.Tests/Contrato/` **leen** `frontend/src/api/tipos.ts`. Comparar las dos
   definiciones del contrato exige que algo mire a las dos; el motivo y el alcance quedan
-  documentados en el ADR correspondiente. Es lectura, en una sola dirección: el frontend no lee nada
+  documentados en
+  [`docs/adr/ADR-001-tests-de-contrato-leen-tipos-del-frontend.md`](docs/adr/ADR-001-tests-de-contrato-leen-tipos-del-frontend.md). Es lectura, en una sola dirección: el frontend no lee nada
   del backend, y eso no cambia.
 - **Error handling:** typed errors; nunca un catch silencioso.
 - **Dependencies:** no se agregan librerías nuevas sin justificarlas en la spec.
