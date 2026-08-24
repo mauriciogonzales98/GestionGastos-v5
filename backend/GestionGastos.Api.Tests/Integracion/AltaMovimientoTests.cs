@@ -140,5 +140,49 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal(TipoMovimiento.Ingreso, fila.Tipo);
     }
 
+    /// <summary>
+    /// AC-07 (FR-010): el propietario del movimiento es la cuenta de la sesión, y no un valor fijo.
+    ///
+    /// Van DOS cuentas y no una a propósito. Con una sola, un endpoint que asignara siempre el
+    /// mismo identificador —una constante, la primera fila de la tabla, la semilla que este ticket
+    /// borró— pasaría el test igual: no hay con qué distinguir "asignó el de la sesión" de "asignó
+    /// siempre lo mismo". Recién con dos cuentas registrando una cada una, las dos filas tienen
+    /// que salir distintas.
+    /// </summary>
+    [Fact]
+    public async Task El_Propietario_Es_La_Cuenta_De_La_Sesion_Y_No_Un_Valor_Fijo_AC07()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = CrearFactoria(new DateOnly(2026, 8, 23));
+
+        using var ana = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        using var bruno = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        Assert.NotEqual(ana.Id, bruno.Id);
+
+        var deAna = await RegistrarAsync(ana, 111.11m);
+        var deBruno = await RegistrarAsync(bruno, 222.22m);
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+
+        Assert.Equal(ana.Id, (await contexto.Movimientos.SingleAsync(m => m.Id == deAna)).UsuarioId);
+        Assert.Equal(
+            bruno.Id,
+            (await contexto.Movimientos.SingleAsync(m => m.Id == deBruno)).UsuarioId);
+    }
+
+    /// <summary>Registra un gasto por la API y devuelve el id del movimiento creado.</summary>
+    private static async Task<long> RegistrarAsync(CuentaDePrueba cuenta, decimal monto)
+    {
+        using var respuesta = await cuenta.Cliente.PostAsJsonAsync(
+            new Uri("/api/movimientos", UriKind.Relative),
+            new { tipo = "gasto", monto, categoriaId = 1, fecha = "2026-08-23" });
+
+        Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+        return json.RootElement.GetProperty("id").GetInt64();
+    }
+
     private static FactoriaConReloj CrearFactoria(DateOnly hoy) => new(hoy);
 }

@@ -153,6 +153,39 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal("Comida", listado[1].GetProperty("categoriaNombre").GetString());
     }
 
+    /// <summary>
+    /// AC-08 (FR-010): cada cuenta ve únicamente sus movimientos.
+    ///
+    /// Las dos siembras son del MISMO mes y con el mismo monto: si el recorte por propietario
+    /// fallara, los movimientos ajenos aparecerían mezclados con los propios y nada en la
+    /// respuesta los delataría. Lo que separa un listado correcto de uno que muestra todo es
+    /// exactamente esta comparación.
+    /// </summary>
+    [Fact]
+    public async Task Cada_Cuenta_Ve_Solo_Sus_Movimientos_AC08()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 15));
+
+        using var ana = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        using var bruno = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        var deAna = await SembrarAsync(ana.Id, new DateOnly(2026, 8, 10), new DateOnly(2026, 8, 11));
+        var deBruno = await SembrarAsync(bruno.Id, new DateOnly(2026, 8, 12));
+
+        var vistosPorAna = (await ListadoAsync(ana))
+            .Select(m => m.GetProperty("id").GetInt64())
+            .ToList();
+        var vistosPorBruno = (await ListadoAsync(bruno))
+            .Select(m => m.GetProperty("id").GetInt64())
+            .ToList();
+
+        // En las dos direcciones: que Ana vea los suyos no prueba nada si además ve los de Bruno.
+        Assert.Equal(deAna.OrderBy(id => id), vistosPorAna.OrderBy(id => id));
+        Assert.Equal(deBruno.OrderBy(id => id), vistosPorBruno.OrderBy(id => id));
+        Assert.DoesNotContain(deBruno[0], vistosPorAna);
+    }
+
     private async Task<List<long>> SembrarAsync(long usuarioId, params DateOnly[] fechas)
     {
         await using var contexto = _baseDeDatos.CrearContexto();

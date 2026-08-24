@@ -156,10 +156,10 @@ operación exige autenticarse de nuevo.
 **Independent Test**: con sesión iniciada, registrar un movimiento y verificar su propietario y que
 el listado sólo trae los de esa cuenta.
 
-- [ ] T040 [TEST] [US3] Agregar en `backend/GestionGastos.Api.Tests/Integracion/AltaMovimientoTests.cs` el test de que el propietario del movimiento es el usuario de la sesión y **no** un valor fijo. **Nombrar AC-07**. Mostrar el rojo
-- [ ] T041 [TEST] [US3] Agregar en `backend/GestionGastos.Api.Tests/Integracion/ListadoMovimientosTests.cs` el test con **dos cuentas**: cada una ve únicamente sus movimientos. **Nombrar AC-08**. Mostrar el rojo
-- [ ] T042 [US3] Ajustar lo que haga falta para que los dos pasen. Si `IUsuarioActual` quedó bien resuelto en T027 no debería hacer falta código nuevo: **decirlo así en el reporte en vez de fabricar un cambio**, y dejar los tests, que son lo que faltaba
-- [ ] T043 [VERIFY] [US3] Puerta completa de frontend y backend
+- [X] T040 [TEST] [US3] Agregar en `backend/GestionGastos.Api.Tests/Integracion/AltaMovimientoTests.cs` el test de que el propietario del movimiento es el usuario de la sesión y **no** un valor fijo. **Nombrar AC-07**. Mostrar el rojo
+- [X] T041 [TEST] [US3] Agregar en `backend/GestionGastos.Api.Tests/Integracion/ListadoMovimientosTests.cs` el test con **dos cuentas**: cada una ve únicamente sus movimientos. **Nombrar AC-08**. Mostrar el rojo
+- [X] T042 [US3] Ajustar lo que haga falta para que los dos pasen. Si `IUsuarioActual` quedó bien resuelto en T027 no debería hacer falta código nuevo: **decirlo así en el reporte en vez de fabricar un cambio**, y dejar los tests, que son lo que faltaba
+- [X] T043 [VERIFY] [US3] Puerta completa de frontend y backend
 
 **Checkpoint**: las tres historias funcionan. Falta el aislamiento verificado a fondo, que es del ticket `01c`.
 
