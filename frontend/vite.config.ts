@@ -3,6 +3,24 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+
+  server: {
+    proxy: {
+      // El cliente pide a rutas relativas (`/api/...`), así que en producción front y API salen
+      // del mismo origen. En desarrollo no: Vite sirve en 5173 y la API en 5125.
+      //
+      // Sin este proxy, `fetch('/api/categorias')` le pegaba a Vite, que respondía su index.html
+      // con 200 — o sea `respuesta.ok` en true y un HTML donde el cliente esperaba JSON. La
+      // pantalla quedaba cargando para siempre y nadie se enteraba.
+      //
+      // El puerto es el de backend/GestionGastos.Api/Properties/launchSettings.json.
+      '/api': {
+        target: 'http://localhost:5125',
+        changeOrigin: true,
+      },
+    },
+  },
+
   test: {
     // Un DOM real es lo que permite verificar AC-55, que exige recorrer y enviar el formulario
     // con el teclado.

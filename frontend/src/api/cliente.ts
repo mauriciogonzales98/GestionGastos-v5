@@ -33,6 +33,34 @@ export class ErrorDeRed extends Error {
   }
 }
 
+/**
+ * Lee el cuerpo como JSON sin dejar escapar un error sin tipar.
+ *
+ * `respuesta.json()` lanza un SyntaxError crudo cuando el cuerpo no es JSON, y ese error no es
+ * ninguno de los tres tipos que este módulo promete. Pasa más seguido de lo que parece: un proxy
+ * mal configurado, un portal cautivo o un servidor de desarrollo que responde su index.html con
+ * 200 devuelven HTML donde el cliente espera JSON, y `respuesta.ok` es true igual.
+ */
+async function leerJson<T>(respuesta: Response): Promise<T> {
+  let texto: string;
+
+  try {
+    texto = await respuesta.text();
+  } catch (causa) {
+    // La conexión se cortó con la respuesta a medio leer.
+    throw new ErrorDeRed(causa);
+  }
+
+  try {
+    return JSON.parse(texto) as T;
+  } catch {
+    throw new ErrorDelServidor(
+      respuesta.status,
+      `El servidor respondió ${respuesta.status} con un cuerpo que no es JSON.`,
+    );
+  }
+}
+
 async function pedir<T>(url: string, opciones?: RequestInit): Promise<T> {
   let respuesta: Response;
 
@@ -44,11 +72,11 @@ async function pedir<T>(url: string, opciones?: RequestInit): Promise<T> {
   }
 
   if (respuesta.ok) {
-    return (await respuesta.json()) as T;
+    return leerJson<T>(respuesta);
   }
 
   if (respuesta.status === 400) {
-    const problema = (await respuesta.json()) as ProblemDetails;
+    const problema = await leerJson<ProblemDetails>(respuesta);
     // Un 400 sin `errors` es un rechazo sin campo señalado: se enruta a la región de error del
     // formulario, no a un control.
     throw new ErrorDeValidacion(problema.errors ?? {});
