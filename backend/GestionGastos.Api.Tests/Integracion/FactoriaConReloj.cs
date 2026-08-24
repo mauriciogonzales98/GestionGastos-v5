@@ -16,6 +16,13 @@ public sealed class FactoriaConReloj(DateOnly hoy) : WebApplicationFactory<Progr
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(servicios =>
-            servicios.AddSingleton<TimeProvider>(new RelojFijo(hoy)));
+        {
+            servicios.AddSingleton<TimeProvider>(new RelojFijo(hoy));
+
+            // Zona UTC junto al reloj UTC: la fecha inyectada es la que el servidor tiene que ver,
+            // sin corrimientos. La conversión de zona se verifica aparte, en DiaActualTests, con
+            // los bordes donde importa.
+            servicios.AddSingleton(TimeZoneInfo.Utc);
+        });
     }
 }

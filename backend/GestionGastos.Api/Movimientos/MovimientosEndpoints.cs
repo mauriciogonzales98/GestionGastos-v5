@@ -15,7 +15,8 @@ public static class MovimientosEndpoints
             NuevoMovimientoDto peticion,
             GestionGastosDbContext contexto,
             IUsuarioActual usuarioActual,
-            TimeProvider reloj) =>
+            TimeProvider reloj,
+            TimeZoneInfo zona) =>
         {
             // La categoría se busca con el MISMO criterio con el que el catálogo la ofrece:
             // predefinida del sistema o propia de esta cuenta, y activa. Buscar sólo por id
@@ -57,7 +58,7 @@ public static class MovimientosEndpoints
 
             // El "hoy" sale del reloj inyectado y no de DateTime.Now: es lo que vuelve verificable
             // AC-17 con una fecha fija (D-03).
-            var fecha = peticion.Fecha ?? DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+            var fecha = peticion.Fecha ?? DiaActual.De(reloj, zona);
 
             var movimiento = new Movimiento
             {
@@ -89,12 +90,13 @@ public static class MovimientosEndpoints
         rutas.MapGet("/api/movimientos", async (
             GestionGastosDbContext contexto,
             IUsuarioActual usuarioActual,
-            TimeProvider reloj) =>
+            TimeProvider reloj,
+            TimeZoneInfo zona) =>
         {
             // El recorte al mes actual es del servidor y no se expone como control (FR-007):
             // ponerlo en el cliente lo convertiría en algo que el cliente puede cambiar. Los
             // parámetros de rango llegan en FEAT-001b.
-            var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+            var hoy = DiaActual.De(reloj, zona);
 
             var movimientos = await MovimientosConsulta
                 .DelMes(contexto, usuarioActual.Id, RangoDelMes.De(hoy))

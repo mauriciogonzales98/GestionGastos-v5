@@ -23,6 +23,7 @@ public sealed class FactoriaConBaseRota : WebApplicationFactory<Program>
 
         builder.ConfigureServices(servicios =>
         {
+            servicios.AddSingleton(TimeZoneInfo.Utc);
             servicios.RemoveAll<DbContextOptions<GestionGastosDbContext>>();
             servicios.RemoveAll<GestionGastosDbContext>();
 

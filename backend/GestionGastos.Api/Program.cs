@@ -30,6 +30,14 @@ builder.Services.AddProblemDetails();
 // El reloj es un servicio para que los tests puedan clavarlo en una fecha (D-03, AC-17).
 builder.Services.AddSingleton(TimeProvider.System);
 
+// La zona horaria en la que el servidor decide qué día es hoy. Explícita y configurable, NO la del
+// proceso: en un contenedor la del proceso es UTC, y con la persona usuaria en Argentina el
+// servidor pasa al día siguiente a las 21:00 mientras el navegador todavía no. Ahí el recorte del
+// mes del listado deja de coincidir con la fecha que el formulario propone.
+builder.Services.AddSingleton(
+    TimeZoneInfo.FindSystemTimeZoneById(
+        builder.Configuration["Aplicacion:ZonaHoraria"] ?? "America/Argentina/Buenos_Aires"));
+
 var app = builder.Build();
 
 // Convierte cualquier excepción sin manejar en un ProblemDetails 500. En Development el
