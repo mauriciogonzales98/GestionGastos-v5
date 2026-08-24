@@ -92,8 +92,8 @@ email y esa contraseña.
 - [X] T014 [US1] Implementar `POST /api/cuentas` en `backend/GestionGastos.Api/Cuentas/`, con su DTO de petición y de respuesta según [contracts/api-http.md](./contracts/api-http.md). La respuesta es la misma exista o no la cuenta; lo que cambia es que no se crea nada
 - [X] T015 [TEST] [US1] Escribir en `backend/GestionGastos.Api.Tests/Integracion/InicioDeSesionTests.cs` el test del camino feliz de `POST /api/sesion`: credenciales correctas devuelven `200` y **la cookie de sesión**, y a partir de ahí `GET /api/sesion` reconoce a esa cuenta. Es lo que cierra AC-01 del lado del servidor. **Nombrar AC-03**. Mostrar el rojo
 - [X] T016 [US1] Implementar `POST /api/sesion` en `backend/GestionGastos.Api/Sesion/`, emitiendo la cookie con el identificador de la cuenta como claim
-- [ ] T017 [US1] Extender `frontend/src/api/tipos.ts` con `Credenciales`, `NuevaCuenta` y `SesionActual`, y agregar en `backend/GestionGastos.Api.Tests/Contrato/` la verificación de esos tipos contra el JSON real, en las dos direcciones. Ese archivo sigue siendo la fuente de verdad del contrato ([ADR-001](../../docs/adr/ADR-001-tests-de-contrato-leen-tipos-del-frontend.md))
-- [ ] T018 [VERIFY] [US1] Puerta del backend completa, más `./backend/verificar-contrato.sh`, que tiene que seguir probando que sabe ponerse en rojo con los tipos nuevos adentro
+- [X] T017 [US1] Extender `frontend/src/api/tipos.ts` con `Credenciales`, `NuevaCuenta` y `SesionActual`, y agregar en `backend/GestionGastos.Api.Tests/Contrato/` la verificación de esos tipos contra el JSON real, en las dos direcciones. Ese archivo sigue siendo la fuente de verdad del contrato ([ADR-001](../../docs/adr/ADR-001-tests-de-contrato-leen-tipos-del-frontend.md))
+- [X] T018 [VERIFY] [US1] Puerta del backend completa, más `./backend/verificar-contrato.sh`, que tiene que seguir probando que sabe ponerse en rojo con los tipos nuevos adentro
 
 **Checkpoint**: se puede crear una cuenta y obtener una sesión. Nada la exige todavía.
 
