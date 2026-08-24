@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using GestionGastos.Api.Movimientos;
 using GestionGastos.Api.Tests.Integracion;
 
 namespace GestionGastos.Api.Tests.Contrato;
@@ -50,18 +49,48 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
     }
 
     [Fact]
-    public void Los_Campos_De_NuevoMovimiento_Coinciden_Con_Los_Que_Acepta_La_Api()
+    public async Task Los_Campos_De_NuevoMovimiento_Son_Los_Que_La_Api_Acepta_De_Verdad()
     {
-        // La "forma real" de la petición es el DTO que el endpoint deserializa: es lo que la API
-        // acepta de verdad, no lo que la documentación dice que acepta.
-        var delApi = typeof(NuevoMovimientoDto)
-            .GetProperties()
-            .Select(p => char.ToLowerInvariant(p.Name[0]) + p.Name[1..])
-            .ToList();
+        await _baseDeDatos.LimpiarMovimientosAsync();
 
         var delContrato = TiposDelFrontend.CamposDeInterfaz("NuevoMovimiento");
 
-        CompararEnLasDosDirecciones(delContrato, delApi, "NuevoMovimiento");
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
+        using var cliente = factoria.CreateClient();
+
+        // Se manda un cuerpo armado con los nombres QUE DECLARA EL CONTRATO, no con los del DTO.
+        // Si la API dejara de aceptar alguno —un cambio de política de nombres, un rename— este
+        // POST deja de llegar completo y el 201 no aparece o llega con valores por defecto.
+        var cuerpo = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var campo in delContrato)
+        {
+            cuerpo[campo] = campo switch
+            {
+                "tipo" => "gasto",
+                "monto" => 77.77m,
+                "categoriaId" => 1,
+                "fecha" => "2026-08-23",
+                _ => throw new InvalidOperationException(
+                    $"El contrato declara el campo `{campo}` de NuevoMovimiento y este test no sabe " +
+                    "con qué valor ejercitarlo. Agregalo acá: un campo del contrato sin ejercitar " +
+                    "es un campo sin barrera."),
+            };
+        }
+
+        using var respuesta = await cliente.PostAsJsonAsync(
+            new Uri("/api/movimientos", UriKind.Relative), cuerpo);
+
+        Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+
+        // Cada valor mandado tiene que haber llegado. Un campo que la API ignora se guardaría con
+        // su valor por defecto y el 201 saldría igual: verificar sólo el código de estado dejaría
+        // pasar exactamente el error que esta barrera existe para atrapar.
+        Assert.Equal("gasto", json.RootElement.GetProperty("tipo").GetString());
+        Assert.Equal(77.77m, json.RootElement.GetProperty("monto").GetDecimal());
+        Assert.Equal(1, json.RootElement.GetProperty("categoriaId").GetInt32());
+        Assert.Equal("2026-08-23", json.RootElement.GetProperty("fecha").GetString());
     }
 
     [Fact]
