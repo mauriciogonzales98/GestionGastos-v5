@@ -45,8 +45,13 @@ export ConnectionStrings__Default="Server=127.0.0.1;Port=3306;Database=gestionga
 ## Levantar
 
 ```bash
-# Backend — aplica migraciones y siembra categorías, monedas y el usuario semilla
+# Backend — en Development aplica las migraciones al arrancar y siembra categorías, monedas y el
+# usuario semilla. Si la base no existe, la crea.
 dotnet run --project backend/GestionGastos.Api
+
+# Fuera de Development NO se migra solo: aplicar un cambio de esquema es una decisión deliberada,
+# con su ventana y su respaldo, y no un efecto secundario de reiniciar un proceso. Ahí va:
+#   dotnet ef database update --project backend/GestionGastos.Api
 
 # Frontend, en otra terminal
 pnpm --dir frontend install --frozen-lockfile

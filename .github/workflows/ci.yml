@@ -18,9 +18,19 @@ on:
 permissions:
   contents: read
 
-# Un push nuevo sobre el mismo PR cancela la corrida anterior: lo que importa es el último commit.
+# Un push nuevo sobre la misma rama cancela la corrida anterior: lo que importa es el último commit.
+#
+# El grupo incluye `event_name` por una razón que costó un merge bloqueado: con un PR abierto, un
+# push dispara DOS corridas del mismo commit —una por `push` y otra por `pull_request`— y sin el
+# evento en el grupo caen las dos en el mismo balde y se cancelan entre sí. La check-run cancelada
+# queda pegada al commit, arrastra el agregado de checks a FAILURE y el ruleset de main bloquea el
+# merge aunque los dos jobs requeridos estén en verde.
+#
+# El costo es correr el pipeline dos veces por push mientras hay un PR abierto. Se paga a gusto:
+# la alternativa era limitar `on: push` a main y perder lo que este archivo declara arriba, que una
+# rama vea su propio pipeline mientras se construye.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -131,13 +141,10 @@ jobs:
       #
       # Va después de Tests porque recompila con un DTO modificado, igual que la barrera del linter:
       # correrlo antes invalidaría el --no-build del paso de Tests.
-      # DESACTIVADO hasta T024, que es la tarea que crea el script. Mientras no exista, este paso
-      # falla con exit 127 y deja el job en rojo por una razón que no es la que el paso vigila.
-      # T024 lo vuelve a encender: descomentar estas cuatro líneas.
-      # - name: Barrera del contrato
-      #   run: ./backend/verificar-contrato.sh
-      #   env:
-      #     ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+      - name: Barrera del contrato
+        run: ./backend/verificar-contrato.sh
+        env:
+          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
 
       # La barrera del linter es configuración, y una barrera de configuración se puede desarmar en
       # silencio: alguien pone EnforceCodeStyleInBuild en false y el build sigue verde. Este paso es
@@ -146,7 +153,5 @@ jobs:
       #
       # Va ÚLTIMO a propósito: compila con un archivo temporal adentro, así que correrlo antes
       # invalidaría el --no-build del paso de Tests.
-      # DESACTIVADO hasta T025, que es la tarea que crea el script. Mismo motivo que la barrera
-      # del contrato. T025 lo vuelve a encender: descomentar estas dos líneas.
-      # - name: Barrera del linter
-      #   run: ./backend/verificar-linter.sh
+      - name: Barrera del linter
+        run: ./backend/verificar-linter.sh

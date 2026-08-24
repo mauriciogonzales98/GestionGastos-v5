@@ -1,0 +1,19 @@
+/*
+ * `l-*` es disposición: sólo aparece en contenedores que posicionan a sus hijos.
+ *
+ * Nada de clases utilitarias sueltas (`mt-2`, `flex`, `text-right`). Si hace falta una disposición
+ * nueva, nace acá con nombre propio y queda disponible para el resto.
+ */
+
+.l-pila {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.l-fila {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  align-items: center;
+}
