@@ -28,13 +28,13 @@ public static class TiposDelFrontend
     /// </summary>
     public static IReadOnlyList<string> CamposDeInterfaz(string nombreInterfaz)
     {
-        var cuerpo = Regex.Match(
+        var apertura = Regex.Match(
             Texto,
-            $@"export\s+interface\s+{Regex.Escape(nombreInterfaz)}\s*\{{(?<cuerpo>[^}}]*)\}}",
+            $@"export\s+interface\s+{Regex.Escape(nombreInterfaz)}\s*\{{",
             RegexOptions.Singleline,
             TimeSpan.FromSeconds(5));
 
-        if (!cuerpo.Success)
+        if (!apertura.Success)
         {
             throw new InvalidOperationException(
                 $"No se encontró `export interface {nombreInterfaz}` en {RutaRelativa}. " +
@@ -42,13 +42,43 @@ public static class TiposDelFrontend
                 "barrera sabe leer. Las dos cosas requieren mirar, no ajustar el regex.");
         }
 
+        var cuerpo = LeerHastaLaLlaveQueCierra(nombreInterfaz, apertura.Index + apertura.Length);
+
         return Regex.Matches(
-                cuerpo.Groups["cuerpo"].Value,
+                cuerpo,
                 @"^\s*(?<campo>[A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:",
                 RegexOptions.Multiline,
                 TimeSpan.FromSeconds(5))
             .Select(m => m.Groups["campo"].Value)
             .ToList();
+    }
+
+    /// <summary>
+    /// El cuerpo de la interfaz, contando llaves.
+    ///
+    /// Antes se usaba `[^}]*`, que corta en la PRIMERA llave de cierre. Con un tipo anidado o un
+    /// comentario que contenga `}`, ese recorte devolvía menos campos de los que hay y la barrera
+    /// aprobaba de más — en silencio, que es lo peor que puede hacer una barrera. Si las llaves no
+    /// cierran, esto lanza en vez de devolver un pedazo.
+    /// </summary>
+    private static string LeerHastaLaLlaveQueCierra(string nombreInterfaz, int desde)
+    {
+        var texto = Texto;
+        var profundidad = 1;
+
+        for (var i = desde; i < texto.Length; i++)
+        {
+            profundidad += texto[i] switch { '{' => 1, '}' => -1, _ => 0 };
+
+            if (profundidad == 0)
+            {
+                return texto[desde..i];
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"La interfaz `{nombreInterfaz}` de {RutaRelativa} no cierra sus llaves. El archivo " +
+            "está roto o dejó de tener la forma que esta barrera sabe leer.");
     }
 
     /// <summary>Los literales de una unión de cadenas, por ejemplo <c>'gasto' | 'ingreso'</c>.</summary>

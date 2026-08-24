@@ -84,7 +84,10 @@ public static class MovimientosEndpoints
                 moneda.Codigo,
                 movimiento.Fecha);
 
-            return Results.Created($"/api/movimientos/{movimiento.Id}", creado);
+            // Sin Location: no existe GET /api/movimientos/{id}, así que la URL apuntaría a un 404.
+            // Un encabezado que promete un recurso inalcanzable es peor que no ponerlo. Cuando
+            // FEAT-001b agregue la lectura individual, vuelve con su ruta de verdad.
+            return Results.Created((string?)null, creado);
         });
 
         rutas.MapGet("/api/movimientos", async (
