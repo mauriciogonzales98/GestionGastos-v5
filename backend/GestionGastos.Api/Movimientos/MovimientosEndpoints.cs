@@ -32,7 +32,12 @@ public static class MovimientosEndpoints
             var monto = peticion.Monto!.Value;
 
             // FR-009: la moneda sale de la predeterminada del catálogo, no de una constante.
-            var moneda = await contexto.Monedas.FirstAsync(m => m.EsPredeterminada);
+            //
+            // SingleAsync y no FirstAsync: RF-25 dice que hay exactamente una, y la migración
+            // UnicaMonedaPredeterminada lo hace cumplir en la base. Si igual hubiera dos, First
+            // elegiría una sin criterio y en silencio; Single falla ruidosamente, que es lo que
+            // corresponde ante una invariante rota.
+            var moneda = await contexto.Monedas.SingleAsync(m => m.EsPredeterminada);
 
             // El "hoy" sale del reloj inyectado y no de DateTime.Now: es lo que vuelve verificable
             // AC-17 con una fecha fija (D-03).
