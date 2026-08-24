@@ -14,11 +14,19 @@ namespace GestionGastos.Api.Tests.Integracion;
 public class BaseDeDatosFixture : IAsyncLifetime
 {
     /// <summary>
-    /// La única base que este fixture acepta. Está fijado a propósito: el fixture borra y recrea
-    /// tablas, y apuntarlo sin querer al esquema de desarrollo se lleva puestos los datos con los
-    /// que estabas probando a mano.
+    /// Las únicas bases que este fixture acepta. Es una lista blanca a propósito: el fixture borra
+    /// y recrea tablas, y apuntarlo sin querer al esquema de desarrollo se lleva puestos los datos
+    /// con los que estabas probando a mano.
+    ///
+    /// `gestiongastos_migracion_test` se agrega para el test de AC-09, que necesita partir de una
+    /// base con la fila semilla todavía adentro (research.md D-07 de 002-identidad-sesion). Se
+    /// suma UN nombre; la restricción no se abre.
     /// </summary>
-    private const string BaseEsperada = "gestiongastos_test";
+    private static readonly string[] BasesAceptadas =
+    [
+        "gestiongastos_test",
+        "gestiongastos_migracion_test",
+    ];
 
     public string Cadena { get; }
 
@@ -27,15 +35,15 @@ public class BaseDeDatosFixture : IAsyncLifetime
         Cadena = Environment.GetEnvironmentVariable("ConnectionStrings__Default")
             ?? throw new InvalidOperationException(
                 "Falta la variable de entorno ConnectionStrings__Default. La suite de integración " +
-                $"no adivina contra qué base escribe: definila apuntando a `{BaseEsperada}`.");
+                $"no adivina contra qué base escribe: definila apuntando a `{BasesAceptadas[0]}`.");
 
         var baseApuntada = LeerBaseDeDatos(Cadena);
-        if (!string.Equals(baseApuntada, BaseEsperada, StringComparison.OrdinalIgnoreCase))
+        if (!BasesAceptadas.Contains(baseApuntada, StringComparer.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
                 $"ConnectionStrings__Default apunta a `{baseApuntada}` y esta suite sólo corre " +
-                $"contra `{BaseEsperada}`. El fixture migra y limpia tablas: correrlo contra otra " +
-                "base destruye datos que no son de tests.");
+                $"contra {string.Join(" o ", BasesAceptadas.Select(b => $"`{b}`"))}. El fixture " +
+                "migra y limpia tablas: correrlo contra otra base destruye datos que no son de tests.");
         }
     }
 
@@ -64,6 +72,17 @@ public class BaseDeDatosFixture : IAsyncLifetime
     {
         await using var contexto = CrearContexto();
         await contexto.Movimientos.ExecuteDeleteAsync();
+    }
+
+    /// <summary>
+    /// Deja la base sin movimientos y sin cuentas. Las cuentas se borran DESPUÉS de los
+    /// movimientos: `movimiento.usuario_id` es una clave foránea RESTRICT y al revés falla.
+    /// </summary>
+    public async Task LimpiarCuentasAsync()
+    {
+        await using var contexto = CrearContexto();
+        await contexto.Movimientos.ExecuteDeleteAsync();
+        await contexto.Usuarios.ExecuteDeleteAsync();
     }
 
     private static string LeerBaseDeDatos(string cadena)

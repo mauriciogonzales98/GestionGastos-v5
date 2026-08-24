@@ -60,18 +60,24 @@ tabla se agrega ahí, con su caso real.
 ## Migración: orden obligatorio
 
 ```text
-1. ALTER  usuario  ADD contrasena_hash          -- la columna llega antes que las cuentas
-2. DELETE movimiento WHERE usuario_id = semilla -- primero los hijos...
-3. DELETE usuario     WHERE id        = semilla -- ...después el padre
+1. DELETE movimiento WHERE usuario_id = semilla -- primero los hijos...
+2. DELETE usuario     WHERE id        = semilla -- ...después el padre
+3. ALTER  usuario  ADD contrasena_hash          -- y recién ahí la columna
 ```
 
-El orden de 2 y 3 no es preferencia: `movimiento.usuario_id` es una clave foránea `RESTRICT`, así
+El orden de 1 y 2 no es preferencia: `movimiento.usuario_id` es una clave foránea `RESTRICT`, así
 que borrar el usuario primero **falla**. Es la misma restricción que en FEAT-001a impidió sembrar una
 categoría de una cuenta inexistente, funcionando como corresponde.
 
-`contrasena_hash` entra `NOT NULL` sin valor por defecto y la tabla queda vacía después del paso 3,
-así que no hay filas que rellenar. El orden importa: al revés, el `ALTER` fallaría contra la fila
-semilla.
+`contrasena_hash` va **tercera** y entra `NOT NULL` **sin valor por defecto**. Las dos cosas juntas
+sólo son posibles con la tabla ya vacía: agregarla antes, con la fila semilla presente, obligaría a
+un `DEFAULT`, y un default en una columna de contraseñas deja entrar en silencio una cuenta sin
+verificador.
+
+> **Corrección (2026-08-24)**: una versión anterior de este documento ponía el `ALTER` primero y a
+> la vez pedía "sin valor por defecto". Las dos cosas no pueden ser ciertas al mismo tiempo mientras
+> la semilla exista. Queda anotado en vez de reescrito en silencio, porque el orden es justamente lo
+> que este apartado existe para fijar.
 
 ---
 

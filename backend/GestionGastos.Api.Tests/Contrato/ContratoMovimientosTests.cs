@@ -21,10 +21,11 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Los_Campos_De_Movimiento_Coinciden_En_Las_Dos_Direcciones()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
 
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
-        using var cliente = factoria.CreateClient();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
 
         using var creacion = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
@@ -51,12 +52,13 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Los_Campos_De_NuevoMovimiento_Son_Los_Que_La_Api_Acepta_De_Verdad()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
 
         var delContrato = TiposDelFrontend.CamposDeInterfaz("NuevoMovimiento");
 
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
-        using var cliente = factoria.CreateClient();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
 
         // Se manda un cuerpo armado con los nombres QUE DECLARA EL CONTRATO, no con los del DTO.
         // Si la API dejara de aceptar alguno —un cambio de política de nombres, un rename— este
@@ -97,7 +99,8 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
     public async Task Los_Campos_De_ProblemDetails_Coinciden_Con_Un_Error_Real()
     {
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
-        using var cliente = factoria.CreateClient();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
 
         // Un tipo inválido: el error se produce de verdad, no se construye a mano en el test.
         using var respuesta = await cliente.PostAsJsonAsync(

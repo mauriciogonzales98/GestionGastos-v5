@@ -49,8 +49,8 @@ intermedio con la puerta en rojo (Principio III).
 
 **Purpose**: lo que hace falta antes de tocar dominio.
 
-- [ ] T001 Agregar `BCrypt.Net-Next` 4.2.0 a `backend/GestionGastos.Api/GestionGastos.Api.csproj`. Es la única dependencia nueva de producción y su justificación está en [research.md D-02](./research.md); ninguna dependencia nueva en el frontend
-- [ ] T002 [P] Extender la lista blanca de `backend/GestionGastos.Api.Tests/Integracion/BaseDeDatosFixture.cs` para admitir `gestiongastos_migracion_test` **además** de `gestiongastos_test`. Se agrega un nombre, **no** se abre la restricción: el fixture migra y limpia tablas, y apuntarlo al esquema de desarrollo se lleva puestos los datos
+- [X] T001 Agregar `BCrypt.Net-Next` 4.2.0 a `backend/GestionGastos.Api/GestionGastos.Api.csproj`. Es la única dependencia nueva de producción y su justificación está en [research.md D-02](./research.md); ninguna dependencia nueva en el frontend
+- [X] T002 [P] Extender la lista blanca de `backend/GestionGastos.Api.Tests/Integracion/BaseDeDatosFixture.cs` para admitir `gestiongastos_migracion_test` **además** de `gestiongastos_test`. Se agrega un nombre, **no** se abre la restricción: el fixture migra y limpia tablas, y apuntarlo al esquema de desarrollo se lleva puestos los datos
 
 ---
 
@@ -59,12 +59,12 @@ intermedio con la puerta en rojo (Principio III).
 **Purpose**: el esquema, el hash y la migración que borra la semilla. Ninguna historia puede empezar
 antes de que esto cierre.
 
-- [ ] T003 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Unitarios/HasherDeContrasenasTests.cs` los tests del hash: el valor almacenado no es la contraseña y tiene formato bcrypt (`$2`); verificar acepta la contraseña correcta y rechaza la incorrecta; **dos hashes de la misma contraseña son distintos**. **Nombrar AC-10 y AC-11**. Correr y mostrar el rojo
-- [ ] T004 Implementar `backend/GestionGastos.Api/Cuentas/HasherDeContrasenas.cs` sobre `BCrypt.Net-Next`, con la interfaz mínima que los tests usan. La sal la genera y la guarda la librería dentro del hash: AC-11 sale por construcción y no por disciplina ([D-02](./research.md))
-- [ ] T005 Agregar `ContrasenaHash` a `backend/GestionGastos.Api/Dominio/Usuario.cs` y su configuración en `backend/GestionGastos.Api/Persistencia/GestionGastosDbContext.cs`: `varchar(72)`, `NOT NULL`, y la colación **insensible a mayúsculas** en `email` según [data-model.md](./data-model.md). Sin esa colación, `Ana@x.com` y `ana@x.com` serían dos cuentas y FR-002 quedaría incumplido
+- [X] T003 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Unitarios/HasherDeContrasenasTests.cs` los tests del hash: el valor almacenado no es la contraseña y tiene formato bcrypt (`$2`); verificar acepta la contraseña correcta y rechaza la incorrecta; **dos hashes de la misma contraseña son distintos**. **Nombrar AC-10 y AC-11**. Correr y mostrar el rojo
+- [X] T004 Implementar `backend/GestionGastos.Api/Cuentas/HasherDeContrasenas.cs` sobre `BCrypt.Net-Next`, con la interfaz mínima que los tests usan. La sal la genera y la guarda la librería dentro del hash: AC-11 sale por construcción y no por disciplina ([D-02](./research.md))
+- [X] T005 Agregar `ContrasenaHash` a `backend/GestionGastos.Api/Dominio/Usuario.cs` y su configuración en `backend/GestionGastos.Api/Persistencia/GestionGastosDbContext.cs`: `varchar(72)`, `NOT NULL`, y la colación **insensible a mayúsculas** en `email` según [data-model.md](./data-model.md). Sin esa colación, `Ana@x.com` y `ana@x.com` serían dos cuentas y FR-002 quedaría incumplido
 - [ ] T006 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Migraciones/MigracionDeCuentasTests.cs` el test de AC-09, con su **propia base** `gestiongastos_migracion_test` ([D-07](./research.md)): migrar hasta `Inicial`, sembrar la fila semilla y movimientos suyos, aplicar la migración de este ticket, y verificar que no queda ninguno de los dos. **Nombrar AC-09**. Mostrar el rojo
-- [ ] T007 Generar la migración en `backend/GestionGastos.Api/Migrations/` en el orden que impone la clave foránea: `ALTER usuario ADD contrasena_hash`, después `DELETE` de los movimientos de la semilla, y **recién ahí** el `DELETE` del usuario. Al revés falla ([data-model.md](./data-model.md)). `Down` **no** restituye los datos y lo declara: un `Down` que miente es peor que uno que avisa
-- [ ] T008 Registrar en `backend/GestionGastos.Api/Program.cs` la autenticación por cookie —`HttpOnly`, `SameSite=Strict`, `Secure` fuera de desarrollo— tomando el reloj del `TimeProvider` ya inyectado ([D-01](./research.md), [D-03](./research.md)). **Todavía NO se activa la autorización global**: eso es T025, y activarla antes dejaría la aplicación sin forma de iniciar sesión
+- [X] T007 Generar la migración en `backend/GestionGastos.Api/Migrations/` en el orden que impone la clave foránea: `ALTER usuario ADD contrasena_hash`, después `DELETE` de los movimientos de la semilla, y **recién ahí** el `DELETE` del usuario. Al revés falla ([data-model.md](./data-model.md)). `Down` **no** restituye los datos y lo declara: un `Down` que miente es peor que uno que avisa
+- [X] T008 Registrar en `backend/GestionGastos.Api/Program.cs` la autenticación por cookie —`HttpOnly`, `SameSite=Strict`, `Secure` fuera de desarrollo— tomando el reloj del `TimeProvider` ya inyectado ([D-01](./research.md), [D-03](./research.md)). **Todavía NO se activa la autorización global**: eso es T025, y activarla antes dejaría la aplicación sin forma de iniciar sesión
 - [ ] T009 [VERIFY] Puerta del backend: `dotnet format --verify-no-changes`, `dotnet build -warnaserror` y `dotnet test`. Verde es cero fallos **y cero warnings**
 
 **Checkpoint**: el esquema tiene cuentas, la semilla ya no existe y el hash funciona. Todavía no hay
@@ -82,16 +82,16 @@ email y esa contraseña.
 
 ### Tests
 
-- [ ] T010 [TEST] [US1] Escribir en `backend/GestionGastos.Api.Tests/Integracion/AltaDeCuentaTests.cs` el test de `POST /api/cuentas` con email nuevo: responde `201`, queda una fila en `usuario`, y esas credenciales permiten iniciar sesión. **Nombrar AC-01**. Mostrar el rojo
-- [ ] T011 [TEST] [US1] Agregar el test del email ya registrado: la respuesta es **idéntica** a la del alta exitosa —mismo código y mismo cuerpo—, sigue habiendo **una sola** cuenta con ese email, y su `contrasena_hash` **no cambió**. **Nombrar AC-02 y NFR-03**. Mostrar el rojo
-- [ ] T012 [TEST] [P] [US1] Agregar los tests de validación del alta: email ausente, vacío o con formato inválido, y contraseña ausente o de menos de 12 caracteres, devuelven `400` con la clave del campo en `errors`. Acá **sí** se dice qué está mal: no revela qué cuentas existen. Incluir el borde que pasa: exactamente 12. Mostrar el rojo
-- [ ] T013 [TEST] [P] [US1] Agregar el test de que el email se trata **sin distinguir mayúsculas**: dado de alta `Ana@x.com`, un alta posterior con `ana@x.com` no crea una segunda cuenta. Mostrar el rojo
+- [X] T010 [TEST] [US1] Escribir en `backend/GestionGastos.Api.Tests/Integracion/AltaDeCuentaTests.cs` el test de `POST /api/cuentas` con email nuevo: responde `201`, queda una fila en `usuario`, y esas credenciales permiten iniciar sesión. **Nombrar AC-01**. Mostrar el rojo
+- [X] T011 [TEST] [US1] Agregar el test del email ya registrado: la respuesta es **idéntica** a la del alta exitosa —mismo código y mismo cuerpo—, sigue habiendo **una sola** cuenta con ese email, y su `contrasena_hash` **no cambió**. **Nombrar AC-02 y NFR-03**. Mostrar el rojo
+- [X] T012 [TEST] [P] [US1] Agregar los tests de validación del alta: email ausente, vacío o con formato inválido, y contraseña ausente o de menos de 12 caracteres, devuelven `400` con la clave del campo en `errors`. Acá **sí** se dice qué está mal: no revela qué cuentas existen. Incluir el borde que pasa: exactamente 12. Mostrar el rojo
+- [X] T013 [TEST] [P] [US1] Agregar el test de que el email se trata **sin distinguir mayúsculas**: dado de alta `Ana@x.com`, un alta posterior con `ana@x.com` no crea una segunda cuenta. Mostrar el rojo
 
 ### Implementación
 
-- [ ] T014 [US1] Implementar `POST /api/cuentas` en `backend/GestionGastos.Api/Cuentas/`, con su DTO de petición y de respuesta según [contracts/api-http.md](./contracts/api-http.md). La respuesta es la misma exista o no la cuenta; lo que cambia es que no se crea nada
-- [ ] T015 [TEST] [US1] Escribir en `backend/GestionGastos.Api.Tests/Integracion/InicioDeSesionTests.cs` el test del camino feliz de `POST /api/sesion`: credenciales correctas devuelven `200` y **la cookie de sesión**, y a partir de ahí `GET /api/sesion` reconoce a esa cuenta. Es lo que cierra AC-01 del lado del servidor. **Nombrar AC-03**. Mostrar el rojo
-- [ ] T016 [US1] Implementar `POST /api/sesion` en `backend/GestionGastos.Api/Sesion/`, emitiendo la cookie con el identificador de la cuenta como claim
+- [X] T014 [US1] Implementar `POST /api/cuentas` en `backend/GestionGastos.Api/Cuentas/`, con su DTO de petición y de respuesta según [contracts/api-http.md](./contracts/api-http.md). La respuesta es la misma exista o no la cuenta; lo que cambia es que no se crea nada
+- [X] T015 [TEST] [US1] Escribir en `backend/GestionGastos.Api.Tests/Integracion/InicioDeSesionTests.cs` el test del camino feliz de `POST /api/sesion`: credenciales correctas devuelven `200` y **la cookie de sesión**, y a partir de ahí `GET /api/sesion` reconoce a esa cuenta. Es lo que cierra AC-01 del lado del servidor. **Nombrar AC-03**. Mostrar el rojo
+- [X] T016 [US1] Implementar `POST /api/sesion` en `backend/GestionGastos.Api/Sesion/`, emitiendo la cookie con el identificador de la cuenta como claim
 - [ ] T017 [US1] Extender `frontend/src/api/tipos.ts` con `Credenciales`, `NuevaCuenta` y `SesionActual`, y agregar en `backend/GestionGastos.Api.Tests/Contrato/` la verificación de esos tipos contra el JSON real, en las dos direcciones. Ese archivo sigue siendo la fuente de verdad del contrato ([ADR-001](../../docs/adr/ADR-001-tests-de-contrato-leen-tipos-del-frontend.md))
 - [ ] T018 [VERIFY] [US1] Puerta del backend completa, más `./backend/verificar-contrato.sh`, que tiene que seguir probando que sabe ponerse en rojo con los tipos nuevos adentro
 
@@ -122,8 +122,8 @@ operación exige autenticarse de nuevo.
 
 - [ ] T025 [TEST] [US2] Escribir en `backend/GestionGastos.Api.Tests/Autorizacion/SinSesionTests.cs` el test de que los tres endpoints de FEAT-001a responden `401` sin sesión **y no ejecutan su efecto**: tras un `POST /api/movimientos` rechazado, la cantidad de filas no cambia. Que no se ejecute es la mitad del criterio — un `POST` que rechaza pero igual inserta cumple el código y falla el requisito. **Nombrar AC-05**. Mostrar el rojo
 - [ ] T026 [US2] Activar la autorización **global** en `Program.cs` con las **dos** excepciones explícitas (`POST /api/cuentas`, `POST /api/sesion`). Global con excepciones y no endpoint por endpoint: así un endpoint nuevo nace protegido en vez de nacer abierto ([contracts/api-http.md](./contracts/api-http.md))
-- [ ] T027 [US2] Reemplazar `UsuarioSemilla` por `backend/GestionGastos.Api/Persistencia/UsuarioDeLaSesion.cs`, que lee el identificador del `ClaimsPrincipal` y **lanza** si no hay sesión ([D-05](./research.md)). Eliminar `UsuarioSemilla.cs`. **`IUsuarioActual` no cambia**, así que `MovimientosEndpoints` no se toca: esa es la costura que FEAT-001a dejó preparada
-- [ ] T028 [US2] Acompañar T026/T027 actualizando la suite de FEAT-001a para que autentique antes de pedir. **Es el rojo esperado de este ticket**: sin esto, todos sus tests fallan con `401`. Va en el mismo commit que T026 y T027 — no se commitea con la puerta en rojo (Principio III)
+- [X] T027 [US2] Reemplazar `UsuarioSemilla` por `backend/GestionGastos.Api/Persistencia/UsuarioDeLaSesion.cs`, que lee el identificador del `ClaimsPrincipal` y **lanza** si no hay sesión ([D-05](./research.md)). Eliminar `UsuarioSemilla.cs`. **`IUsuarioActual` no cambia**, así que `MovimientosEndpoints` no se toca: esa es la costura que FEAT-001a dejó preparada
+- [X] T028 [US2] Acompañar T026/T027 actualizando la suite de FEAT-001a para que autentique antes de pedir. **Es el rojo esperado de este ticket**: sin esto, todos sus tests fallan con `401`. Va en el mismo commit que T026 y T027 — no se commitea con la puerta en rojo (Principio III)
 
 ### Backend — la barrera nueva (Principio V)
 

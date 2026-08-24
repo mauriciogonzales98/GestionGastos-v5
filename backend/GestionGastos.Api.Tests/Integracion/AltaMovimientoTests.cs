@@ -26,9 +26,10 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Registra_Un_Gasto_Valido_Y_Devuelve_El_Movimiento_Entero_AC15()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = CrearFactoria(new DateOnly(2026, 8, 23));
-        using var cliente = factoria.CreateClient();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
 
         using var respuesta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
@@ -49,11 +50,13 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal("ARS", creado.GetProperty("monedaCodigo").GetString());
         Assert.Equal("2026-08-23", creado.GetProperty("fecha").GetString());
 
-        // La fila existe y es del usuario semilla. FR-010: el propietario se asigna en el INSERT,
-        // a mano, y no por un default del esquema.
+        // La fila existe y es de la cuenta que estaba en sesión (AC-07). FR-010: el propietario se
+        // asigna en el INSERT, a mano, y no por un default del esquema. Antes del ticket 01a esto
+        // comparaba contra una fila fija, que no podía distinguir "asignó bien" de "asignó siempre
+        // lo mismo".
         await using var contexto = _baseDeDatos.CrearContexto();
         var fila = await contexto.Movimientos.SingleAsync();
-        Assert.Equal(UsuarioSemilla.IdSemilla, fila.UsuarioId);
+        Assert.Equal(cuenta.Id, fila.UsuarioId);
         Assert.Equal(1250.50m, fila.Monto);
         Assert.Equal(new DateOnly(2026, 8, 23), fila.Fecha);
     }
@@ -69,10 +72,11 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Sin_Fecha_Queda_Registrado_Con_El_Hoy_Inyectado_AC17()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
         var hoyInyectado = new DateOnly(2026, 3, 7);
         using var factoria = CrearFactoria(hoyInyectado);
-        using var cliente = factoria.CreateClient();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
 
         using var respuesta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
@@ -92,9 +96,10 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Fecha_Nula_Explicita_Tambien_Cae_En_El_Hoy_Inyectado_AC17()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = CrearFactoria(new DateOnly(2026, 3, 7));
-        using var cliente = factoria.CreateClient();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
 
         // El contrato dice "ausente o null": mandar null explícito no puede comportarse distinto.
         using var respuesta = await cliente.PostAsJsonAsync(
@@ -114,9 +119,10 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Registra_Un_Ingreso_Y_La_Fila_Queda_Con_Tipo_Ingreso_AC16()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = CrearFactoria(new DateOnly(2026, 8, 23));
-        using var cliente = factoria.CreateClient();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
 
         // Categoría 8 = Sueldo, del catálogo de ingreso.
         using var respuesta = await cliente.PostAsJsonAsync(

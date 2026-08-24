@@ -28,8 +28,22 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
             e.ToTable("usuario");
             e.HasKey(u => u.Id);
             e.Property(u => u.Id).HasColumnName("id");
-            e.Property(u => u.Email).HasColumnName("email").HasMaxLength(254).IsRequired();
+            // Colación insensible a mayúsculas: es lo que hace que `Ana@x.com` y `ana@x.com` sean
+            // LA MISMA cuenta, tanto para el UNIQUE como para la búsqueda del login. Sin esto el
+            // UNIQUE dejaría entrar las dos y FR-002 quedaría incumplido por una diferencia que
+            // ninguna persona percibe como distinta.
+            e.Property(u => u.Email)
+                .HasColumnName("email")
+                .HasMaxLength(254)
+                .UseCollation("utf8mb4_0900_ai_ci")
+                .IsRequired();
             e.HasIndex(u => u.Email).IsUnique();
+
+            // 60 caracteres en el formato bcrypt actual; 72 deja aire sin convertirlo en un `text`.
+            e.Property(u => u.ContrasenaHash)
+                .HasColumnName("contrasena_hash")
+                .HasMaxLength(72)
+                .IsRequired();
         });
 
         modelBuilder.Entity<Moneda>(e =>
@@ -111,11 +125,6 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
     /// </summary>
     private static void Sembrar(ModelBuilder modelBuilder)
     {
-        // La cuenta que devuelve IUsuarioActual mientras no haya autenticación (D-05). Sus datos
-        // de desarrollo se descartan en la migración del ticket 1a.
-        modelBuilder.Entity<Usuario>().HasData(
-            new Usuario { Id = UsuarioSemilla.IdSemilla, Email = "semilla@gestiongastos.local" });
-
         // RF-31. Exactamente una fila con es_predeterminada = true (RF-25).
         modelBuilder.Entity<Moneda>().HasData(
             new Moneda { Id = 1, Codigo = "ARS", Nombre = "Peso argentino", Simbolo = "$", Decimales = 2, EsPredeterminada = true },
