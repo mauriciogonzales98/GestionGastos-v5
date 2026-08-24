@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using GestionGastos.Api.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GestionGastos.Api.Tests.Integracion;
 
@@ -184,6 +186,52 @@ public class AltaDeCuentaTests(BaseDeDatosFixture baseDeDatos)
             new Uri("/api/cuentas", UriKind.Relative),
             new { email = email.ToUpperInvariant(), contrasena = "otra distinta" });
 
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Single(await contexto.Usuarios.Where(u => u.Email == email).ToListAsync());
+    }
+
+    /// <summary>
+    /// La carrera: entre la consulta que pregunta si el email existe y el INSERT que lo escribe,
+    /// otra petición crea esa misma cuenta.
+    ///
+    /// El índice único frena la segunda escritura —para eso está— y sin manejarlo esa petición
+    /// salía con un 500: un error para quien no hizo nada mal, y una respuesta que delata que la
+    /// cuenta existe. Tiene que terminar como cualquier alta con email ya registrado.
+    ///
+    /// El interceptor hace la carrera exacta y repetible; dos peticiones simultáneas darían un test
+    /// que falla a veces, que es lo mismo que no tenerlo.
+    /// </summary>
+    [Fact]
+    public async Task Si_Otra_Peticion_Gana_La_Carrera_El_Alta_Responde_Igual_Y_No_Rompe()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        var email = Unico();
+
+        var carrera = new CreaLaCuentaAntesDeGuardar(_baseDeDatos.Cadena);
+        using var factoria = new FactoriaConReloj(
+            new DateOnly(2026, 8, 24),
+            // `ConfigureDbContext` y no `AddSingleton<IInterceptor>`: registrarlo en el contenedor
+            // a secas lo deja inerte —EF no lo levanta— y con el interceptor inerte no hay carrera
+            // y este test pasa en verde sin ejercitar nada. Pasó de verdad mientras se escribía.
+            servicios => servicios.ConfigureDbContext<GestionGastosDbContext>(
+                o => o.AddInterceptors(carrera)));
+        using var cliente = factoria.CreateClient();
+
+        using var alta = await cliente.PostAsJsonAsync(
+            new Uri("/api/cuentas", UriKind.Relative),
+            new { email, contrasena = "una frase larga y buena" });
+
+        // Primero: que la carrera haya ocurrido de verdad. Sin esto, un interceptor inerte deja
+        // este test en verde sin haber ejercitado nada.
+        Assert.True(carrera.Intervino, "el interceptor no llegó a crear la cuenta rival");
+
+        Assert.Equal(HttpStatusCode.Created, alta.StatusCode);
+        Assert.Equal(
+            "Si el email no estaba registrado, la cuenta fue creada. Ya podés iniciar sesión.",
+            JsonDocument.Parse(await alta.Content.ReadAsStringAsync())
+                .RootElement.GetProperty("mensaje").GetString());
+
+        // Y quedó una sola cuenta: la que ganó la carrera.
         await using var contexto = _baseDeDatos.CrearContexto();
         Assert.Single(await contexto.Usuarios.Where(u => u.Email == email).ToListAsync());
     }

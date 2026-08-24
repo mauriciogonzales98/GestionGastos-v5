@@ -1,6 +1,7 @@
 using GestionGastos.Api.Dominio;
 using GestionGastos.Api.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 
 namespace GestionGastos.Api.Cuentas;
 
@@ -44,7 +45,20 @@ public static class CuentasEndpoints
                     ContrasenaHash = hash,
                 });
 
-                await contexto.SaveChangesAsync();
+                try
+                {
+                    await contexto.SaveChangesAsync();
+                }
+                catch (DbUpdateException excepcion) when (EsEmailDuplicado(excepcion))
+                {
+                    // Entre la consulta y el INSERT, otra petición creó esa misma cuenta. El índice
+                    // único la frenó —que es su trabajo— y acá termina como termina cualquier alta
+                    // con un email ya registrado: sin crear nada y con la respuesta de siempre.
+                    //
+                    // No es un catch silencioso: se atrapa UN error concreto, el 1062 del email, y
+                    // el resultado es el que corresponde. Dejarlo salir devolvía un 500 que además
+                    // delataba la cuenta existente, que es lo que NFR-03 evita.
+                }
             }
 
             // La MISMA respuesta en los dos casos (NFR-03). Si el email ya estaba, no se creó nada
@@ -55,4 +69,16 @@ public static class CuentasEndpoints
         })
         .AllowAnonymous();
     }
+
+    /// <summary>
+    /// <c>true</c> si el fallo es el índice único del email, y no cualquier otro problema al
+    /// guardar.
+    ///
+    /// Se mira el número de error de MySQL —1062, clave duplicada— y no el texto del mensaje, que
+    /// cambia con la versión y con el idioma del servidor. `MySqlConnector` llega con Pomelo; no es
+    /// una dependencia nueva.
+    /// </summary>
+    private static bool EsEmailDuplicado(DbUpdateException excepcion) =>
+        excepcion.InnerException is MySqlException mysql
+        && mysql.ErrorCode == MySqlErrorCode.DuplicateKeyEntry;
 }
