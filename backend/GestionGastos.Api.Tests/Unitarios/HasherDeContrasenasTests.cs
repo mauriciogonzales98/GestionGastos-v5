@@ -52,11 +52,25 @@ public class HasherDeContrasenasTests
         Assert.False(_hasher.Verificar(string.Empty, hash));
     }
 
-    [Fact]
-    public void Verificar_Contra_Un_Hash_Ilegible_Devuelve_False_En_Vez_De_Lanzar()
+    /// <summary>
+    /// Las tres formas de estar ilegible, no una sola.
+    ///
+    /// La librería no lanza siempre lo mismo: un texto cualquiera da `SaltParseException`, el hash
+    /// vacío da `ArgumentException` y uno truncado da `ArgumentOutOfRangeException`. Cubrir sólo la
+    /// primera dejaba que las otras dos salieran como un 500 — y un 500 en el login convierte una
+    /// fila corrupta en una caída y hace que esa cuenta se comporte distinto de todas las demás,
+    /// que es exactamente lo que NFR-03 no quiere.
+    /// </summary>
+    [Theory]
+    [InlineData("esto no es un hash", "texto cualquiera")]
+    [InlineData("", "hash vacío")]
+    [InlineData("   ", "sólo espacios")]
+    [InlineData("$2a$11$corto", "hash bcrypt truncado")]
+    public void Verificar_Contra_Un_Hash_Ilegible_Devuelve_False_En_Vez_De_Lanzar(
+        string hash, string caso)
     {
         // Una fila corrupta o migrada a mano no puede tumbar el login con una excepción: eso
         // convertiría un dato malo en una caída, y encima distinguiría esa cuenta de las demás.
-        Assert.False(_hasher.Verificar("cualquier cosa", "esto no es un hash"));
+        Assert.False(_hasher.Verificar("cualquier cosa", hash), caso);
     }
 }

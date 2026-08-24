@@ -38,5 +38,14 @@ public class HasherDeContrasenas
             // correcta para un verificador que no se puede leer.
             return false;
         }
+        catch (ArgumentException)
+        {
+            // `SaltParseException` sola no alcanza, y creer que sí dejaba el agujero abierto justo
+            // en el caso que este método dice cubrir: contra un hash vacío la librería lanza
+            // `ArgumentException`, y contra uno truncado —`$2a$11$` y nada más—
+            // `ArgumentOutOfRangeException`, que deriva de ésta. Las dos escapaban y salían por
+            // arriba como un 500.
+            return false;
+        }
     }
 }
