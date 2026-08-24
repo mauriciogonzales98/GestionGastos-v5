@@ -41,14 +41,31 @@ export function PantallaMovimientos({ hoy }: PropsPantallaMovimientos) {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [cargandoListado, setCargandoListado] = useState(true);
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
+  const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null);
 
   useEffect(() => {
-    // El formulario ya es usable mientras el listado carga: no espera al listado.
-    void obtenerCategorias().then(setCategorias);
-    void obtenerMovimientos().then((m) => {
-      setMovimientos(m);
-      setCargandoListado(false);
-    });
+    // Las dos cargas van por separado a propósito: el formulario ya es usable mientras el listado
+    // carga, y si una falla la otra puede seguir sirviendo. Un Promise.all las ataría.
+    //
+    // Cada una tiene su `catch`. Sin ellos, un backend caído dejaba el indicador de carga
+    // encendido para siempre y el selector de categorías vacío: guardar era imposible y la única
+    // señal era un unhandled rejection en la consola, que nadie mira.
+    void obtenerCategorias()
+      .then(setCategorias)
+      .catch(() => {
+        setErrorDeCarga(
+          'No se pudieron cargar las categorías. Revisá la conexión y recargá la página.',
+        );
+      });
+
+    void obtenerMovimientos()
+      .then(setMovimientos)
+      .catch(() => {
+        setErrorDeCarga('No se pudo cargar el listado de movimientos. Recargá la página.');
+      })
+      // El indicador se apaga pase lo que pase. Dejarlo encendido tras un fallo es decirle a la
+      // persona que espere algo que no va a llegar.
+      .finally(() => setCargandoListado(false));
   }, []);
 
   async function guardar(nuevo: NuevoMovimiento) {
@@ -76,6 +93,10 @@ export function PantallaMovimientos({ hoy }: PropsPantallaMovimientos) {
       {/* role="status" y no "alert": es una confirmación, no un error, y se anuncia sin
           interrumpir lo que la persona esté haciendo. */}
       {confirmacion ? <p role="status">{confirmacion}</p> : null}
+
+      {/* role="alert": la carga falló y no hay nada que la persona pueda hacer desde el formulario
+          para enterarse sola. */}
+      {errorDeCarga ? <p role="alert">{errorDeCarga}</p> : null}
 
       {cargandoListado ? (
         <p>Cargando movimientos…</p>
