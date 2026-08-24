@@ -170,6 +170,24 @@ extiende con un nombre más, no se abre.
 II. Correrlo contra la API — no hay endpoint que exponga la semilla, y el criterio es sobre el
 estado de la base tras migrar.
 
+> **Revisión al implementar (2026-08-24) — se hace sobre `gestiongastos_test`, no sobre una base
+> propia.** El usuario de MySQL del proyecto sólo tiene permisos sobre `gestiongastos` y
+> `gestiongastos_test`, así que no puede crear una tercera base, y conseguir ese permiso exige
+> `sudo` con una terminal interactiva que el entorno de trabajo no ofrece.
+>
+> El test hace lo mismo dentro de la base compartida: baja a `Inicial`, siembra la semilla y sus
+> movimientos, vuelve a subir, y **restaura el esquema en un `finally`**. Va en la colección
+> compartida, que serializa, así que ningún otro test corre mientras el esquema se mueve.
+>
+> Lo que se pierde respecto de la idea original es real y conviene decirlo: si el proceso muriera de
+> golpe —no una excepción, sino un `kill`— la base quedaría una migración atrás. Se recupera sola en
+> la corrida siguiente, porque el fixture migra al arrancar, pero es un estado intermedio que la
+> base propia no tendría.
+>
+> Verificado: la suite completa pasa dos corridas seguidas con este test adentro. Si algún día el
+> permiso existe, volver a la base propia es cambiar la cadena de conexión del test y nada más — la
+> lista blanca del fixture ya admite `gestiongastos_migracion_test`.
+
 ---
 
 ## D-08 — Dos pantallas sin router

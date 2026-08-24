@@ -88,10 +88,13 @@ namespace GestionGastos.Api.Migrations
 
             // La fila vuelve para que el esquema sea coherente con la migración anterior, pero sus
             // movimientos no: se perdieron y no hay de dónde sacarlos.
+            //
+            // Sin `contrasena_hash`: para cuando esta línea corre, la columna ya se eliminó arriba.
+            // Incluirla hacía fallar la vuelta atrás con "no property mapped to the column".
             migrationBuilder.InsertData(
                 table: "usuario",
-                columns: new[] { "id", "email", "contrasena_hash" },
-                values: new object[] { IdDeLaSemilla, "semilla@gestiongastos.local", "" });
+                columns: new[] { "id", "email" },
+                values: new object[] { IdDeLaSemilla, "semilla@gestiongastos.local" });
         }
     }
 }
