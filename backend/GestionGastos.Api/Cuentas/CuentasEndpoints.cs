@@ -24,6 +24,14 @@ public static class CuentasEndpoints
 
             var email = peticion.Email!.Trim();
 
+            // Se hashea SIEMPRE, antes de saber si hace falta, y si el email ya estaba el resultado
+            // se tira. Es trabajo desperdiciado a propósito: hashear sólo cuando la cuenta se crea
+            // dejaba el alta respondiendo en 2 ms para un email registrado y en ~100 ms para uno
+            // nuevo, y esa diferencia publica el padrón de emails con un cronómetro aunque el
+            // mensaje y el código sean idénticos. Es la misma medida que el login toma con
+            // `HashDescartable`, y sin ella igualar la respuesta es decorativo (research.md D-04).
+            var hash = hasher.Hashear(peticion.Contrasena!);
+
             // La comparación no distingue mayúsculas porque la colación de la columna es
             // `utf8mb4_0900_ai_ci`: `Ana@x.com` y `ana@x.com` son la misma cuenta.
             var yaExiste = await contexto.Usuarios.AnyAsync(u => u.Email == email);
@@ -33,7 +41,7 @@ public static class CuentasEndpoints
                 contexto.Usuarios.Add(new Usuario
                 {
                     Email = email,
-                    ContrasenaHash = hasher.Hashear(peticion.Contrasena!),
+                    ContrasenaHash = hash,
                 });
 
                 await contexto.SaveChangesAsync();

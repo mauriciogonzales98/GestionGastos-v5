@@ -188,6 +188,66 @@ public class AltaDeCuentaTests(BaseDeDatosFixture baseDeDatos)
         Assert.Single(await contexto.Usuarios.Where(u => u.Email == email).ToListAsync());
     }
 
+    /// <summary>
+    /// NFR-03 del lado del reloj: el alta con un email YA REGISTRADO también paga el costo del
+    /// hash.
+    ///
+    /// Igualar el mensaje y el código no alcanza. Si el camino "ya existe" se saltea el hash,
+    /// responde en 2 ms contra los ~100 ms del alta que sí crea la cuenta, y esa diferencia publica
+    /// qué emails están registrados con un cronómetro — en un endpoint anónimo y sin límite de
+    /// intentos. Es la misma medida que `El_Rechazo_Por_Email_Inexistente_Tambien_Paga_El_Costo_Del_Hash`
+    /// verifica para el login (research.md D-04).
+    ///
+    /// Se comprueba la CONDUCTA, no el tiempo exacto: el margen es ancho a propósito, suficiente
+    /// para detectar la ausencia total del hash sin volverse sensible al ruido de la máquina.
+    /// </summary>
+    [Fact]
+    public async Task El_Alta_Con_Email_Ya_Registrado_Tambien_Paga_El_Costo_Del_Hash_NFR03()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        var registrado = Unico();
+
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cliente = factoria.CreateClient();
+
+        using (var alta = await cliente.PostAsJsonAsync(
+            new Uri("/api/cuentas", UriKind.Relative),
+            new { email = registrado, contrasena = "una frase larga y buena" }))
+        {
+            Assert.Equal(HttpStatusCode.Created, alta.StatusCode);
+        }
+
+        var conEmailNuevo = await MedirAsync(cliente, Unico());
+        var conEmailRegistrado = await MedirAsync(cliente, registrado);
+
+        Assert.True(
+            conEmailRegistrado > conEmailNuevo / 5,
+            $"El alta con un email ya registrado tardó {conEmailRegistrado:F0} ms y la que creó la " +
+            $"cuenta {conEmailNuevo:F0} ms. Una diferencia así indica que el camino 'ya existe' no " +
+            "está hasheando nada, y eso permite distinguir los emails registrados con un cronómetro.");
+    }
+
+    /// <summary>Lo que tarda un alta con <paramref name="email"/>, en milisegundos.</summary>
+    private static async Task<double> MedirAsync(HttpClient cliente, string email)
+    {
+        // Dos corridas y se toma la mayor: la primera paga la compilación del pipeline. El email
+        // nuevo se pide una vez por llamada, así que la segunda corrida de un email nuevo ya lo
+        // encuentra registrado — y eso está bien: lo que se mide es el piso de cada camino.
+        double mayor = 0;
+
+        for (var i = 0; i < 2; i++)
+        {
+            var cronometro = System.Diagnostics.Stopwatch.StartNew();
+            using var respuesta = await cliente.PostAsJsonAsync(
+                new Uri("/api/cuentas", UriKind.Relative),
+                new { email, contrasena = "una frase larga y buena" });
+            cronometro.Stop();
+            mayor = Math.Max(mayor, cronometro.Elapsed.TotalMilliseconds);
+        }
+
+        return mayor;
+    }
+
     private static async Task<HttpResponseMessage> EnviarCrudoAsync(string ruta, string cuerpo)
     {
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
