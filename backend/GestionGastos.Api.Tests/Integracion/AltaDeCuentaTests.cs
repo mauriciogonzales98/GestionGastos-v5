@@ -147,6 +147,42 @@ public class AltaDeCuentaTests(BaseDeDatosFixture baseDeDatos)
             "no revela nada sobre qué cuentas existen.");
     }
 
+    /// <summary>
+    /// Los dos largos que la base y el algoritmo imponen, y que la validación tiene que atajar
+    /// antes.
+    ///
+    /// Un email de 300 caracteres pasaba la validación y moría contra `varchar(254)` con un 500
+    /// "Data too long": un error del servidor donde correspondía un 400 con la clave del campo. Una
+    /// contraseña de 100 caracteres se aceptaba, y bcrypt guardaba en silencio sólo sus primeros 72
+    /// bytes — con lo que otra contraseña distinta que compartiera ese prefijo abría la cuenta.
+    /// </summary>
+    [Theory]
+    [InlineData(300, 20, "email", "email de 300 caracteres")]
+    [InlineData(20, 100, "contrasena", "contraseña de 100 caracteres")]
+    public async Task Rechaza_Lo_Que_No_Entra_En_La_Base_Ni_En_El_Algoritmo(
+        int largoDelEmail, int largoDeLaContrasena, string campo, string caso)
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        // El sufijo `@ejemplo.com` va aparte para que el email siga siendo un email: lo que se
+        // verifica es el largo, no el formato.
+        var email = new string('a', largoDelEmail - "@ejemplo.com".Length) + "@ejemplo.com";
+        var contrasena = new string('b', largoDeLaContrasena);
+
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cliente = factoria.CreateClient();
+
+        using var respuesta = await cliente.PostAsJsonAsync(
+            new Uri("/api/cuentas", UriKind.Relative), new { email, contrasena });
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+        Assert.True(
+            json.RootElement.GetProperty("errors").TryGetProperty(campo, out _),
+            $"[{caso}] se esperaba la clave `{campo}` en errors.");
+    }
+
     /// <summary>El borde que sí pasa: exactamente el mínimo. Sin él, una validación de más quedaría
     /// indistinguible de una correcta.</summary>
     [Fact]
