@@ -38,12 +38,19 @@ Leé las dos cosas antes de empezar a reportar.
 
 ## 4. Formato de salida
 
-Una tabla por severidad, bloqueantes primero:
+**Primero una tabla de resumen con TODOS los hallazgos**, ordenada por severidad, con las celdas
+cortas — una línea cada una:
 
-| # | archivo:línea | Escenario concreto en que falla | Corrección sugerida |
-|---|---------------|---------------------------------|---------------------|
+| # | Sev. | archivo:línea | Qué falla |
+|---|------|---------------|-----------|
 
-Después de las tablas, la lista de supuestos no validados.
+Las celdas van cortas por una razón concreta: el terminal renderiza la tabla como texto plano
+cuando una celda ocupa varias líneas, y ahí se pierde justamente el resumen. El detalle largo va
+**debajo**, en prosa, un párrafo numerado por hallazgo: el escenario **CONCRETO** en que falla y,
+cerrando el párrafo, la **corrección sugerida**. Así el resumen se lee de un vistazo y no se pierde
+nada.
+
+Al final, la lista de supuestos no validados. Ésa es lista, no tabla.
 
 ## 5. Corregir — sólo si el usuario lo pide
 
