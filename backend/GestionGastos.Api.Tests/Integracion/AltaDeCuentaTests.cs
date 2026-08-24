@@ -122,6 +122,10 @@ public class AltaDeCuentaTests(BaseDeDatosFixture baseDeDatos)
     [InlineData("null", "\"12345678901234\"", "email", "email ausente")]
     [InlineData("\"\"", "\"12345678901234\"", "email", "email vacío")]
     [InlineData("\"no-es-un-email\"", "\"12345678901234\"", "email", "email sin arroba")]
+    // Con un espacio adentro: `MailAddress` lo acepta —para el RFC un espacio entrecomillado es
+    // legal— y después ese email no puede escribirse en ningún cliente de correo. Es el único caso
+    // donde la validación es MÁS estricta que el estándar, y por eso tiene su propio caso.
+    [InlineData("\"ana perez@x.com\"", "\"12345678901234\"", "email", "email con un espacio")]
     [InlineData("\"a@b.com\"", "null", "contrasena", "contraseña ausente")]
     [InlineData("\"a@b.com\"", "\"12345678901\"", "contrasena", "once caracteres, uno menos del mínimo")]
     public async Task Rechaza_El_Alta_Invalida_Con_La_Clave_Del_Campo(

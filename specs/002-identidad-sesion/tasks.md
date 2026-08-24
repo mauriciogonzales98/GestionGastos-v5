@@ -167,11 +167,11 @@ el listado sólo trae los de esa cuenta.
 
 ## Phase 6: Polish y cierre de la feature
 
-- [ ] T044 Correr la cobertura con `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings` y revisar que el código nuevo de `Cuentas/`, `Sesion/` y `Autorizacion/` quede medido
-- [ ] T045 [P] Revisar que ningún AC de SC-007 quede sin test que lo nombre: AC-01..AC-12. Un AC sin test cubierto no cuenta como implementado (Principio II)
-- [ ] T046 [P] Revisar que no haya ningún `any` sin comentario justificativo ni catch silencioso en `frontend/src/` y `backend/GestionGastos.Api/`, y que **ninguna contraseña ni hash aparezca en un log, un mensaje de error o una respuesta**
-- [ ] T047 Actualizar `AGENTS.md` con la barrera nueva (`verificar-autorizacion.sh`) y con la segunda base de tests, para que la tabla de *Stack* siga siendo el único lugar donde vive esa información
-- [ ] T048 [VERIFY] Puerta de cierre de feature, entera y con su salida a la vista: lint, format, typecheck, tests y build de producción en frontend; `dotnet format --verify-no-changes`, build con `-warnaserror`, `dotnet test` completo, cobertura, y las **tres** barreras
+- [X] T044 Correr la cobertura con `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings` y revisar que el código nuevo de `Cuentas/`, `Sesion/` y `Autorizacion/` quede medido
+- [X] T045 [P] Revisar que ningún AC de SC-007 quede sin test que lo nombre: AC-01..AC-12. Un AC sin test cubierto no cuenta como implementado (Principio II)
+- [X] T046 [P] Revisar que no haya ningún `any` sin comentario justificativo ni catch silencioso en `frontend/src/` y `backend/GestionGastos.Api/`, y que **ninguna contraseña ni hash aparezca en un log, un mensaje de error o una respuesta**
+- [X] T047 Actualizar `AGENTS.md` con la barrera nueva (`verificar-autorizacion.sh`) y con la segunda base de tests, para que la tabla de *Stack* siga siendo el único lugar donde vive esa información
+- [X] T048 [VERIFY] Puerta de cierre de feature, entera y con su salida a la vista: lint, format, typecheck, tests y build de producción en frontend; `dotnet format --verify-no-changes`, build con `-warnaserror`, `dotnet test` completo, cobertura, y las **tres** barreras
 
 ---
 
