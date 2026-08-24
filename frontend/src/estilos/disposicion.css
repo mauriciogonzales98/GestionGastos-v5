@@ -17,3 +17,12 @@
   gap: 1rem;
   align-items: center;
 }
+
+/*
+ * La cabecera de la pantalla: el título a la izquierda, la cuenta y el cierre de sesión a la
+ * derecha. El `margin-left: auto` va sobre el hueco y no sobre el botón: un `c-` no define su
+ * propio margen externo.
+ */
+.l-cabecera > :nth-child(2) {
+  margin-left: auto;
+}

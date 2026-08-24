@@ -35,10 +35,24 @@ beforeEach(() => {
 describe('AC-55 — el formulario se usa entero con el teclado', () => {
   it('se recorre con Tab y se envía con Enter, sin usar el mouse AC-55', async () => {
     const usuario = userEvent.setup();
-    render(<PantallaMovimientos hoy="2026-08-23" />);
+    render(
+      <PantallaMovimientos
+        hoy="2026-08-23"
+        email="ana@ejemplo.com"
+        onCerrarSesion={() => {}}
+        onSesionVencida={() => {}}
+      />,
+    );
     await screen.findByRole('button', { name: 'Registrar' });
 
     // El orden del DOM es el orden de tabulación: no hay tabindex positivo que lo altere.
+    //
+    // El primer control de la pantalla es "Cerrar sesión", que vive en la cabecera y por lo tanto
+    // va antes del formulario. Se verifica en vez de saltearlo: si algún día apareciera con
+    // `tabindex` para sacarlo del camino, quien navega con teclado no podría cerrar sesión.
+    await usuario.tab();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
     await usuario.tab();
     expect(document.activeElement).toBe(screen.getByRole('radio', { name: 'Gasto' }));
 

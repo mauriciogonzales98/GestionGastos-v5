@@ -24,14 +24,18 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Devuelve_Solo_Los_Del_Mes_Actual_Y_Excluye_Los_Cuatro_Bordes_AC25()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 15));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
         await SembrarAsync(
+            cuenta.Id,
             new DateOnly(2026, 7, 31),   // último del mes anterior — afuera
             new DateOnly(2026, 8, 1),    // primero del actual — adentro
             new DateOnly(2026, 8, 31),   // último del actual — adentro
             new DateOnly(2026, 9, 1));   // primero del siguiente — afuera
 
-        var fechas = await FechasDelListadoAsync(new DateOnly(2026, 8, 15));
+        var fechas = await FechasDelListadoAsync(cuenta);
 
         Assert.Equal(["2026-08-31", "2026-08-01"], fechas);
     }
@@ -43,13 +47,17 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Ordena_Por_Fecha_Descendente_Y_Desempata_Por_Id_Descendente()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 15));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
         var ids = await SembrarAsync(
+            cuenta.Id,
             new DateOnly(2026, 8, 10),
             new DateOnly(2026, 8, 20),
             new DateOnly(2026, 8, 10));
 
-        var listado = await ListadoAsync(new DateOnly(2026, 8, 15));
+        var listado = await ListadoAsync(cuenta);
 
         var idsDevueltos = listado.Select(m => m.GetProperty("id").GetInt64()).ToList();
 
@@ -68,7 +76,8 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         using var contexto = _baseDeDatos.CrearContexto();
 
         var sql = MovimientosConsulta
-            .DelMes(contexto, UsuarioSemilla.IdSemilla, RangoDelMes.De(new DateOnly(2026, 8, 15)))
+            // El id no importa: este test sólo mira el SQL que se genera, no filas.
+            .DelMes(contexto, usuarioId: 1, RangoDelMes.De(new DateOnly(2026, 8, 15)))
             .ToQueryString();
 
         Assert.Contains("ORDER BY", sql, StringComparison.OrdinalIgnoreCase);
@@ -86,12 +95,12 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Sin_Movimientos_En_El_Mes_Devuelve_200_Con_Arreglo_Vacio_FR012()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
-        await SembrarAsync(new DateOnly(2026, 1, 15));
-
+        await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 15));
-        using var cliente = factoria.CreateClient();
-        using var respuesta = await cliente.GetAsync(new Uri("/api/movimientos", UriKind.Relative));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        await SembrarAsync(cuenta.Id, new DateOnly(2026, 1, 15));
+
+        using var respuesta = await cuenta.Cliente.GetAsync(new Uri("/api/movimientos", UriKind.Relative));
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
 
@@ -107,14 +116,16 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Devuelve_Gastos_E_Ingresos_Del_Mes_Cada_Uno_Con_Su_Tipo_AC22()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 15));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
 
         await using (var contexto = _baseDeDatos.CrearContexto())
         {
             contexto.Movimientos.AddRange(
                 new Movimiento
                 {
-                    UsuarioId = UsuarioSemilla.IdSemilla,
+                    UsuarioId = cuenta.Id,
                     Tipo = TipoMovimiento.Gasto,
                     Monto = 100m,
                     MonedaId = 1,
@@ -123,7 +134,7 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
                 },
                 new Movimiento
                 {
-                    UsuarioId = UsuarioSemilla.IdSemilla,
+                    UsuarioId = cuenta.Id,
                     Tipo = TipoMovimiento.Ingreso,
                     Monto = 50000m,
                     MonedaId = 1,
@@ -133,7 +144,7 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
             await contexto.SaveChangesAsync();
         }
 
-        var listado = await ListadoAsync(new DateOnly(2026, 8, 15));
+        var listado = await ListadoAsync(cuenta);
 
         Assert.Equal(2, listado.Count);
         Assert.Equal("ingreso", listado[0].GetProperty("tipo").GetString());
@@ -142,7 +153,40 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal("Comida", listado[1].GetProperty("categoriaNombre").GetString());
     }
 
-    private async Task<List<long>> SembrarAsync(params DateOnly[] fechas)
+    /// <summary>
+    /// AC-08 (FR-010): cada cuenta ve únicamente sus movimientos.
+    ///
+    /// Las dos siembras son del MISMO mes y con el mismo monto: si el recorte por propietario
+    /// fallara, los movimientos ajenos aparecerían mezclados con los propios y nada en la
+    /// respuesta los delataría. Lo que separa un listado correcto de uno que muestra todo es
+    /// exactamente esta comparación.
+    /// </summary>
+    [Fact]
+    public async Task Cada_Cuenta_Ve_Solo_Sus_Movimientos_AC08()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 15));
+
+        using var ana = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        using var bruno = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        var deAna = await SembrarAsync(ana.Id, new DateOnly(2026, 8, 10), new DateOnly(2026, 8, 11));
+        var deBruno = await SembrarAsync(bruno.Id, new DateOnly(2026, 8, 12));
+
+        var vistosPorAna = (await ListadoAsync(ana))
+            .Select(m => m.GetProperty("id").GetInt64())
+            .ToList();
+        var vistosPorBruno = (await ListadoAsync(bruno))
+            .Select(m => m.GetProperty("id").GetInt64())
+            .ToList();
+
+        // En las dos direcciones: que Ana vea los suyos no prueba nada si además ve los de Bruno.
+        Assert.Equal(deAna.OrderBy(id => id), vistosPorAna.OrderBy(id => id));
+        Assert.Equal(deBruno.OrderBy(id => id), vistosPorBruno.OrderBy(id => id));
+        Assert.DoesNotContain(deBruno[0], vistosPorAna);
+    }
+
+    private async Task<List<long>> SembrarAsync(long usuarioId, params DateOnly[] fechas)
     {
         await using var contexto = _baseDeDatos.CrearContexto();
         var creados = new List<Movimiento>();
@@ -151,7 +195,7 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         {
             var movimiento = new Movimiento
             {
-                UsuarioId = UsuarioSemilla.IdSemilla,
+                UsuarioId = usuarioId,
                 Tipo = TipoMovimiento.Gasto,
                 Monto = 100m,
                 MonedaId = 1,
@@ -170,11 +214,9 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         return creados.Select(m => m.Id).ToList();
     }
 
-    private static async Task<List<JsonElement>> ListadoAsync(DateOnly hoy)
+    private static async Task<List<JsonElement>> ListadoAsync(CuentaDePrueba cuenta)
     {
-        using var factoria = new FactoriaConReloj(hoy);
-        using var cliente = factoria.CreateClient();
-        using var respuesta = await cliente.GetAsync(new Uri("/api/movimientos", UriKind.Relative));
+        using var respuesta = await cuenta.Cliente.GetAsync(new Uri("/api/movimientos", UriKind.Relative));
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
 
@@ -185,9 +227,9 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         return [.. json.RootElement.EnumerateArray().Select(e => e.Clone())];
     }
 
-    private static async Task<List<string>> FechasDelListadoAsync(DateOnly hoy)
+    private static async Task<List<string>> FechasDelListadoAsync(CuentaDePrueba cuenta)
     {
-        var listado = await ListadoAsync(hoy);
+        var listado = await ListadoAsync(cuenta);
         return listado.Select(m => m.GetProperty("fecha").GetString() ?? string.Empty).ToList();
     }
 }

@@ -32,7 +32,7 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     [InlineData("1000000000.00", "por encima del techo de FR-004b")]
     public async Task Rechaza_Monto_Invalido_Sin_Registrar_Nada_AC18(string monto, string caso)
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
 
         using var respuesta = await EnviarCrudoAsync(
             $$"""{"tipo":"gasto","monto":{{monto}},"categoriaId":1,"fecha":"2026-08-23"}""");
@@ -49,7 +49,7 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     [InlineData("999999999.99")]
     public async Task Acepta_Los_Bordes_Validos_Del_Monto_AC18(string monto)
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
 
         using var respuesta = await EnviarCrudoAsync(
             $$"""{"tipo":"gasto","monto":{{monto}},"categoriaId":1,"fecha":"2026-08-23"}""");
@@ -72,7 +72,7 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     public async Task Rechaza_Categoria_Invalida_Sin_Registrar_Nada_AC40_FR011(
         string tipo, string categoriaId, string caso)
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
 
         using var respuesta = await EnviarCrudoAsync(
             $$"""{"tipo":{{tipo}},"monto":100,"categoriaId":{{categoriaId}},"fecha":"2026-08-23"}""");
@@ -87,7 +87,7 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     [InlineData("\"Gasto\"", "tipo con mayúscula")]
     public async Task Rechaza_Tipo_Invalido_Sin_Registrar_Nada(string tipo, string caso)
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
 
         using var respuesta = await EnviarCrudoAsync(
             $$"""{"tipo":{{tipo}},"monto":100,"categoriaId":1,"fecha":"2026-08-23"}""");
@@ -102,7 +102,7 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Todas_Las_Familias_Responden_El_Mismo_ProblemDetails()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
 
         string[] peticiones =
         [
@@ -136,7 +136,7 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Rechaza_Una_Categoria_De_Otra_Cuenta()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
         const int IdAjena = 901;
 
         const long OtraCuenta = 999;
@@ -175,7 +175,7 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public async Task Rechaza_Una_Categoria_Dada_De_Baja()
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
+        await _baseDeDatos.LimpiarCuentasAsync();
         const int IdInactiva = 902;
 
         await BorrarCategoriaAsync(IdInactiva);
@@ -226,16 +226,19 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
         }
     }
 
-    private static async Task<HttpResponseMessage> EnviarCrudoAsync(string cuerpo)
+    private async Task<HttpResponseMessage> EnviarCrudoAsync(string cuerpo)
     {
         // JSON crudo y no un objeto anónimo: hace falta poder mandar `null`, cadenas vacías y
         // números que ningún tipo de C# admitiría, que es exactamente lo que un cliente puede
         // mandar de verdad.
+        //
+        // Con sesión iniciada: desde el ticket 01a el propietario sale de la sesión, así que sin
+        // ella la petición ni siquiera llega a la validación que este test quiere ejercitar.
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
-        using var cliente = factoria.CreateClient();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         using var contenido = new StringContent(cuerpo, Encoding.UTF8, "application/json");
 
-        return await cliente.PostAsync(new Uri("/api/movimientos", UriKind.Relative), contenido);
+        return await cuenta.Cliente.PostAsync(new Uri("/api/movimientos", UriKind.Relative), contenido);
     }
 
     private async Task AssertRechazadoAsync(HttpResponseMessage respuesta, string campo, string caso)

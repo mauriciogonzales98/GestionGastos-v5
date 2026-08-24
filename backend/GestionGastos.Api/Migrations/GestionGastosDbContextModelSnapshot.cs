@@ -256,11 +256,18 @@ namespace GestionGastos.Api.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("ContrasenaHash")
+                        .IsRequired()
+                        .HasMaxLength(72)
+                        .HasColumnType("varchar(72)")
+                        .HasColumnName("contrasena_hash");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(254)
                         .HasColumnType("varchar(254)")
-                        .HasColumnName("email");
+                        .HasColumnName("email")
+                        .UseCollation("utf8mb4_0900_ai_ci");
 
                     b.HasKey("Id");
 
@@ -268,13 +275,6 @@ namespace GestionGastos.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("usuario", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1L,
-                            Email = "semilla@gestiongastos.local"
-                        });
                 });
 
             modelBuilder.Entity("GestionGastos.Api.Dominio.Categoria", b =>

@@ -26,14 +26,16 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
     public async Task El_P95_Del_Guardado_Es_Menor_A_Un_Segundo_AC34()
     {
         var hoy = DateOnly.FromDateTime(DateTime.Now);
-        await SembrarAsync(hoy);
+
+        using var factoria = new FactoriaConReloj(hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
+
+        await SembrarAsync(cuenta.Id, hoy);
 
         // El guardarraíl. Sin esto, un sembrado que dejó de coincidir con el mes medido convierte
         // la medición en una tabla vacía y el test pasa en verde sin medir nada.
         await ConfirmarQueElMesTieneFilasAsync(hoy);
-
-        using var factoria = new FactoriaConReloj(hoy);
-        using var cliente = factoria.CreateClient();
 
         // Una ejecución de calentamiento fuera de la medición: la primera paga la compilación del
         // pipeline y el primer plan de consulta, y no representa el guardado real.
@@ -77,16 +79,14 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
     /// Se mide contra una tabla con filas, no contra una vacía: insertar en una tabla vacía y en
     /// una poblada no cuestan lo mismo, y el índice del listado se mantiene en cada INSERT.
     /// </summary>
-    private async Task SembrarAsync(DateOnly hoy)
+    private async Task SembrarAsync(long usuarioId, DateOnly hoy)
     {
-        await _baseDeDatos.LimpiarMovimientosAsync();
-
         await using var contexto = _baseDeDatos.CrearContexto();
         var fechas = SembradoDeRendimiento.GenerarFechasSembradas(hoy, FilasSembradas);
 
         contexto.Movimientos.AddRange(fechas.Select(fecha => new Movimiento
         {
-            UsuarioId = UsuarioSemilla.IdSemilla,
+            UsuarioId = usuarioId,
             Tipo = TipoMovimiento.Gasto,
             Monto = 100m,
             MonedaId = 1,

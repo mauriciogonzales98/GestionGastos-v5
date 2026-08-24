@@ -44,7 +44,14 @@ beforeEach(() => {
 });
 
 async function renderizar() {
-  render(<PantallaMovimientos hoy={HOY} />);
+  render(
+    <PantallaMovimientos
+      hoy={HOY}
+      email="ana@ejemplo.com"
+      onCerrarSesion={() => {}}
+      onSesionVencida={() => {}}
+    />,
+  );
   await screen.findByRole('table');
 }
 

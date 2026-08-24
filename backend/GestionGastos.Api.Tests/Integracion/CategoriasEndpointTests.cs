@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace GestionGastos.Api.Tests.Integracion;
 
@@ -20,8 +19,9 @@ public class CategoriasEndpointTests(BaseDeDatosFixture baseDeDatos)
     public async Task Devuelve_El_Catalogo_Completo_Separado_Por_Tipo_AC10()
     {
         Assert.NotNull(_baseDeDatos);
-        using var factoria = new WebApplicationFactory<Program>();
-        using var cliente = factoria.CreateClient();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
 
         using var respuesta = await cliente.GetAsync(new Uri("/api/categorias", UriKind.Relative));
 
@@ -40,8 +40,9 @@ public class CategoriasEndpointTests(BaseDeDatosFixture baseDeDatos)
     public async Task El_Tipo_Viaja_Como_Cadena_Y_No_Como_Numero_AC10()
     {
         Assert.NotNull(_baseDeDatos);
-        using var factoria = new WebApplicationFactory<Program>();
-        using var cliente = factoria.CreateClient();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
 
         using var respuesta = await cliente.GetAsync(new Uri("/api/categorias", UriKind.Relative));
         using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
@@ -60,8 +61,9 @@ public class CategoriasEndpointTests(BaseDeDatosFixture baseDeDatos)
     public async Task Otros_Existe_En_Los_Dos_Tipos_Como_Dos_Filas_Distintas_AC10()
     {
         Assert.NotNull(_baseDeDatos);
-        using var factoria = new WebApplicationFactory<Program>();
-        using var cliente = factoria.CreateClient();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
 
         using var respuesta = await cliente.GetAsync(new Uri("/api/categorias", UriKind.Relative));
         using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());

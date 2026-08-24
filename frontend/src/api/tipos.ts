@@ -64,3 +64,39 @@ export interface ProblemDetails {
   status: number;
   errors?: Record<string, string[]>;
 }
+
+/**
+ * Lo que se manda al crear una cuenta (FR-001).
+ *
+ * La contraseña viaja en claro dentro del cuerpo —protegida por el transporte, no por el
+ * contrato— y no se guarda en ningún lado del cliente: se manda y se olvida.
+ */
+export interface NuevaCuenta {
+  email: string;
+  contrasena: string;
+}
+
+/**
+ * Lo que se manda al iniciar sesión (FR-003).
+ *
+ * Tiene la misma forma que `NuevaCuenta` y aun así es un tipo aparte: son dos endpoints distintos
+ * que pueden divergir —el alta puede sumar un campo que el login no tiene— y unificarlos ataría
+ * los dos contratos a que eso nunca pase.
+ */
+export interface Credenciales {
+  email: string;
+  contrasena: string;
+}
+
+/**
+ * La cuenta en sesión, tal como la devuelven el inicio de sesión y la consulta: la misma forma en
+ * los dos. Es lo que la pantalla pide al arrancar para saber si tiene que mostrar el acceso o los
+ * movimientos.
+ *
+ * No lleva identificador: el cliente no necesita saber cuál es la cuenta, sino que hay una. Quién
+ * es el propietario de cada movimiento lo resuelve el servidor con la cookie, nunca con un dato
+ * que el cliente mande de vuelta.
+ */
+export interface SesionActual {
+  email: string;
+}

@@ -46,8 +46,9 @@ public class ContratoCategoriasTests(BaseDeDatosFixture baseDeDatos)
         Assert.NotNull(_baseDeDatos);
         var delContrato = TiposDelFrontend.LiteralesDeUnion("TipoMovimiento");
 
-        using var factoria = new WebApplicationFactory<Program>();
-        using var cliente = factoria.CreateClient();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
         using var respuesta = await cliente.GetAsync(new Uri("/api/categorias", UriKind.Relative));
         using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
 
@@ -62,10 +63,11 @@ public class ContratoCategoriasTests(BaseDeDatosFixture baseDeDatos)
             delJson.OrderBy(v => v, StringComparer.Ordinal));
     }
 
-    private static async Task<IReadOnlyList<string>> CamposDelPrimerElementoAsync()
+    private async Task<IReadOnlyList<string>> CamposDelPrimerElementoAsync()
     {
-        using var factoria = new WebApplicationFactory<Program>();
-        using var cliente = factoria.CreateClient();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
         using var respuesta = await cliente.GetAsync(new Uri("/api/categorias", UriKind.Relative));
         using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
 

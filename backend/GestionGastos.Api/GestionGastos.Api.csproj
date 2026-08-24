@@ -4,6 +4,10 @@
        ../Directory.Build.props, para que valgan igual en los dos proyectos. -->
 
   <ItemGroup>
+    <!-- NFR-01 exige bcrypt o argon2 con nombre propio. El PasswordHasher<T> del framework usa
+         PBKDF2: es un hash aceptable, pero no es ninguno de los dos que el PRD nombra. Motivo
+         completo y alternativas en specs/002-identidad-sesion/research.md, D-02. -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.18" />
 
     <!-- Pomelo 9.0.0 depende de Relational 9.0.0, y el resto del proyecto va en 9.0.18. Sin fijar

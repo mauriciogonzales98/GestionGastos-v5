@@ -19,7 +19,12 @@ public class ErrorSinCampoTests
         using var factoria = new FactoriaConBaseRota();
         using var cliente = factoria.CreateClient();
 
-        using var respuesta = await cliente.GetAsync(new Uri("/api/categorias", UriKind.Relative));
+        // Se ejercita el inicio de sesión, que lee la tabla de cuentas y es uno de los dos
+        // endpoints anónimos. Los demás exigen sesión, así que con la base rota responderían 401
+        // antes de llegar a fallar — y este test dejaría de verificar lo que dice verificar.
+        using var respuesta = await cliente.PostAsJsonAsync(
+            new Uri("/api/sesion", UriKind.Relative),
+            new { email = "quien@ejemplo.com", contrasena = "una frase larga y buena" });
 
         Assert.Equal(HttpStatusCode.InternalServerError, respuesta.StatusCode);
         Assert.Equal("application/problem+json", respuesta.Content.Headers.ContentType?.MediaType);
@@ -45,9 +50,10 @@ public class ErrorSinCampoTests
         using var factoria = new FactoriaConBaseRota();
         using var cliente = factoria.CreateClient();
 
+        // El alta de cuenta escribe, y también es anónima.
         using var respuesta = await cliente.PostAsJsonAsync(
-            new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 100m, categoriaId = 1, fecha = "2026-08-23" });
+            new Uri("/api/cuentas", UriKind.Relative),
+            new { email = "quien@ejemplo.com", contrasena = "una frase larga y buena" });
 
         Assert.Equal(HttpStatusCode.InternalServerError, respuesta.StatusCode);
         Assert.Equal("application/problem+json", respuesta.Content.Headers.ContentType?.MediaType);

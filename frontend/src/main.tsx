@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { PantallaMovimientos } from './movimientos/PantallaMovimientos';
+import { App } from './App';
 import './estilos/index.css';
 
 /**
@@ -32,6 +32,6 @@ if (!raiz) {
 
 createRoot(raiz).render(
   <StrictMode>
-    <PantallaMovimientos hoy={hoyLocal()} />
+    <App hoy={hoyLocal()} />
   </StrictMode>,
 );
