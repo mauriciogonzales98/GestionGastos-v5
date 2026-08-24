@@ -4,6 +4,7 @@ using GestionGastos.Api.Movimientos;
 using GestionGastos.Api.Persistencia;
 using GestionGastos.Api.Sesion;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -59,7 +60,20 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+// Autorización GLOBAL con excepciones explícitas, y no endpoint por endpoint.
+//
+// La diferencia importa el día que alguien agregue un endpoint: así nace protegido y hay que
+// acordarse de abrirlo, en vez de nacer abierto y haber que acordarse de cerrarlo. Un endpoint sin
+// proteger es el agujero más fácil de dejar, y el que menos se nota.
+//
+// Las dos excepciones —alta e inicio de sesión— llevan `.AllowAnonymous()` en su propia definición.
+// Si también exigieran sesión, no habría forma de obtener una.
+builder.Services.AddAuthorization(opciones =>
+{
+    opciones.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 // El reloj de la autenticación es el MISMO TimeProvider que el resto de la aplicación. Es lo que
 // vuelve verificable AC-12 adelantando el reloj, en vez de esperando 24 h (Principio IV).

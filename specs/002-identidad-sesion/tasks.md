@@ -108,32 +108,32 @@ operación exige autenticarse de nuevo.
 
 ### Backend — rechazo indistinguible
 
-- [ ] T019 [TEST] [US2] Agregar en `InicioDeSesionTests.cs` los tests del rechazo: email inexistente y contraseña incorrecta devuelven el **mismo** `401` con el **mismo** cuerpo, y ninguna sesión queda iniciada. **Nombrar AC-04 y NFR-03**. Mostrar el rojo
-- [ ] T020 [TEST] [US2] Agregar el test de que el login **ejecuta un hash aunque el email no exista** ([D-04](./research.md)). Se verifica la **conducta**, no el tiempo: un test que midiera milisegundos sería intermitente y el Principio IV lo prohíbe. Mostrar el rojo
-- [ ] T021 [US2] Implementar el rechazo indistinguible en `backend/GestionGastos.Api/Sesion/`: misma respuesta para las dos causas, y verificación contra un hash descartable cuando la cuenta no existe
+- [X] T019 [TEST] [US2] Agregar en `InicioDeSesionTests.cs` los tests del rechazo: email inexistente y contraseña incorrecta devuelven el **mismo** `401` con el **mismo** cuerpo, y ninguna sesión queda iniciada. **Nombrar AC-04 y NFR-03**. Mostrar el rojo
+- [X] T020 [TEST] [US2] Agregar el test de que el login **ejecuta un hash aunque el email no exista** ([D-04](./research.md)). Se verifica la **conducta**, no el tiempo: un test que midiera milisegundos sería intermitente y el Principio IV lo prohíbe. Mostrar el rojo
+- [X] T021 [US2] Implementar el rechazo indistinguible en `backend/GestionGastos.Api/Sesion/`: misma respuesta para las dos causas, y verificación contra un hash descartable cuando la cuenta no existe
 
 ### Backend — la sesión como recurso
 
-- [ ] T022 [TEST] [P] [US2] Escribir el test de `GET /api/sesion`: con sesión devuelve `200` con el email; sin sesión, `401`. Mostrar el rojo
-- [ ] T023 [TEST] [P] [US2] Escribir el test de `DELETE /api/sesion`: devuelve `204`, la cookie deja de valer, y **cerrar una sesión que ya no existe también devuelve `204`** — no es un error. **Nombrar AC-06**. Mostrar el rojo
-- [ ] T024 [US2] Implementar `GET` y `DELETE /api/sesion` en `backend/GestionGastos.Api/Sesion/`
+- [X] T022 [TEST] [P] [US2] Escribir el test de `GET /api/sesion`: con sesión devuelve `200` con el email; sin sesión, `401`. Mostrar el rojo
+- [X] T023 [TEST] [P] [US2] Escribir el test de `DELETE /api/sesion`: devuelve `204`, la cookie deja de valer, y **cerrar una sesión que ya no existe también devuelve `204`** — no es un error. **Nombrar AC-06**. Mostrar el rojo
+- [X] T024 [US2] Implementar `GET` y `DELETE /api/sesion` en `backend/GestionGastos.Api/Sesion/`
 
 ### Backend — la frontera
 
-- [ ] T025 [TEST] [US2] Escribir en `backend/GestionGastos.Api.Tests/Autorizacion/SinSesionTests.cs` el test de que los tres endpoints de FEAT-001a responden `401` sin sesión **y no ejecutan su efecto**: tras un `POST /api/movimientos` rechazado, la cantidad de filas no cambia. Que no se ejecute es la mitad del criterio — un `POST` que rechaza pero igual inserta cumple el código y falla el requisito. **Nombrar AC-05**. Mostrar el rojo
-- [ ] T026 [US2] Activar la autorización **global** en `Program.cs` con las **dos** excepciones explícitas (`POST /api/cuentas`, `POST /api/sesion`). Global con excepciones y no endpoint por endpoint: así un endpoint nuevo nace protegido en vez de nacer abierto ([contracts/api-http.md](./contracts/api-http.md))
+- [X] T025 [TEST] [US2] Escribir en `backend/GestionGastos.Api.Tests/Autorizacion/SinSesionTests.cs` el test de que los tres endpoints de FEAT-001a responden `401` sin sesión **y no ejecutan su efecto**: tras un `POST /api/movimientos` rechazado, la cantidad de filas no cambia. Que no se ejecute es la mitad del criterio — un `POST` que rechaza pero igual inserta cumple el código y falla el requisito. **Nombrar AC-05**. Mostrar el rojo
+- [X] T026 [US2] Activar la autorización **global** en `Program.cs` con las **dos** excepciones explícitas (`POST /api/cuentas`, `POST /api/sesion`). Global con excepciones y no endpoint por endpoint: así un endpoint nuevo nace protegido en vez de nacer abierto ([contracts/api-http.md](./contracts/api-http.md))
 - [X] T027 [US2] Reemplazar `UsuarioSemilla` por `backend/GestionGastos.Api/Persistencia/UsuarioDeLaSesion.cs`, que lee el identificador del `ClaimsPrincipal` y **lanza** si no hay sesión ([D-05](./research.md)). Eliminar `UsuarioSemilla.cs`. **`IUsuarioActual` no cambia**, así que `MovimientosEndpoints` no se toca: esa es la costura que FEAT-001a dejó preparada
 - [X] T028 [US2] Acompañar T026/T027 actualizando la suite de FEAT-001a para que autentique antes de pedir. **Es el rojo esperado de este ticket**: sin esto, todos sus tests fallan con `401`. Va en el mismo commit que T026 y T027 — no se commitea con la puerta en rojo (Principio III)
 
 ### Backend — la barrera nueva (Principio V)
 
-- [ ] T029 [TEST] [US2] Escribir en `backend/GestionGastos.Api.Tests/Autorizacion/BarreraDeAutorizacionTests.cs` la barrera: **descubrir los endpoints del `EndpointDataSource` en tiempo de ejecución** y exigir que todos respondan `401` sin credenciales, salvo las dos excepciones declaradas. **No enumerarlos a mano**: una lista escrita al lado pasa en verde justo el día que alguien agrega un endpoint desprotegido, que es el único día que importa
-- [ ] T030 [US2] Crear `backend/verificar-autorizacion.sh`, que agrega un endpoint desprotegido a propósito, comprueba que la barrera de T029 se pone en **rojo**, lo quita y comprueba que vuelve a verde. El Principio V exige que toda barrera nueva pruebe que sabe fallar. Darle bit de ejecución y registrarlo con `git update-index --chmod=+x` — sobre `/mnt/c`, `core.fileMode` está en `false` y git no lo detecta solo (FIX-002). Agregar el paso a `.github/workflows/ci.yml`
+- [X] T029 [TEST] [US2] Escribir en `backend/GestionGastos.Api.Tests/Autorizacion/BarreraDeAutorizacionTests.cs` la barrera: **descubrir los endpoints del `EndpointDataSource` en tiempo de ejecución** y exigir que todos respondan `401` sin credenciales, salvo las dos excepciones declaradas. **No enumerarlos a mano**: una lista escrita al lado pasa en verde justo el día que alguien agrega un endpoint desprotegido, que es el único día que importa
+- [X] T030 [US2] Crear `backend/verificar-autorizacion.sh`, que agrega un endpoint desprotegido a propósito, comprueba que la barrera de T029 se pone en **rojo**, lo quita y comprueba que vuelve a verde. El Principio V exige que toda barrera nueva pruebe que sabe fallar. Darle bit de ejecución y registrarlo con `git update-index --chmod=+x` — sobre `/mnt/c`, `core.fileMode` está en `false` y git no lo detecta solo (FIX-002). Agregar el paso a `.github/workflows/ci.yml`
 
 ### Backend — expiración
 
-- [ ] T031 [TEST] [US2] Escribir el test de AC-12 **adelantando el `TimeProvider`** más de 24 h y comprobando que la petición siguiente devuelve `401`. Incluir el caso complementario: con actividad dentro de la ventana, la sesión **sigue** valiendo — sin él, una expiración rota "hacia el otro lado" pasaría en verde. **Nombrar AC-12**. Mostrar el rojo
-- [ ] T032 [US2] Configurar `SlidingExpiration` con `ExpireTimeSpan` de 24 h en `Program.cs` ([D-03](./research.md))
+- [X] T031 [TEST] [US2] Escribir el test de AC-12 **adelantando el `TimeProvider`** más de 24 h y comprobando que la petición siguiente devuelve `401`. Incluir el caso complementario: con actividad dentro de la ventana, la sesión **sigue** valiendo — sin él, una expiración rota "hacia el otro lado" pasaría en verde. **Nombrar AC-12**. Mostrar el rojo
+- [X] T032 [US2] Configurar `SlidingExpiration` con `ExpireTimeSpan` de 24 h en `Program.cs` ([D-03](./research.md))
 
 ### Frontend
 

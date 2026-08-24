@@ -13,11 +13,14 @@ namespace GestionGastos.Api.Tests.Integracion;
 /// </summary>
 public sealed class FactoriaConReloj(DateOnly hoy) : WebApplicationFactory<Program>
 {
+    /// <summary>El reloj de esta aplicación, para que un test pueda adelantarlo (AC-12).</summary>
+    public RelojFijo Reloj { get; } = new(hoy);
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(servicios =>
         {
-            servicios.AddSingleton<TimeProvider>(new RelojFijo(hoy));
+            servicios.AddSingleton<TimeProvider>(Reloj);
 
             // Zona UTC junto al reloj UTC: la fecha inyectada es la que el servidor tiene que ver,
             // sin corrimientos. La conversión de zona se verifica aparte, en DiaActualTests, con
