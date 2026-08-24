@@ -65,7 +65,7 @@ antes de que esto cierre.
 - [X] T006 [TEST] Escribir en `backend/GestionGastos.Api.Tests/Migraciones/MigracionDeCuentasTests.cs` el test de AC-09, con su **propia base** `gestiongastos_migracion_test` ([D-07](./research.md)): migrar hasta `Inicial`, sembrar la fila semilla y movimientos suyos, aplicar la migración de este ticket, y verificar que no queda ninguno de los dos. **Nombrar AC-09**. Mostrar el rojo
 - [X] T007 Generar la migración en `backend/GestionGastos.Api/Migrations/` en el orden que impone la clave foránea: `ALTER usuario ADD contrasena_hash`, después `DELETE` de los movimientos de la semilla, y **recién ahí** el `DELETE` del usuario. Al revés falla ([data-model.md](./data-model.md)). `Down` **no** restituye los datos y lo declara: un `Down` que miente es peor que uno que avisa
 - [X] T008 Registrar en `backend/GestionGastos.Api/Program.cs` la autenticación por cookie —`HttpOnly`, `SameSite=Strict`, `Secure` fuera de desarrollo— tomando el reloj del `TimeProvider` ya inyectado ([D-01](./research.md), [D-03](./research.md)). **Todavía NO se activa la autorización global**: eso es T025, y activarla antes dejaría la aplicación sin forma de iniciar sesión
-- [ ] T009 [VERIFY] Puerta del backend: `dotnet format --verify-no-changes`, `dotnet build -warnaserror` y `dotnet test`. Verde es cero fallos **y cero warnings**
+- [X] T009 [VERIFY] Puerta del backend: `dotnet format --verify-no-changes`, `dotnet build -warnaserror` y `dotnet test`. Verde es cero fallos **y cero warnings**
 
 **Checkpoint**: el esquema tiene cuentas, la semilla ya no existe y el hash funciona. Todavía no hay
 forma de crear una cuenta ni de entrar.
