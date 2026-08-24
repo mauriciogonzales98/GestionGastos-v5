@@ -12,6 +12,12 @@ export interface PropsFormularioMovimiento {
 
 type Errores = Record<string, string[]>;
 
+/**
+ * Los campos que tienen un lugar donde mostrar su error. Cualquier clave de `errors` fuera de esta
+ * lista no tiene dónde ir, así que cae en la región general en vez de perderse.
+ */
+const CAMPOS_CON_LUGAR = ['tipo', 'monto', 'categoriaId', 'fecha'];
+
 /** El techo de FR-004b. Igual que en el servidor: la validación de cliente no lo relaja. */
 const MONTO_MAXIMO = 999_999_999.99;
 
@@ -69,6 +75,36 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
     setCategoriaId('');
   }
 
+  /**
+   * Reparte los errores que devolvió el servidor: los de un campo conocido van al lado de su
+   * control, y todo lo demás a la región del formulario.
+   *
+   * Sin esto, un `errors` vacío o con una clave que ningún campo conoce —`peticion`, `$`, lo que
+   * el binder de .NET decida— desaparecía: se guardaba en el estado y nadie lo pintaba. La persona
+   * hacía clic en Registrar y no pasaba nada. Un rechazo invisible es peor que un mensaje feo.
+   */
+  function repartir(delServidor: Errores) {
+    const propios: Errores = {};
+    const sueltos: string[] = [];
+
+    for (const [clave, mensajes] of Object.entries(delServidor)) {
+      if (CAMPOS_CON_LUGAR.includes(clave)) {
+        propios[clave] = mensajes;
+      } else {
+        sueltos.push(...mensajes);
+      }
+    }
+
+    setErrores(propios);
+
+    if (sueltos.length > 0) {
+      setErrorGeneral(sueltos.join(' '));
+    } else if (Object.keys(propios).length === 0) {
+      // Rechazado, pero sin decir por qué ni dónde. Al menos que se vea que fue rechazado.
+      setErrorGeneral('No se pudo registrar el movimiento. Volvé a intentarlo.');
+    }
+  }
+
   async function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
 
@@ -89,7 +125,7 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
       // Nada se traga: un error de validación se enruta a sus campos y cualquier otro se muestra
       // en la región del formulario. En los dos casos el formulario conserva lo cargado.
       if (error instanceof ErrorDeValidacion) {
-        setErrores(error.errores);
+        repartir(error.errores);
       } else {
         setErrorGeneral('No se pudo registrar el movimiento. Volvé a intentarlo.');
       }
@@ -122,6 +158,8 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
               value={valor}
               checked={tipo === valor}
               onChange={() => cambiarTipo(valor)}
+              aria-invalid={errores.tipo ? 'true' : undefined}
+              aria-describedby={errores.tipo ? 'tipo-error' : undefined}
               ref={valor === 'gasto' ? primerCampo : undefined}
             />
             <label htmlFor={`${grupoTipo}-${valor}`}>
@@ -129,6 +167,14 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
             </label>
           </span>
         ))}
+
+        {/* El backend puede rechazar por `tipo` (ValidacionDelAlta lo produce). Sin este lugar,
+            ese mensaje llegaba al navegador y no se mostraba en ninguna parte. */}
+        {errores.tipo?.[0] ? (
+          <p id="tipo-error" role="alert" className="c-campo__error">
+            {errores.tipo[0]}
+          </p>
+        ) : null}
       </fieldset>
 
       <CampoConError campo="monto" etiqueta="Monto" error={errores.monto?.[0]}>

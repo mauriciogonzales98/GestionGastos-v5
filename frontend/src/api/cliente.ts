@@ -77,8 +77,9 @@ async function pedir<T>(url: string, opciones?: RequestInit): Promise<T> {
 
   if (respuesta.status === 400) {
     const problema = await leerJson<ProblemDetails>(respuesta);
-    // Un 400 sin `errors` es un rechazo sin campo señalado: se enruta a la región de error del
-    // formulario, no a un control.
+    // Un 400 sin `errors` sigue siendo un rechazo de validación, así que se propaga como tal con
+    // el diccionario vacío. Quién lo muestra y dónde lo decide el formulario: `repartir()` manda a
+    // la región general todo lo que no tenga un campo donde ir.
     throw new ErrorDeValidacion(problema.errors ?? {});
   }
 

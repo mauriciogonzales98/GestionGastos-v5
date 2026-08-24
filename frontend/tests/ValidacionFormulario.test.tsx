@@ -123,6 +123,57 @@ describe('validación en el formulario', () => {
     expect(screen.getByLabelText('Categoría')).toHaveValue('1');
   });
 
+  // Un 400 cuyo `errors` no señala ningún campo que el formulario muestre. Antes desaparecía: se
+  // llamaba a setErrores con un diccionario que nadie sabía pintar, y la persona hacía clic en
+  // Registrar y no pasaba absolutamente nada.
+  it('un rechazo sin campo señalado se muestra en la región de error del formulario', async () => {
+    const usuario = userEvent.setup();
+    const onGuardar = vi.fn().mockRejectedValue(new ErrorDeValidacion({}));
+    renderizar(onGuardar);
+
+    await usuario.type(screen.getByLabelText('Monto'), '100');
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
+    await usuario.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    const region = await screen.findByRole('alert');
+    expect(region).toHaveTextContent(/no se pudo registrar/i);
+    expect(screen.getByLabelText('Monto')).toHaveValue(100);
+  });
+
+  it('un error con una clave que ningún campo conoce tampoco se pierde', async () => {
+    const usuario = userEvent.setup();
+    const onGuardar = vi
+      .fn()
+      .mockRejectedValue(
+        new ErrorDeValidacion({ peticion: ['El cuerpo de la petición es inválido.'] }),
+      );
+    renderizar(onGuardar);
+
+    await usuario.type(screen.getByLabelText('Monto'), '100');
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
+    await usuario.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    const region = await screen.findByRole('alert');
+    expect(region).toHaveTextContent(/El cuerpo de la petición es inválido\./);
+  });
+
+  // El backend puede devolver la clave `tipo` (ValidacionDelAlta la produce) y el grupo de radios
+  // no tiene dónde mostrarla.
+  it('un error de tipo se muestra junto al grupo de tipo', async () => {
+    const usuario = userEvent.setup();
+    const onGuardar = vi
+      .fn()
+      .mockRejectedValue(new ErrorDeValidacion({ tipo: ['Elegí si es un gasto o un ingreso.'] }));
+    renderizar(onGuardar);
+
+    await usuario.type(screen.getByLabelText('Monto'), '100');
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
+    await usuario.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    const alertas = await screen.findAllByRole('alert');
+    expect(alertas.some((a) => /gasto o un ingreso/i.test(a.textContent ?? ''))).toBe(true);
+  });
+
   // T067: sin esto, dos clicks rápidos registran dos movimientos.
   it('deshabilita el botón mientras se envía, para evitar el doble envío', async () => {
     const usuario = userEvent.setup();
