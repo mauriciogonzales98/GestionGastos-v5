@@ -20,10 +20,22 @@ builder.Services.AddDbContext<GestionGastosDbContext>(o =>
 
 builder.Services.AddSingleton<IUsuarioActual, UsuarioSemilla>();
 
+// El formato único de error del contrato, también para lo que no corresponde a ningún campo.
+// Sin esto, una excepción sin manejar salía como la página de excepción del framework —con stack
+// trace y la consulta SQL— o, fuera de desarrollo, como un 500 con el cuerpo vacío. Ninguna de las
+// dos es lo que el contrato promete, y el frontend usa la ausencia de `errors` para decidir que el
+// mensaje va a la región del formulario y no al lado de un control.
+builder.Services.AddProblemDetails();
+
 // El reloj es un servicio para que los tests puedan clavarlo en una fecha (D-03, AC-17).
 builder.Services.AddSingleton(TimeProvider.System);
 
 var app = builder.Build();
+
+// Convierte cualquier excepción sin manejar en un ProblemDetails 500. En Development el
+// framework antepone su propia página de excepción, que es más útil para depurar; lo que ve un
+// cliente real es esto.
+app.UseExceptionHandler();
 
 // Aplicar las migraciones al arrancar, SÓLO en desarrollo.
 //
