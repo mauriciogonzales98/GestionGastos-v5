@@ -25,12 +25,28 @@ builder.Services.AddSingleton(TimeProvider.System);
 
 var app = builder.Build();
 
+// Aplicar las migraciones al arrancar, SÓLO en desarrollo.
+//
+// El quickstart promete que `dotnet run` deja la base usable, y hasta ahora esa promesa era falsa:
+// la API no migraba nada y la primera petición moría con "Table doesn't exist". No se notaba porque
+// el fixture de tests migra por su cuenta, así que la suite corría verde sobre una base que se
+// preparaba sola y nadie ejecutaba el camino que el quickstart documenta.
+//
+// Fuera de desarrollo NO se migra automáticamente: aplicar un cambio de esquema es una decisión
+// deliberada, con su ventana y su respaldo, no un efecto secundario de reiniciar un proceso. En
+// producción va `dotnet ef database update` como paso propio del despliegue.
+if (app.Environment.IsDevelopment())
+{
+    using var alcance = app.Services.CreateScope();
+    await alcance.ServiceProvider.GetRequiredService<GestionGastosDbContext>().Database.MigrateAsync();
+}
+
 app.MapGet("/", () => "GestionGastos API");
 
 app.MapCategorias();
 app.MapMovimientos();
 
-app.Run();
+await app.RunAsync();
 
 /// <summary>
 /// Visible para que los tests de integración puedan levantar la aplicación con
