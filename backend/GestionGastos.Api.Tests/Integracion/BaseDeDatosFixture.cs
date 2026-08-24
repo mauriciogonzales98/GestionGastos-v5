@@ -18,9 +18,11 @@ public class BaseDeDatosFixture : IAsyncLifetime
     /// y recrea tablas, y apuntarlo sin querer al esquema de desarrollo se lleva puestos los datos
     /// con los que estabas probando a mano.
     ///
-    /// `gestiongastos_migracion_test` se agrega para el test de AC-09, que necesita partir de una
-    /// base con la fila semilla todavía adentro (research.md D-07 de 002-identidad-sesion). Se
-    /// suma UN nombre; la restricción no se abre.
+    /// `gestiongastos_migracion_test` **no lo usa nadie hoy**. Se admitió para el test de AC-09,
+    /// que al final corre sobre `gestiongastos_test` como el resto de la suite porque el usuario de
+    /// MySQL del proyecto no puede crear una tercera base (research.md D-07 de 002-identidad-sesion
+    /// y su revisión). Queda admitido para el día que ese permiso exista; no está de más saber que
+    /// hoy no lo apunta nadie.
     /// </summary>
     private static readonly string[] BasesAceptadas =
     [

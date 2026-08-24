@@ -153,8 +153,9 @@ vida del producto. Está descartado en el PRD, decidido el 2026-08-20.
 
 ## D-07 — Cómo se verifica AC-09, que sólo es observable una vez
 
-**Decisión**: un test de migración con **su propia base** (`gestiongastos_migracion_test`), separada
-de `gestiongastos_test`. El test migra hasta `Inicial`, siembra la fila semilla y movimientos suyos,
+**Decisión** *(revisada al implementar — ver la nota al final de esta decisión: se hace sobre
+`gestiongastos_test`)*: un test de migración con **su propia base**
+(`gestiongastos_migracion_test`), separada de `gestiongastos_test`. El test migra hasta `Inicial`, siembra la fila semilla y movimientos suyos,
 aplica la migración de este ticket y verifica que no queda ninguno de los dos.
 
 **Rationale**: AC-09 exige como estado de partida una base que **todavía** tenga la semilla, y la

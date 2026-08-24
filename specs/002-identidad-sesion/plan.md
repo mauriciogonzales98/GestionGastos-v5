@@ -28,8 +28,9 @@ ASP.NET Core; **`BCrypt.Net-Next` 4.2.0** — única dependencia nueva, justific
 **Storage**: MySQL 8.4.10, schema `gestiongastos`. Una columna nueva en `usuario`; la sesión **no**
 es una tabla ([D-01](./research.md))
 
-**Testing**: xUnit en backend, Vitest en frontend. El test de AC-09 corre contra una base propia,
-`gestiongastos_migracion_test` ([D-07](./research.md))
+**Testing**: xUnit en backend, Vitest en frontend. El test de AC-09 corre contra
+`gestiongastos_test` como el resto de la suite, moviendo el esquema y restaurándolo dentro de la
+colección compartida ([D-07](./research.md), con su revisión al implementar)
 
 **Target Platform**: aplicación web servida desde un solo origen (proxy de Vite en desarrollo)
 

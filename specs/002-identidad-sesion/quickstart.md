@@ -13,15 +13,16 @@ puerta automatizada, no una pasada a mano.
 | Node + pnpm | Node 22.x | `pnpm --version` |
 | MySQL | 8.4.10, puerto 3306 | responde en `127.0.0.1:3306` |
 
-Dos bases, no una:
+Una sola base para toda la suite:
 
 ```bash
-# La de la suite de integración
 export ConnectionStrings__Default="Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User Id=...;Password=...;"
 ```
 
-`gestiongastos_migracion_test` la crea y la migra por su cuenta el test de AC-09
-([D-07](./research.md)); no hay que prepararla a mano.
+El test de AC-09 también corre ahí: baja el esquema a `Inicial`, siembra la semilla, vuelve a subir
+y restaura en un `finally`. Va en la colección compartida, que serializa, así que ningún otro test
+corre mientras el esquema se mueve. D-07 había decidido una base aparte y la revisión al implementar
+lo cambió — el motivo está en [D-07](./research.md).
 
 ---
 
