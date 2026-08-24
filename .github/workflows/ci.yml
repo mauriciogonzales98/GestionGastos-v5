@@ -146,6 +146,18 @@ jobs:
         env:
           ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
 
+      # Ningún endpoint responde sin sesión, salvo los dos de acceso declarados. Es la barrera más
+      # importante del proyecto: un endpoint sin proteger no rompe nada visible, no da error, y
+      # expone los datos de todas las cuentas. Descubre los endpoints en tiempo de ejecución, así
+      # que también atrapa los que todavía no existen.
+      #
+      # También compila con un archivo temporal adentro —agrega un endpoint desprotegido y edita
+      # Program.cs—, así que va después de Tests por la misma razón que las otras dos barreras.
+      - name: Barrera de autorización
+        run: ./backend/verificar-autorizacion.sh
+        env:
+          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+
       # La barrera del linter es configuración, y una barrera de configuración se puede desarmar en
       # silencio: alguien pone EnforceCodeStyleInBuild en false y el build sigue verde. Este paso es
       # lo único que se pone en rojo cuando eso pasa. Verifica las dos direcciones — una violación
@@ -153,14 +165,5 @@ jobs:
       #
       # Va ÚLTIMO a propósito: compila con un archivo temporal adentro, así que correrlo antes
       # invalidaría el --no-build del paso de Tests.
-      # Ningún endpoint responde sin sesión, salvo los dos de acceso declarados. Es la barrera más
-      # importante del proyecto: un endpoint sin proteger no rompe nada visible, no da error, y
-      # expone los datos de todas las cuentas. Descubre los endpoints en tiempo de ejecución, así
-      # que también atrapa los que todavía no existen.
-      - name: Barrera de autorización
-        run: ./backend/verificar-autorizacion.sh
-        env:
-          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
-
       - name: Barrera del linter
         run: ./backend/verificar-linter.sh
