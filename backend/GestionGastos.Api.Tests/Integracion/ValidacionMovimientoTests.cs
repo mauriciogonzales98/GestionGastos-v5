@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using GestionGastos.Api.Dominio;
 using Microsoft.EntityFrameworkCore;
 
 namespace GestionGastos.Api.Tests.Integracion;
@@ -121,6 +122,107 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
             Assert.True(json.RootElement.TryGetProperty("title", out _), peticion);
             Assert.Equal(400, json.RootElement.GetProperty("status").GetInt32());
             Assert.True(json.RootElement.TryGetProperty("errors", out _), peticion);
+        }
+    }
+
+    /// <summary>
+    /// El alta sólo acepta categorías que el catálogo ofrece: predefinidas del sistema y activas.
+    ///
+    /// Hoy todas las filas lo son, así que estos dos casos hay que fabricarlos. Se escriben igual
+    /// porque el ticket 3 introduce categorías propias y bajas lógicas sin volver a tocar esta
+    /// validación: si nadie la fija ahora, el aislamiento nace roto y nadie se entera hasta que
+    /// haya dos cuentas.
+    /// </summary>
+    [Fact]
+    public async Task Rechaza_Una_Categoria_De_Otra_Cuenta()
+    {
+        await _baseDeDatos.LimpiarMovimientosAsync();
+        const int IdAjena = 901;
+
+        const long OtraCuenta = 999;
+
+        await BorrarCategoriaAsync(IdAjena, OtraCuenta);
+
+        await using (var contexto = _baseDeDatos.CrearContexto())
+        {
+            // La cuenta ajena tiene que existir de verdad: categoria.usuario_id es una clave
+            // foránea, y el esquema rechaza la fila si apunta a la nada.
+            contexto.Usuarios.Add(new Usuario { Id = OtraCuenta, Email = "otra@gestiongastos.local" });
+            contexto.Categorias.Add(new Categoria
+            {
+                Id = IdAjena,
+                Nombre = "Privada de otra cuenta",
+                Tipo = TipoMovimiento.Gasto,
+                UsuarioId = OtraCuenta,
+                Activa = true,
+            });
+            await contexto.SaveChangesAsync();
+        }
+
+        try
+        {
+            using var respuesta = await EnviarCrudoAsync(
+                $$"""{"tipo":"gasto","monto":100,"categoriaId":{{IdAjena}},"fecha":"2026-08-23"}""");
+
+            await AssertRechazadoAsync(respuesta, "categoriaId", "categoría de otra cuenta");
+        }
+        finally
+        {
+            await BorrarCategoriaAsync(IdAjena, OtraCuenta);
+        }
+    }
+
+    [Fact]
+    public async Task Rechaza_Una_Categoria_Dada_De_Baja()
+    {
+        await _baseDeDatos.LimpiarMovimientosAsync();
+        const int IdInactiva = 902;
+
+        await BorrarCategoriaAsync(IdInactiva);
+
+        await using (var contexto = _baseDeDatos.CrearContexto())
+        {
+            contexto.Categorias.Add(new Categoria
+            {
+                Id = IdInactiva,
+                Nombre = "Dada de baja",
+                Tipo = TipoMovimiento.Gasto,
+                UsuarioId = null,
+                Activa = false,
+            });
+            await contexto.SaveChangesAsync();
+        }
+
+        try
+        {
+            using var respuesta = await EnviarCrudoAsync(
+                $$"""{"tipo":"gasto","monto":100,"categoriaId":{{IdInactiva}},"fecha":"2026-08-23"}""");
+
+            // El catálogo no la ofrece (GET /api/categorias filtra por activa). El alta tampoco
+            // puede aceptarla, o la baja lógica sería puramente cosmética.
+            await AssertRechazadoAsync(respuesta, "categoriaId", "categoría inactiva");
+        }
+        finally
+        {
+            await BorrarCategoriaAsync(IdInactiva);
+        }
+    }
+
+    /// <summary>
+    /// Borra la categoría de prueba y, si se indica, la cuenta ajena que la sostiene.
+    ///
+    /// Se llama antes Y después: la base es compartida por toda la suite, y una corrida
+    /// interrumpida a mitad de camino deja la fila puesta. Un test que asume una base impecable
+    /// falla por lo que hizo la corrida anterior, no por el código.
+    /// </summary>
+    private async Task BorrarCategoriaAsync(int categoriaId, long? usuarioId = null)
+    {
+        await using var contexto = _baseDeDatos.CrearContexto();
+        await contexto.Categorias.Where(c => c.Id == categoriaId).ExecuteDeleteAsync();
+
+        if (usuarioId is { } id)
+        {
+            await contexto.Usuarios.Where(u => u.Id == id).ExecuteDeleteAsync();
         }
     }
 

@@ -17,8 +17,24 @@ public static class MovimientosEndpoints
             IUsuarioActual usuarioActual,
             TimeProvider reloj) =>
         {
+            // La categoría se busca con el MISMO criterio con el que el catálogo la ofrece:
+            // predefinida del sistema o propia de esta cuenta, y activa. Buscar sólo por id
+            // aceptaba cualquier fila de la tabla.
+            //
+            // Hoy todas las filas son predefinidas y activas, así que no cambia nada visible. Pero
+            // el ticket 3 introduce categorías propias y bajas lógicas sin volver a pasar por acá:
+            // con la búsqueda por id suelta, una cuenta podía registrar un movimiento contra la
+            // categoría privada de otra —los ids son autoincrementales y contiguos, no hay nada que
+            // adivinar— y el nombre ajeno aparecía en su listado. El aislamiento tiene que nacer
+            // escrito, no agregarse cuando ya hay dos cuentas.
+            //
+            // No se distingue "no existe" de "no es tuya": la respuesta es la misma, para no
+            // confirmar la existencia de una categoría ajena.
             var categoria = peticion.CategoriaId is { } id
-                ? await contexto.Categorias.FirstOrDefaultAsync(c => c.Id == id)
+                ? await contexto.Categorias.FirstOrDefaultAsync(c =>
+                    c.Id == id
+                    && (c.UsuarioId == null || c.UsuarioId == usuarioActual.Id)
+                    && c.Activa)
                 : null;
 
             // Se valida TODO antes de tocar la base: la respuesta junta los errores de los cuatro
