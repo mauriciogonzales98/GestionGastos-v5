@@ -30,7 +30,14 @@ describe('carga inicial que falla', () => {
     vi.mocked(cliente.obtenerCategorias).mockRejectedValue(new ErrorDeRed(new TypeError('nope')));
     vi.mocked(cliente.obtenerMovimientos).mockRejectedValue(new ErrorDeRed(new TypeError('nope')));
 
-    render(<PantallaMovimientos hoy="2026-08-23" />);
+    render(
+      <PantallaMovimientos
+        hoy="2026-08-23"
+        email="ana@ejemplo.com"
+        onCerrarSesion={() => {}}
+        onSesionVencida={() => {}}
+      />,
+    );
 
     const aviso = await screen.findByRole('alert');
 
@@ -49,7 +56,14 @@ describe('carga inicial que falla', () => {
     vi.mocked(cliente.obtenerCategorias).mockResolvedValue(CATEGORIAS);
     vi.mocked(cliente.obtenerMovimientos).mockRejectedValue(new ErrorDelServidor(500, 'boom'));
 
-    render(<PantallaMovimientos hoy="2026-08-23" />);
+    render(
+      <PantallaMovimientos
+        hoy="2026-08-23"
+        email="ana@ejemplo.com"
+        onCerrarSesion={() => {}}
+        onSesionVencida={() => {}}
+      />,
+    );
 
     await screen.findByRole('alert');
 
@@ -64,7 +78,14 @@ describe('carga inicial que falla', () => {
     vi.mocked(cliente.obtenerCategorias).mockRejectedValue(new ErrorDelServidor(500, 'boom'));
     vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([]);
 
-    render(<PantallaMovimientos hoy="2026-08-23" />);
+    render(
+      <PantallaMovimientos
+        hoy="2026-08-23"
+        email="ana@ejemplo.com"
+        onCerrarSesion={() => {}}
+        onSesionVencida={() => {}}
+      />,
+    );
 
     const aviso = await screen.findByRole('alert');
     expect(aviso).toHaveTextContent(/categor/i);

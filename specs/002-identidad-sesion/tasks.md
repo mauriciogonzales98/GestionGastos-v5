@@ -137,13 +137,13 @@ operación exige autenticarse de nuevo.
 
 ### Frontend
 
-- [ ] T033 [TEST] [P] [US2] Escribir en `frontend/tests/FormularioAcceso.test.tsx` los tests del formulario de acceso: usa `CampoConError`, el campo de contraseña es `type="password"`, lleva los `autocomplete` que corresponden, y se envía entero con teclado. Mostrar el rojo
-- [ ] T034 [US2] Implementar `frontend/src/acceso/FormularioAcceso.tsx` con el conmutador *Iniciar sesión / Crear cuenta*, según [contracts/ui-pantalla.md](./contracts/ui-pantalla.md). El error de credenciales va a la **región del formulario** y no al lado de un campo: señalar uno de los dos diría cuál estaba bien
-- [ ] T035 [TEST] [US2] Escribir en `frontend/tests/App.test.tsx` los tests de la raíz: mientras averigua muestra un indicador —**no** la pantalla de acceso, que haría parpadear el login en cada recarga—; sin sesión muestra acceso; con sesión muestra movimientos, que es la mitad de AC-03 que vive en la pantalla. **Nombrar AC-03**. Mostrar el rojo
-- [ ] T036 [TEST] [US2] Agregar el test de que **cualquier `401`** devuelve a la pantalla de acceso con un aviso de sesión vencida, y que lo que se estaba haciendo **no desaparece en silencio**. Mostrar el rojo
-- [ ] T037 [US2] Implementar `frontend/src/App.tsx` y ajustar `frontend/src/api/cliente.ts` para mandar la cookie (`credentials: 'include'`) y tratar el `401` como señal de sesión vencida ([D-09](./research.md))
-- [ ] T038 [US2] Agregar el cierre de sesión a `frontend/src/movimientos/PantallaMovimientos.tsx`: un `<button>`, no un enlace — cambia estado del servidor, y los enlaces son para navegar
-- [ ] T039 [VERIFY] [US2] Puerta completa de frontend y backend, más las tres barreras: contrato, linter y autorización
+- [X] T033 [TEST] [P] [US2] Escribir en `frontend/tests/FormularioAcceso.test.tsx` los tests del formulario de acceso: usa `CampoConError`, el campo de contraseña es `type="password"`, lleva los `autocomplete` que corresponden, y se envía entero con teclado. Mostrar el rojo
+- [X] T034 [US2] Implementar `frontend/src/acceso/FormularioAcceso.tsx` con el conmutador *Iniciar sesión / Crear cuenta*, según [contracts/ui-pantalla.md](./contracts/ui-pantalla.md). El error de credenciales va a la **región del formulario** y no al lado de un campo: señalar uno de los dos diría cuál estaba bien
+- [X] T035 [TEST] [US2] Escribir en `frontend/tests/App.test.tsx` los tests de la raíz: mientras averigua muestra un indicador —**no** la pantalla de acceso, que haría parpadear el login en cada recarga—; sin sesión muestra acceso; con sesión muestra movimientos, que es la mitad de AC-03 que vive en la pantalla. **Nombrar AC-03**. Mostrar el rojo
+- [X] T036 [TEST] [US2] Agregar el test de que **cualquier `401`** devuelve a la pantalla de acceso con un aviso de sesión vencida, y que lo que se estaba haciendo **no desaparece en silencio**. Mostrar el rojo
+- [X] T037 [US2] Implementar `frontend/src/App.tsx` y ajustar `frontend/src/api/cliente.ts` para mandar la cookie (`credentials: 'include'`) y tratar el `401` como señal de sesión vencida ([D-09](./research.md))
+- [X] T038 [US2] Agregar el cierre de sesión a `frontend/src/movimientos/PantallaMovimientos.tsx`: un `<button>`, no un enlace — cambia estado del servidor, y los enlaces son para navegar
+- [X] T039 [VERIFY] [US2] Puerta completa de frontend y backend, más las tres barreras: contrato, linter y autorización
 
 **Checkpoint**: sin sesión no se puede nada. La aplicación tiene frontera.
 

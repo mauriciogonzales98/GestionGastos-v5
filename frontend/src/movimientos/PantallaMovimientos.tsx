@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { crearMovimiento, obtenerCategorias, obtenerMovimientos } from '../api/cliente';
+import {
+  ErrorDeSesion,
+  crearMovimiento,
+  obtenerCategorias,
+  obtenerMovimientos,
+} from '../api/cliente';
 import type { Categoria, Movimiento, NuevoMovimiento } from '../api/tipos';
 import { FormularioMovimiento } from './FormularioMovimiento';
 import { ListadoMovimientos } from './ListadoMovimientos';
@@ -7,7 +12,19 @@ import { ListadoMovimientos } from './ListadoMovimientos';
 export interface PropsPantallaMovimientos {
   /** El día de hoy en `YYYY-MM-DD`. Entra por prop para que los tests sean deterministas. */
   hoy: string;
+  /** El email de la cuenta en sesión, para que se vea con cuál se está trabajando (FR-004). */
+  email: string;
+  onCerrarSesion: () => void;
+  /**
+   * Se llama cuando una petición vuelve `401`, con el aviso que explica qué pasó y qué se perdió.
+   *
+   * Es obligatoria y no tiene valor por defecto a propósito: un no-op implícito se tragaría el
+   * 401 y dejaría la pantalla mostrando datos de una sesión que ya no existe.
+   */
+  onSesionVencida: (aviso: string) => void;
 }
+
+const SESION_VENCIDA = 'Tu sesión venció. Volvé a entrar.';
 
 /**
  * Inserta el movimiento en su posición según `fecha DESC, id DESC`.
@@ -36,7 +53,12 @@ export function esDelMesDe(fecha: string, hoy: string): boolean {
  * Formulario y listado en una sola pantalla (FR-013). No hay navegación intermedia ni una segunda
  * ruta: no hay adónde ir todavía.
  */
-export function PantallaMovimientos({ hoy }: PropsPantallaMovimientos) {
+export function PantallaMovimientos({
+  hoy,
+  email,
+  onCerrarSesion,
+  onSesionVencida,
+}: PropsPantallaMovimientos) {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [cargandoListado, setCargandoListado] = useState(true);
@@ -52,7 +74,15 @@ export function PantallaMovimientos({ hoy }: PropsPantallaMovimientos) {
     // señal era un unhandled rejection en la consola, que nadie mira.
     void obtenerCategorias()
       .then(setCategorias)
-      .catch(() => {
+      .catch((error: unknown) => {
+        // Un 401 no es "falló la carga": es que ya no hay sesión, y quedarse acá mostrando un
+        // error de carga dejaría la pantalla protegida a la vista con los datos de una sesión
+        // muerta. La reacción la decide la raíz (D-09).
+        if (error instanceof ErrorDeSesion) {
+          onSesionVencida(SESION_VENCIDA);
+          return;
+        }
+
         setErrorDeCarga(
           'No se pudieron cargar las categorías. Revisá la conexión y recargá la página.',
         );
@@ -60,16 +90,38 @@ export function PantallaMovimientos({ hoy }: PropsPantallaMovimientos) {
 
     void obtenerMovimientos()
       .then(setMovimientos)
-      .catch(() => {
+      .catch((error: unknown) => {
+        if (error instanceof ErrorDeSesion) {
+          onSesionVencida(SESION_VENCIDA);
+          return;
+        }
+
         setErrorDeCarga('No se pudo cargar el listado de movimientos. Recargá la página.');
       })
       // El indicador se apaga pase lo que pase. Dejarlo encendido tras un fallo es decirle a la
       // persona que espere algo que no va a llegar.
       .finally(() => setCargandoListado(false));
-  }, []);
+  }, [onSesionVencida]);
 
   async function guardar(nuevo: NuevoMovimiento) {
-    const creado = await crearMovimiento(nuevo);
+    let creado: Movimiento;
+
+    try {
+      creado = await crearMovimiento(nuevo);
+    } catch (error) {
+      if (!(error instanceof ErrorDeSesion)) {
+        // Los demás errores los muestra el formulario, que además conserva lo cargado.
+        throw error;
+      }
+
+      // La pantalla está por desaparecer, así que el aviso tiene que decir qué pasó con ESTE
+      // movimiento. Volver al login sin explicar deja a la persona sin saber si guardó o no, y
+      // termina cargándolo dos veces o ninguna.
+      onSesionVencida(
+        'Tu sesión venció y el movimiento no se registró. Volvé a entrar y cargalo de nuevo.',
+      );
+      return;
+    }
 
     if (esDelMesDe(creado.fecha, hoy)) {
       setMovimientos((previos) => insertarEnOrden(previos, creado));
@@ -86,7 +138,17 @@ export function PantallaMovimientos({ hoy }: PropsPantallaMovimientos) {
 
   return (
     <main className="l-pila">
-      <h1>Mis movimientos</h1>
+      <div className="l-fila l-cabecera">
+        <h1>Mis movimientos</h1>
+        {/* Se ve con qué cuenta se está trabajando (FR-004): sin esto, dos cuentas en el mismo
+            navegador son indistinguibles hasta que alguien carga un gasto en la equivocada. */}
+        <p>{email}</p>
+        {/* Un `<button>` y no un enlace: cambia estado del servidor, y los enlaces son para
+            navegar. Un enlace acá además sería seguible por un prefetch del navegador. */}
+        <button type="button" onClick={onCerrarSesion}>
+          Cerrar sesión
+        </button>
+      </div>
 
       <FormularioMovimiento categorias={categorias} hoy={hoy} onGuardar={guardar} />
 

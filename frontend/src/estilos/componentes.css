@@ -18,3 +18,17 @@
   border-bottom: 1px solid;
   padding: 0.5rem;
 }
+
+.c-formulario-acceso__error {
+  margin: 0;
+}
+
+/*
+ * El conmutador del acceso. `aria-pressed` es lo que dice cuál de los dos modos está activo, así
+ * que también es de donde el estilo lo toma: una clase aparte podría quedar desincronizada del
+ * atributo, y entonces se vería marcado uno y estaría activo el otro.
+ */
+.c-conmutador-acceso button[aria-pressed='true'] {
+  font-weight: bold;
+  text-decoration: underline;
+}
