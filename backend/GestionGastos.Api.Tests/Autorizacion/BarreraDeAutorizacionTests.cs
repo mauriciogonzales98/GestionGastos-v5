@@ -31,7 +31,6 @@ public class BarreraDeAutorizacionTests
         "POST /api/cuentas",
         "POST /api/sesion",
         "DELETE /api/sesion",
-        "GET /",
     };
 
     [Fact]
@@ -62,23 +61,33 @@ public class BarreraDeAutorizacionTests
     }
 
     /// <summary>
-    /// La otra dirección: que las excepciones declaradas sigan existiendo. Una excepción que quedó
-    /// en la lista pero ya no corresponde a ningún endpoint es una puerta que alguien cree abierta
-    /// y no lo está, o peor, un nombre que dejó de coincidir y ya no protege lo que decía proteger.
+    /// La otra dirección: que cada excepción declarada corresponda a un endpoint real **y que ese
+    /// endpoint sea efectivamente anónimo**.
+    ///
+    /// Las dos mitades importan, y la segunda se aprendió a los golpes. Comprobar sólo que la ruta
+    /// existe deja pasar una excepción declarada sobre un endpoint que sí exige sesión: la lista
+    /// dice que esa puerta está abierta, no lo está, y nadie se entera. Peor todavía, la
+    /// autorización queda dada por adelantado — el día que alguien le agregue `AllowAnonymous` a
+    /// ese endpoint, la barrera lo aprueba en silencio porque su nombre ya figuraba.
     /// </summary>
     [Fact]
-    public void Toda_Excepcion_Declarada_Corresponde_A_Un_Endpoint_Real()
+    public void Toda_Excepcion_Declarada_Corresponde_A_Un_Endpoint_Anonimo_Real()
     {
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
         using var _ = factoria.CreateClient();
 
-        var reales = EndpointsDeLaAplicacion(factoria).Select(Describir).ToHashSet(StringComparer.Ordinal);
-        var sobran = ExcepcionesDeclaradas.Except(reales, StringComparer.Ordinal).ToList();
+        var anonimos = EndpointsDeLaAplicacion(factoria)
+            .Where(e => e.Metadata.GetMetadata<IAllowAnonymous>() is not null)
+            .Select(Describir)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var sobran = ExcepcionesDeclaradas.Except(anonimos, StringComparer.Ordinal).ToList();
 
         Assert.True(
             sobran.Count == 0,
-            $"Estas excepciones ya no corresponden a ningún endpoint: {string.Join(", ", sobran)}. " +
-            "Una excepción que sobra deja de describir la aplicación y empieza a mentir sobre ella.");
+            $"Estas excepciones no corresponden a ningún endpoint anónimo: {string.Join(", ", sobran)}. " +
+            "O el endpoint ya no existe, o existe y exige sesión: en los dos casos la lista dejó de " +
+            "describir la aplicación y empezó a mentir sobre ella.");
     }
 
     [Fact]

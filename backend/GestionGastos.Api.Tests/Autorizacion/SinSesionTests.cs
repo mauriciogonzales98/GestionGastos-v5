@@ -28,6 +28,11 @@ public class SinSesionTests(BaseDeDatosFixture baseDeDatos)
 
         using var categorias = await cliente.GetAsync(new Uri("/api/categorias", UriKind.Relative));
         Assert.Equal(HttpStatusCode.Unauthorized, categorias.StatusCode);
+
+        // La raíz también. Figuraba en la lista de excepciones de la barrera sin serlo: la lista
+        // decía que respondía sin sesión y no es así. Queda fijado de qué lado está.
+        using var raiz = await cliente.GetAsync(new Uri("/", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.Unauthorized, raiz.StatusCode);
     }
 
     [Fact]
