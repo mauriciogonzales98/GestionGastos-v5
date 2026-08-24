@@ -201,6 +201,42 @@ public class AltaDeCuentaTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>
+    /// Los espacios de los extremos no cambian de quién es la cuenta, y el alta y el login tienen
+    /// que verlo igual.
+    ///
+    /// Antes no: el alta validaba el texto crudo —y `EsUnEmail` rechaza cualquier valor con un
+    /// espacio, incluidos los de los extremos— mientras el login trimeaba. La misma persona
+    /// escribiendo lo mismo podía entrar pero no darse de alta.
+    /// </summary>
+    [Fact]
+    public async Task Los_Espacios_De_Los_Extremos_Del_Email_No_Cambian_Nada()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        var email = Unico();
+
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cliente = factoria.CreateClient();
+
+        using var alta = await cliente.PostAsJsonAsync(
+            new Uri("/api/cuentas", UriKind.Relative),
+            new { email = $"  {email}  ", contrasena = "una frase larga y buena" });
+
+        Assert.Equal(HttpStatusCode.Created, alta.StatusCode);
+
+        // Y quedó guardada sin los espacios, así que el login con el email a secas la encuentra.
+        await using (var contexto = _baseDeDatos.CrearContexto())
+        {
+            Assert.Equal(1, await contexto.Usuarios.CountAsync(u => u.Email == email));
+        }
+
+        using var sesion = await cliente.PostAsJsonAsync(
+            new Uri("/api/sesion", UriKind.Relative),
+            new { email, contrasena = "una frase larga y buena" });
+
+        Assert.Equal(HttpStatusCode.OK, sesion.StatusCode);
+    }
+
+    /// <summary>
     /// El email no distingue mayúsculas. Sin esto, `Ana@x.com` y `ana@x.com` serían dos cuentas y
     /// FR-002 quedaría incumplido por una diferencia que ninguna persona percibe como distinta.
     /// </summary>

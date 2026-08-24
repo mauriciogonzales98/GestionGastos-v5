@@ -17,13 +17,18 @@ public static class CuentasEndpoints
             GestionGastosDbContext contexto,
             HasherDeContrasenas hasher) =>
         {
-            var errores = ValidacionDeLaCuenta.Validar(peticion.Email, peticion.Contrasena);
+            // Se normaliza ANTES de validar, no después. Al revés el `Trim` no podía hacer nada:
+            // `EsUnEmail` rechaza cualquier valor con un espacio, incluidos los de los extremos, así
+            // que ` ana@x.com ` moría con "ese email no parece válido" — y el login, que sí trimea,
+            // aceptaba ese mismo texto. La misma persona escribiendo lo mismo entraba y no podía
+            // darse de alta.
+            var email = peticion.Email?.Trim();
+
+            var errores = ValidacionDeLaCuenta.Validar(email, peticion.Contrasena);
             if (errores.Count > 0)
             {
                 return Results.ValidationProblem(errores);
             }
-
-            var email = peticion.Email!.Trim();
 
             // Se hashea SIEMPRE, antes de saber si hace falta, y si el email ya estaba el resultado
             // se tira. Es trabajo desperdiciado a propósito: hashear sólo cuando la cuenta se crea
@@ -41,7 +46,8 @@ public static class CuentasEndpoints
             {
                 contexto.Usuarios.Add(new Usuario
                 {
-                    Email = email,
+                    // `email` no es null acá: la validación de arriba ya rechazó el vacío.
+                    Email = email!,
                     ContrasenaHash = hash,
                 });
 
