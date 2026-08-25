@@ -1,0 +1,52 @@
+# Dependabot: actualizaciones de dependencias, semanales.
+# Un PR por grupo y no por paquete, con tope de PRs abiertos, para no inundar la cola.
+version: 2
+updates:
+  # Frontend: React + Vite, gestionado con pnpm (el ecosistema "npm" cubre pnpm).
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Argentina/Buenos_Aires"
+    open-pull-requests-limit: 3
+    groups:
+      frontend-menores:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Backend: .NET 10, los PackageReference viven en los dos .csproj.
+  - package-ecosystem: "nuget"
+    directories:
+      - "/backend/GestionGastos.Api"
+      - "/backend/GestionGastos.Api.Tests"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Argentina/Buenos_Aires"
+    open-pull-requests-limit: 3
+    groups:
+      backend-menores:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Las acciones de .github/workflows/ci.yml (checkout, setup-node, setup-dotnet, pnpm/action-setup).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Argentina/Buenos_Aires"
+    open-pull-requests-limit: 2
+    groups:
+      acciones:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(ci)"
