@@ -28,6 +28,9 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioActual, UsuarioDeLaSesion>();
 builder.Services.AddSingleton<HasherDeContrasenas>();
 
+// El límite de intentos fallidos (RNF-05). Scoped porque usa el DbContext de la petición.
+builder.Services.AddScoped<LimiteDeIntentos>();
+
 // Autenticación por cookie: HttpOnly la vuelve inalcanzable desde JavaScript, así que un XSS no
 // puede robar la sesión; con un token en localStorage sí podría. SameSite=Strict cubre CSRF sin
 // agregar un token anti-CSRF (D-01).

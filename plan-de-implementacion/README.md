@@ -11,8 +11,8 @@ tanto los que ya están en `main` como los que faltan. Las fuentes vivas siguen 
 |---------|--------|--------|
 | `PRD.md` | PRD de referencia del producto, con todas las modificaciones aplicadas hasta hoy | `docs/daw/prd/PRD.md` |
 | `plan-DISC-001.md` | El plan: concepto, decisiones, mapa de dependencias y orden de los tickets | `docs/daw/discovery/concept-DISC-001.md` |
-| `prds/implementados/` | Los 8 tickets ya mergeados a `main`, en el orden en que se hicieron | `docs/daw/prd/` |
-| `prds/pendientes/` | Los 9 tickets que faltan | `docs/daw/prd/prd-DISC-001-*.md` |
+| `prds/implementados/` | Los 10 tickets ya mergeados a `main`, en el orden en que se hicieron | `docs/daw/prd/` |
+| `prds/pendientes/` | Los 7 tickets que faltan | `docs/daw/prd/prd-DISC-001-*.md` |
 
 ## Recorrido completo, en orden
 
@@ -28,6 +28,8 @@ tanto los que ya están en `main` como los que faltan. Las fuentes vivas siguen 
 | 6 | FIX-003 | Comparación por subcadena en `validate_prd.py` (D-4, QUICK-FIX) | `prds/implementados/fix-FIX-003.md` |
 | 7 | FEAT-003 | Alineación verificada del contrato frontend↔backend (D-2) | `prds/implementados/prd-FEAT-003.md` |
 | 8 | FIX-004 | El sembrado de rendimiento vence el 2027-01-01 (D-3) | `prds/implementados/prd-FIX-004.md` |
+| 9 | DISC-001-01a | Identidad y sesión | `prds/implementados/prd-DISC-001-01a.md` |
+| 10 | DISC-001-01b | Límite de intentos fallidos | `prds/implementados/prd-DISC-001-01b.md` |
 
 `prds/implementados/prd-FEAT-001.md` es el PRD padre de FEAT-001: no es un ticket implementable,
 es el índice del corte en `a`/`b`/`c` y explica por qué se partió. Los cuatro FIX/FEAT de
@@ -42,8 +44,6 @@ fixture, validador) que cuanto antes estén, menos trabajo tapan.
 
 | Orden | # | Título | PRD |
 |-------|---|--------|-----|
-| 9 | 1a | Identidad y sesión | `prds/pendientes/prd-DISC-001-01a.md` |
-| 10 | 1b | Límite de intentos fallidos | `prds/pendientes/prd-DISC-001-01b.md` |
 | 11 | 1c | Aislamiento entre cuentas verificado | `prds/pendientes/prd-DISC-001-01c.md` |
 | 12 | 3 | Categorías propias del usuario | `prds/pendientes/prd-DISC-001-03.md` |
 | 13 | 4a | Catálogo de monedas y totales por moneda | `prds/pendientes/prd-DISC-001-04a.md` |
@@ -53,7 +53,11 @@ fixture, validador) que cuanto antes estén, menos trabajo tapan.
 | — | 2 | Nota descriptiva del movimiento | `prds/pendientes/prd-DISC-001-02.md` |
 
 `2` no tiene dependencias ni bloquea a nadie: entra en cualquier hueco. El resto es secuencial por
-las razones que están en `plan-DISC-001.md`. Los nueve están en estado `validated`.
+las razones que están en `plan-DISC-001.md`. Los siete están en estado `validated`.
+
+> **Actualizado el 2026-08-26.** `1a` se mergeó en el PR #3 y `1b` sale con este ticket; los dos
+> pasaron a la tabla de arriba. La foto original es del 2026-08-22, cuando los nueve estaban
+> pendientes.
 
 ## Lo que no está acá
 

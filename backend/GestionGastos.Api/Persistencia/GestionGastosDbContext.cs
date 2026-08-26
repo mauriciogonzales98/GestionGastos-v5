@@ -19,6 +19,8 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
 
     public DbSet<Usuario> Usuarios => Set<Usuario>();
 
+    public DbSet<IntentoDeAcceso> IntentosDeAcceso => Set<IntentoDeAcceso>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -44,6 +46,40 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
                 .HasColumnName("contrasena_hash")
                 .HasMaxLength(72)
                 .IsRequired();
+        });
+
+        modelBuilder.Entity<IntentoDeAcceso>(e =>
+        {
+            e.ToTable("intento_de_acceso");
+
+            // El email ES la clave: una fila por email presentado, y sólo mientras tenga fallos que
+            // contar. Sin fila significa cero fallos, que es el estado normal de todos los emails.
+            e.HasKey(i => i.Email);
+
+            // La MISMA colación que `usuario.email`, y por el mismo motivo llevado un paso más
+            // allá: si acá fuera binaria, `ana@` y `Ana@` tendrían contadores separados y el límite
+            // se esquivaría cambiando una letra de mayúscula.
+            e.Property(i => i.Email)
+                .HasColumnName("email")
+                .HasMaxLength(254)
+                .UseCollation("utf8mb4_0900_ai_ci")
+                .IsRequired();
+
+            // El límite son 5: un byte sobra y deja claro que acá no se acumula una bitácora.
+            e.Property(i => i.FallosConsecutivos)
+                .HasColumnName("fallos_consecutivos")
+                .HasColumnType("tinyint unsigned")
+                .IsRequired();
+
+            // datetime(6): la ventana son 15 minutos y los tests la recorren con precisión de
+            // microsegundos adelantando el reloj.
+            e.Property(i => i.UltimoFallo)
+                .HasColumnName("ultimo_fallo")
+                .HasColumnType("datetime(6)")
+                .IsRequired();
+
+            // Para que la purga por inactividad sea un DELETE por índice y no un recorrido.
+            e.HasIndex(i => i.UltimoFallo).HasDatabaseName("ix_intento_de_acceso_ultimo_fallo");
         });
 
         modelBuilder.Entity<Moneda>(e =>
