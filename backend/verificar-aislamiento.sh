@@ -22,7 +22,6 @@ set -euo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONSULTA="$RAIZ/backend/GestionGastos.Api/Movimientos/MovimientosConsulta.cs"
-ENDPOINTS="$RAIZ/backend/GestionGastos.Api/Sesion/SesionEndpoints.cs"
 ALTA="$RAIZ/backend/GestionGastos.Api/Movimientos/MovimientosEndpoints.cs"
 COLADO="$RAIZ/backend/GestionGastos.Api/LecturaColada.temporal.cs"
 FILTRO='FullyQualifiedName~Aislamiento'
