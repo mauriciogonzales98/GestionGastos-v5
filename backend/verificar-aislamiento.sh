@@ -49,6 +49,23 @@ correr_tests() {
 
 exigir_rojo() {
   local que="$1"
+
+  # Compila ANTES de mirar los tests, y no es celo de más.
+  #
+  # `dotnet test` devuelve 1 tanto si los tests fallaron como si el proyecto no compiló, así que sin
+  # esta distinción un desarme que genera código inválido se cuenta como rojo válido: la barrera
+  # imprime "rojo, como se esperaba" en los tres pasos, termina diciendo EN PIE, y desde ese momento
+  # no verifica nada. Es la falla que esta barrera existe para prevenir, ocurriendo adentro de ella.
+  #
+  # Pasa el día que alguien retoque una de las sustituciones `perl` de acá abajo — al agregar el
+  # `PUT` de FEAT-001b, por ejemplo — y la deje generando algo que no compila.
+  if ! dotnet build "$RAIZ/backend/GestionGastos.slnx" --nologo --verbosity quiet > /dev/null 2>&1; then
+    echo "ERROR: $que y el proyecto dejó de COMPILAR." >&2
+    echo "       El rojo tiene que venir de los tests, no del compilador. La sustitución del script" >&2
+    echo "       generó código inválido: actualizá verificar-aislamiento.sh." >&2
+    exit 1
+  fi
+
   if correr_tests > /dev/null 2>&1; then
     echo "ERROR: $que y la suite de aislamiento pasó igual." >&2
     echo "       Esos tests no están verificando el aislamiento: revisalos antes de confiar en ellos." >&2
