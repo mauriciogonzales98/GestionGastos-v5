@@ -337,6 +337,27 @@ public class LimiteDeIntentosTests(BaseDeDatosFixture baseDeDatos)
         Assert.Empty(await contexto.IntentosDeAcceso.ToListAsync());
     }
 
+    /// <summary>
+    /// El email vacío no lleva contador, que es lo que dice la spec en sus casos borde.
+    ///
+    /// Sin esto, `{"email": null}` termina como una fila con `email = ''`: cinco intentos y el
+    /// "email vacío" queda bloqueado, que no protege a nadie de nada.
+    /// </summary>
+    [Fact]
+    public async Task El_Email_Vacio_No_Lleva_Contador()
+    {
+        await _baseDeDatos.LimpiarIntentosDeAccesoAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cliente = factoria.CreateClient();
+
+        using var respuesta = await IntentarAsync(cliente, "   ", Contrasena);
+        Assert.Equal(HttpStatusCode.Unauthorized, respuesta.StatusCode);
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Empty(await contexto.IntentosDeAcceso.ToListAsync());
+    }
+
     /// <summary>El cuerpo del error, campo por campo, sin el `traceId` —distinto en cada petición
     /// por definición, y mudo respecto de la causa del rechazo—.</summary>
     private static async Task<Dictionary<string, string>> SinTraceIdAsync(HttpResponseMessage respuesta)

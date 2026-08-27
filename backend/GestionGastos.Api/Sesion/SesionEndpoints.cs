@@ -44,7 +44,7 @@ public static class SesionEndpoints
         {
             var email = peticion.Email?.Trim() ?? string.Empty;
 
-            // Un email más largo que la columna NO va al contador.
+            // Un email vacío, o más largo que la columna, NO va al contador.
             //
             // Hasta el ticket 01b el login no escribía el email en ningún lado, así que no validarlo
             // no costaba nada. Ahora lo escribe: `intento_de_acceso.email` es `varchar(254)` y MySQL
@@ -52,9 +52,13 @@ public static class SesionEndpoints
             // corresponde el 401 de siempre. Es la misma cicatriz que el alta ya pagó, y que
             // `ValidacionDeLaCuenta.LargoMaximoDeEmail` documenta.
             //
-            // Saltear el contador no abre ningún hueco: un email que no entra en la columna tampoco
-            // entra en `usuario.email`, así que no hay cuenta que proteger detrás de él.
-            var cuentaElFallo = email.Length <= ValidacionDeLaCuenta.LargoMaximoDeEmail;
+            // El vacío entra por el otro lado: `{"email": null}` terminaba como una fila con
+            // `email = ''`, y a los cinco intentos el "email vacío" quedaba bloqueado. No protege a
+            // nadie de nada, y la spec dice en sus casos borde que ese contador no existe.
+            //
+            // Saltear el contador no abre ningún hueco en ninguno de los dos casos: el alta rechaza
+            // tanto el vacío como el demasiado largo, así que no hay cuenta detrás que proteger.
+            var cuentaElFallo = email.Length is > 0 and <= ValidacionDeLaCuenta.LargoMaximoDeEmail;
 
             // Cinco fallos consecutivos bloquean este email por 15 minutos, con contraseña correcta
             // incluida (RNF-05, AC-01, AC-02).
