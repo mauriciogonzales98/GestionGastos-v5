@@ -189,23 +189,23 @@ demostró que sabe hacerlo.
 
 ## Phase 6: Polish & cierre
 
-- [ ] T019 Agregar `verificar-aislamiento.sh` a la tabla de *Stack* de `AGENTS.md`, junto a las
+- [X] T019 Agregar `verificar-aislamiento.sh` a la tabla de *Stack* de `AGENTS.md`, junto a las
   otras tres barreras, con la línea que explica qué comprueba y por qué. Una barrera que no está en
   la tabla no la corre nadie
-- [ ] T020 Agregar el paso "Barrera de aislamiento" a `.github/workflows/ci.yml`, después de los tres
+- [X] T020 Agregar el paso "Barrera de aislamiento" a `.github/workflows/ci.yml`, después de los tres
   que ya están. Va con las otras porque recompila con archivos modificados, así que tiene que ir
   después del paso de Tests para no invalidar su `--no-build`
-- [ ] T021 [P] Correr la cobertura con `dotnet test backend/GestionGastos.slnx --settings
+- [X] T021 [P] Correr la cobertura con `dotnet test backend/GestionGastos.slnx --settings
   backend/cobertura.runsettings` y revisar que `Movimientos/MovimientosConsulta.cs` y el camino de
   alta de `MovimientosEndpoints.cs` queden medidos
-- [ ] T022 [P] Revisar que ningún AC quede sin test que lo nombre: **AC-01**, **AC-06**, **AC-08**,
+- [X] T022 [P] Revisar que ningún AC quede sin test que lo nombre: **AC-01**, **AC-06**, **AC-08**,
   **AC-09** y **AC-10** (reformulado como FR-004). Los cinco restantes —**AC-02**, **AC-03**,
   **AC-04**, **AC-05**, **AC-07**— **no se marcan como cubiertos**: su endpoint no existe y quedan
   en la tabla de *Deuda registrada* de la spec. Confirmar que esa tabla sigue diciendo la verdad
-- [ ] T023 [P] Recorrer [quickstart.md](./quickstart.md) de punta a punta, incluido el paso 3 con
+- [X] T023 [P] Recorrer [quickstart.md](./quickstart.md) de punta a punta, incluido el paso 3 con
   `curl` y dos frascos de cookies. Es lo que comprueba que los escenarios se parecen a la realidad
   y no sólo a sí mismos
-- [ ] T024 [VERIFY] Puerta de cierre de feature, entera y con su salida a la vista: `dotnet format
+- [X] T024 [VERIFY] Puerta de cierre de feature, entera y con su salida a la vista: `dotnet format
   --verify-no-changes`, build con `-warnaserror`, `dotnet test` completo, cobertura, y las
   **cuatro** barreras (`verificar-contrato.sh`, `verificar-autorizacion.sh`, `verificar-linter.sh` y
   la nueva `verificar-aislamiento.sh`). Más la puerta del frontend entera —lint, format, typecheck,

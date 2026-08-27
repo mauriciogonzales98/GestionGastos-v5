@@ -165,5 +165,18 @@ jobs:
       #
       # Va ÚLTIMO a propósito: compila con un archivo temporal adentro, así que correrlo antes
       # invalidaría el --no-build del paso de Tests.
+      # Ninguna cuenta ve ni toca los datos de otra. El aislamiento se sostiene en condiciones
+      # escritas a mano —el acotado de la consulta y la asignación del propietario en el alta—, así
+      # que una consulta nueva nace sin él salvo que alguien se acuerde. Este paso comprueba que los
+      # tests que lo vigilan saben ponerse en rojo: un test de aislamiento roto devuelve verde igual
+      # que uno que funciona, y sigue devolviéndolo el día que deja de verificar nada.
+      #
+      # También recompila con archivos modificados, así que va con las otras barreras, después de
+      # Tests, para no invalidar su `--no-build`.
+      - name: Barrera de aislamiento
+        run: ./backend/verificar-aislamiento.sh
+        env:
+          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+
       - name: Barrera del linter
         run: ./backend/verificar-linter.sh
