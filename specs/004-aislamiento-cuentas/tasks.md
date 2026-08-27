@@ -121,19 +121,19 @@ el cuerpo, y comprobar que aparece en el listado de quien lo registró y no en e
 
 ### Tests de la historia 2
 
-- [ ] T009 [TEST] [US2] Agregar en `AislamientoEntreCuentasTests.cs` el test de **AC-06**: la cuenta
+- [X] T009 [TEST] [US2] Agregar en `AislamientoEntreCuentasTests.cs` el test de **AC-06**: la cuenta
   A registra un movimiento con `"usuarioId": <id de B>` en el cuerpo; el movimiento aparece en el
   listado de **A** y el listado de B no cambia. Mandar el campo aunque el contrato del alta no lo
   tenga: hoy se descarta al deserializar, y el test tiene que seguir valiendo el día que
   `NuevoMovimientoDto` gane un campo ([INV-03](./data-model.md))
-- [ ] T010 [TEST] [US2] Agregar el test de **AC-08**: leer el listado de B **antes y después** de
+- [X] T010 [TEST] [US2] Agregar el test de **AC-08**: leer el listado de B **antes y después** de
   que A registre un movimiento, y comprobar que es idéntico campo por campo. Se comprueba sobre la
   **otra** cuenta, no sobre la que operó: es lo que distingue "mi listado está bien" de "el suyo no
   cambió"
-- [ ] T011 [ROJO] [US2] Reemplazar `UsuarioId = usuarioActual.Id` por el id de otra cuenta en
+- [X] T011 [ROJO] [US2] Reemplazar `UsuarioId = usuarioActual.Id` por el id de otra cuenta en
   `backend/GestionGastos.Api/Movimientos/MovimientosEndpoints.cs`, correr T009 y T010, y **mostrar
   el rojo**. Restaurar y comprobar el verde
-- [ ] T012 [VERIFY] [US2] Puerta del backend completa
+- [X] T012 [VERIFY] [US2] Puerta del backend completa
 
 **Checkpoint**: las dos mitades del aislamiento —leer y escribir— están verificadas. Se cubrió el
 100 % de la superficie que existe: 2 de 2 endpoints (**AC-09**, reescalado).
