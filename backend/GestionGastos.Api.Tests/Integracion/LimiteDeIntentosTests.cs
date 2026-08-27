@@ -393,6 +393,11 @@ public class LimiteDeIntentosTests(BaseDeDatosFixture baseDeDatos)
 
         var fila = await contexto.IntentosDeAcceso.AsNoTracking().SingleAsync(i => i.Email == email);
         Assert.Equal(LimiteDeIntentos.MaximoDeFallos, fila.FallosConsecutivos);
+
+        // Limpiar al SALIR, no sólo al entrar: los tests de `Rendimiento/` comparten esta tabla y
+        // miden tiempo de pared. Filas de más acá son milisegundos de más allá, y un rojo que no
+        // habla del código que se está midiendo.
+        await _baseDeDatos.LimpiarIntentosDeAccesoAsync();
     }
 
     /// <summary>
@@ -442,6 +447,9 @@ public class LimiteDeIntentosTests(BaseDeDatosFixture baseDeDatos)
         }
 
         Assert.Equal(0, restantes);
+
+        // Las filas del propio barrido tampoco quedan: ver el comentario de arriba.
+        await _baseDeDatos.LimpiarIntentosDeAccesoAsync();
     }
 
     /// <summary>El cuerpo del error, campo por campo, sin el `traceId` —distinto en cada petición

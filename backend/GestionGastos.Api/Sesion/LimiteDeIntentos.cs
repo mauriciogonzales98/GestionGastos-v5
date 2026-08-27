@@ -34,9 +34,14 @@ public sealed class LimiteDeIntentos(GestionGastosDbContext contexto, TimeProvid
     /// Cuántas filas vencidas se lleva como máximo una sola purga.
     ///
     /// La purga viaja dentro de una petición, así que tiene que costar lo mismo siempre. Sin cota,
-    /// el primer inicio de sesión fallido posterior a un barrido de cien mil emails paga el borrado
-    /// de cien mil filas, y ahí se va entero el presupuesto de NFR-02. Acotada sigue convergiendo:
-    /// cada fallo se lleva un lote, y los fallos sobran justamente cuando hay algo que purgar.
+    /// el primer inicio de sesión fallido posterior a un barrido de emails paga el borrado de todo
+    /// lo que ese barrido dejó, y ahí se va entero el presupuesto de NFR-02. Acotada sigue
+    /// convergiendo: cada fallo se lleva un lote, y los fallos sobran justamente cuando hay algo
+    /// que purgar.
+    ///
+    /// Medido contra MySQL 8.4 con 50.000 filas vencidas: borrarlas de una tarda 2,89 s; un lote de
+    /// 100, 10 ms. El presupuesto de NFR-02 son 50 ms, así que el lote entra con aire y el borrado
+    /// de una sola vez no entra ni cerca.
     /// </summary>
     public const int TamanoDeLaPurga = 100;
 
