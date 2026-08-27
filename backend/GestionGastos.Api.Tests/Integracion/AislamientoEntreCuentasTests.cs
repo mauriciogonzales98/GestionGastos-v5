@@ -94,6 +94,71 @@ public class AislamientoEntreCuentasTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>
+    /// AC-06 (FR-002): el dueño de un movimiento lo decide la sesión, nunca el cuerpo de la
+    /// petición.
+    ///
+    /// La cuenta A registra un movimiento diciendo en el JSON que el propietario es B. El
+    /// movimiento tiene que caer en A, y el listado de B no tiene que moverse.
+    ///
+    /// El campo `usuarioId` no existe en el contrato del alta, así que hoy se descarta al
+    /// deserializar y este test pasaría aunque el endpoint no hiciera nada. Se manda igual: el día
+    /// que `NuevoMovimientoDto` gane un campo, este test es el que se entera.
+    /// </summary>
+    [Fact]
+    public async Task El_Propietario_Lo_Decide_La_Sesion_Y_No_El_Cuerpo_AC06()
+    {
+        using var factoria = new FactoriaConReloj(Hoy);
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var a = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        using var b = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        var (deA, deB) = await SembrarEnLasDosAsync(a, b);
+
+        // A registra "a nombre de B".
+        var conDuenoAjeno = await RegistrarAsync(a, monto: 333m, propietarioEnElCuerpo: b.Id);
+
+        // Cayó en A...
+        Assert.Contains(conDuenoAjeno, await IdsDelListadoAsync(a));
+
+        // ...y el listado de B sigue teniendo sólo lo suyo.
+        Assert.Equal([deB], await IdsDelListadoAsync(b));
+        Assert.DoesNotContain(conDuenoAjeno, await IdsDelListadoAsync(b));
+
+        // Y el de A no perdió lo que ya tenía.
+        Assert.Contains(deA, await IdsDelListadoAsync(a));
+    }
+
+    /// <summary>
+    /// AC-08 (FR-005): después de que una cuenta opera sobre lo suyo, los movimientos de la otra
+    /// conservan **los mismos valores**.
+    ///
+    /// Se compara el listado de B entero, campo por campo, antes y después. Comprobarlo sobre la
+    /// otra cuenta y no sobre la que operó es lo que distingue "mi listado está bien" de "el suyo
+    /// no cambió", que son afirmaciones distintas y sólo la segunda es la que pide el AC.
+    /// </summary>
+    [Fact]
+    public async Task Lo_Que_Hace_Una_Cuenta_No_Toca_Los_Movimientos_De_La_Otra_AC08()
+    {
+        using var factoria = new FactoriaConReloj(Hoy);
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var a = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        using var b = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        await SembrarEnLasDosAsync(a, b);
+
+        var antes = await ListadoCrudoAsync(b);
+
+        await RegistrarAsync(a, monto: 444m);
+        await RegistrarAsync(a, monto: 555m, propietarioEnElCuerpo: b.Id);
+
+        var despues = await ListadoCrudoAsync(b);
+
+        Assert.Equal(antes, despues);
+    }
+
+    /// <summary>
     /// Siembra un movimiento en cada cuenta y comprueba las dos condiciones sin las cuales esta
     /// suite entera pasaría en verde sin verificar nada.
     ///
@@ -164,4 +229,18 @@ public class AislamientoEntreCuentasTests(BaseDeDatosFixture baseDeDatos)
 
     private static async Task<List<long>> IdsDelListadoAsync(CuentaDePrueba cuenta) =>
         [.. (await ListadoAsync(cuenta)).Select(m => m.GetProperty("id").GetInt64())];
+
+    /// <summary>
+    /// El listado tal cual viaja, en texto. Comparar el JSON entero y no una proyección es lo que
+    /// hace que AC-08 cubra también los campos que este test no nombra: si mañana el listado gana
+    /// uno y una operación ajena lo cambia, esta comparación se entera y una por `id` no.
+    /// </summary>
+    private static async Task<string> ListadoCrudoAsync(CuentaDePrueba cuenta)
+    {
+        using var respuesta = await cuenta.Cliente.GetAsync(
+            new Uri("/api/movimientos", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        return await respuesta.Content.ReadAsStringAsync();
+    }
 }
