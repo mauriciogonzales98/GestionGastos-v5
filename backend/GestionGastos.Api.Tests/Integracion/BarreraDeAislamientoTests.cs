@@ -1,6 +1,8 @@
+using System.Reflection;
 using System.Text.RegularExpressions;
 using GestionGastos.Api.Dominio;
 using GestionGastos.Api.Movimientos;
+using GestionGastos.Api.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
 namespace GestionGastos.Api.Tests.Integracion;
@@ -63,6 +65,71 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
             "La consulta del listado dejó de acotar por cuenta: su WHERE no nombra `usuario_id`. " +
             "Con eso, el listado de una cuenta devuelve los movimientos de todas.\n\nSQL:\n" + sql);
     }
+
+    /// <summary>
+    /// **Todas** las consultas del canal acotan por cuenta, no sólo la del listado.
+    ///
+    /// El test de arriba mira `DelMes` y nada más, y el del canal mira quién lee movimientos
+    /// **afuera**. Entre los dos quedaba un hueco justo en el peor lugar: adentro. El mensaje de
+    /// error de la barrera del canal empuja a agregar las consultas nuevas acá —"la salida es
+    /// agregar el método a `MovimientosConsulta`"—, y hasta ahora eso las metía al único sitio
+    /// donde nadie las miraba. Comprobado: un `TodosLosDelMes(contexto, rango)` sin `usuario_id`
+    /// pasaba la suite en verde.
+    ///
+    /// Se descubren por reflexión y no por una lista: una lista hay que acordarse de actualizarla,
+    /// que es la misma clase de olvido que esta barrera existe para atrapar.
+    /// </summary>
+    [Fact]
+    public void Todas_Las_Consultas_Del_Canal_Acotan_Por_Cuenta()
+    {
+        using var contexto = _baseDeDatos.CrearContexto();
+
+        var consultas = typeof(MovimientosConsulta)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(m => typeof(IQueryable<Movimiento>).IsAssignableFrom(m.ReturnType))
+            .ToList();
+
+        Assert.NotEmpty(consultas);
+
+        foreach (var consulta in consultas)
+        {
+            var sql = ((IQueryable<Movimiento>)consulta.Invoke(null, ArgumentosDePrueba(consulta, contexto))!)
+                .ToQueryString();
+
+            var donde = sql.Contains("WHERE", StringComparison.OrdinalIgnoreCase)
+                ? sql[sql.IndexOf("WHERE", StringComparison.OrdinalIgnoreCase)..]
+                : string.Empty;
+
+            Assert.True(
+                donde.Contains("usuario_id", StringComparison.OrdinalIgnoreCase),
+                $"`MovimientosConsulta.{consulta.Name}` no acota por cuenta: su SQL no nombra " +
+                "`usuario_id` en el WHERE. Una consulta de movimientos sin acotar devuelve los de " +
+                $"todas las cuentas.\n\nSQL:\n{sql}");
+        }
+    }
+
+    /// <summary>
+    /// Los argumentos con los que invocar una consulta del canal, por tipo.
+    ///
+    /// Los valores no importan —sólo se mira el SQL que se genera, no filas—, pero el método tiene
+    /// que poder invocarse. Si aparece un parámetro de un tipo que no está acá, el test falla
+    /// diciéndolo en vez de pasar de largo: una consulta que la barrera no puede invocar es una
+    /// consulta que la barrera no está mirando.
+    /// </summary>
+    private static object?[] ArgumentosDePrueba(MethodInfo consulta, GestionGastosDbContext contexto) =>
+        [.. consulta.GetParameters().Select(object? (p) => p.ParameterType switch
+        {
+            var t when t == typeof(GestionGastosDbContext) => contexto,
+            var t when t == typeof(long) => 1L,
+            var t when t == typeof(RangoDelMes) => RangoDelMes.De(new DateOnly(2026, 8, 15)),
+            var t when t == typeof(DateOnly) => new DateOnly(2026, 8, 15),
+            var t when t == typeof(int) => 1,
+            var t when t == typeof(string) => "x",
+            _ => throw new InvalidOperationException(
+                $"`MovimientosConsulta.{consulta.Name}` tiene un parámetro de tipo " +
+                $"{p.ParameterType.Name} que esta barrera no sabe construir. Agregalo acá: sin eso, " +
+                "esa consulta queda sin vigilar y el aislamiento depende de que alguien se acuerde."),
+        })];
 
     /// <summary>
     /// Ningún archivo de producción lee <c>contexto.Movimientos</c> fuera del canal único.
