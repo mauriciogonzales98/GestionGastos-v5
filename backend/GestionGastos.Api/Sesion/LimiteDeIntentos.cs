@@ -31,6 +31,16 @@ public sealed class LimiteDeIntentos(GestionGastosDbContext contexto, TimeProvid
     public static readonly TimeSpan InactividadQueReinicia = TimeSpan.FromHours(24);
 
     /// <summary>
+    /// Cuántas filas vencidas se lleva como máximo una sola purga.
+    ///
+    /// La purga viaja dentro de una petición, así que tiene que costar lo mismo siempre. Sin cota,
+    /// el primer inicio de sesión fallido posterior a un barrido de cien mil emails paga el borrado
+    /// de cien mil filas, y ahí se va entero el presupuesto de NFR-02. Acotada sigue convergiendo:
+    /// cada fallo se lleva un lote, y los fallos sobran justamente cuando hay algo que purgar.
+    /// </summary>
+    public const int TamanoDeLaPurga = 100;
+
+    /// <summary>
     /// Si un email con <paramref name="fallos"/> fallos y último fallo en
     /// <paramref name="ultimoFallo"/> está bloqueado en <paramref name="ahora"/>.
     ///
@@ -91,9 +101,13 @@ public sealed class LimiteDeIntentos(GestionGastosDbContext contexto, TimeProvid
         // La purga viaja pegada al fallo, que es el camino que YA escribe. En el de lectura correría
         // en todos los inicios de sesión, incluidos los exitosos, y ahí se gasta el presupuesto de
         // NFR-02 en el camino más frecuente. Borra por el índice de `ultimo_fallo`.
-        await contexto.IntentosDeAcceso
-            .Where(i => i.UltimoFallo <= finDeInactividad)
-            .ExecuteDeleteAsync();
+        //
+        // Y va POR LOTES: ver TamanoDeLaPurga. Es SQL a mano y no `ExecuteDeleteAsync` porque EF no
+        // sabe traducir un `LIMIT` en un borrado.
+        await contexto.Database.ExecuteSqlInterpolatedAsync($@"
+            DELETE FROM intento_de_acceso
+            WHERE ultimo_fallo <= {finDeInactividad}
+            LIMIT {TamanoDeLaPurga}");
     }
 
     /// <summary>

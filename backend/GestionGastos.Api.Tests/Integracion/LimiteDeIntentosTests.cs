@@ -395,6 +395,55 @@ public class LimiteDeIntentosTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal(LimiteDeIntentos.MaximoDeFallos, fila.FallosConsecutivos);
     }
 
+    /// <summary>
+    /// La purga de un fallo hace trabajo **acotado**, y aun así termina llevándose todo.
+    ///
+    /// Sin cota, el primer inicio de sesión fallido posterior a un barrido de cien mil emails paga
+    /// el borrado de cien mil filas dentro de la petición, y ahí se va entero el presupuesto de
+    /// NFR-02 (AC-12). El test de rendimiento no lo ve: mide con la tabla vacía, donde el DELETE no
+    /// borra nada.
+    /// </summary>
+    [Fact]
+    public async Task La_Purga_De_Un_Fallo_Es_Acotada_Y_Converge()
+    {
+        await _baseDeDatos.LimpiarIntentosDeAccesoAsync();
+
+        const int Vencidas = 250;
+        var reloj = new RelojFijo(Hoy);
+        var corte = reloj.GetUtcNow().UtcDateTime - LimiteDeIntentos.InactividadQueReinicia;
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        for (var i = 0; i < Vencidas; i++)
+        {
+            contexto.IntentosDeAcceso.Add(new IntentoDeAcceso
+            {
+                Email = $"vencida-{i}-{Guid.NewGuid():N}@ejemplo.com",
+                FallosConsecutivos = 1,
+                UltimoFallo = corte - TimeSpan.FromHours(1),
+            });
+        }
+
+        await contexto.SaveChangesAsync();
+
+        var limite = new LimiteDeIntentos(contexto, reloj);
+        await limite.RegistrarFalloAsync($"nuevo-{Guid.NewGuid():N}@ejemplo.com");
+
+        var restantes = await contexto.IntentosDeAcceso.CountAsync(i => i.UltimoFallo <= corte);
+        Assert.True(
+            restantes > 0,
+            $"Un solo fallo se llevó las {Vencidas} filas vencidas de una: la purga no está acotada, " +
+            "así que su costo lo paga entero la petición que le tocó.");
+
+        // Acotada no puede querer decir que nunca termina: unos pocos fallos más y no queda ninguna.
+        for (var vuelta = 0; vuelta < 10 && restantes > 0; vuelta++)
+        {
+            await limite.RegistrarFalloAsync($"nuevo-{Guid.NewGuid():N}@ejemplo.com");
+            restantes = await contexto.IntentosDeAcceso.CountAsync(i => i.UltimoFallo <= corte);
+        }
+
+        Assert.Equal(0, restantes);
+    }
+
     /// <summary>El cuerpo del error, campo por campo, sin el `traceId` —distinto en cada petición
     /// por definición, y mudo respecto de la causa del rechazo—.</summary>
     private static async Task<Dictionary<string, string>> SinTraceIdAsync(HttpResponseMessage respuesta)
