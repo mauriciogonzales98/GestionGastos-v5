@@ -156,20 +156,20 @@ suite se pone en rojo; restaurar y comprobar que vuelve al verde.
 
 ### Tests de la historia 3
 
-- [ ] T013 [TEST] [US3] Crear `backend/GestionGastos.Api.Tests/Integracion/BarreraDeAislamientoTests.cs`
+- [X] T013 [TEST] [US3] Crear `backend/GestionGastos.Api.Tests/Integracion/BarreraDeAislamientoTests.cs`
   con el test del SQL: `MovimientosConsulta.DelMes(...).ToQueryString()` tiene que nombrar
   `usuario_id` en su `WHERE`. Mismo patrón y mismo motivo que
   `La_Consulta_Pide_El_Orden_Explicitamente_Y_No_Lo_Hereda_Del_Indice`, que ya existe en
   `ListadoMovimientosTests.cs`: mirar el resultado no alcanza para saber qué pidió la consulta
-- [ ] T014 [TEST] [US3] Agregar en ese archivo el test del **canal único**: ningún archivo de
+- [X] T014 [TEST] [US3] Agregar en ese archivo el test del **canal único**: ningún archivo de
   `backend/GestionGastos.Api/` fuera de `Movimientos/MovimientosConsulta.cs` puede **leer**
   `contexto.Movimientos`. La escritura de `MovimientosEndpoints.cs` es la excepción declarada, y
   tiene que estar nombrada en el test, no descubierta. Hoy la regla ya se cumple sin estar escrita:
   este test la convierte en regla ([D-04](./research.md))
-- [ ] T015 [US3] Consolidar el canal si T014 encontró algún uso fuera de `MovimientosConsulta`. Si no
+- [X] T015 [US3] Consolidar el canal si T014 encontró algún uso fuera de `MovimientosConsulta`. Si no
   encontró ninguno —que es lo esperado—, esta tarea se cierra dejándolo dicho en el comentario de
   `MovimientosConsulta`: que sea el único canal de lectura pasó de coincidencia a regla vigilada
-- [ ] T016 [US3] Escribir `backend/verificar-aislamiento.sh` siguiendo la forma de
+- [X] T016 [US3] Escribir `backend/verificar-aislamiento.sh` siguiendo la forma de
   `verificar-autorizacion.sh`: cinco pasos —verde de partida, rojo con el acotado quitado de la
   consulta, rojo con una lectura fuera del canal, rojo con el alta asignando un propietario ajeno,
   verde restaurado—, con `set -euo pipefail`, `trap` que restaure
@@ -177,10 +177,10 @@ suite se pone en rojo; restaurar y comprobar que vuelve al verde.
   está en [quickstart.md](./quickstart.md). Darle bit de ejecución (`chmod +x`) y **verificarlo con
   `git ls-files -s`**: es la cicatriz de FIX-002, un script sin bit de ejecución que el CI no podía
   correr
-- [ ] T017 [ROJO] [US3] Correr `./backend/verificar-aislamiento.sh` entero y mostrar su salida. Los
+- [X] T017 [ROJO] [US3] Correr `./backend/verificar-aislamiento.sh` entero y mostrar su salida. Los
   pasos 2, 3 y 4 **tienen que dar rojo**: si alguno pasa en verde, la barrera no está mirando lo que
   cree mirar, y eso es un rojo aunque la suite esté en verde
-- [ ] T018 [VERIFY] [US3] Puerta del backend completa
+- [X] T018 [VERIFY] [US3] Puerta del backend completa
 
 **Checkpoint**: el aislamiento está verificado y protegido. Desarmarlo hace ruido, y la barrera
 demostró que sabe hacerlo.
