@@ -87,6 +87,16 @@ public class BaseDeDatosFixture : IAsyncLifetime
         await contexto.Usuarios.ExecuteDeleteAsync();
     }
 
+    /// <summary>
+    /// Deja la tabla de intentos fallidos vacía. No tiene claves foráneas, así que se puede borrar
+    /// en cualquier orden respecto de las cuentas.
+    /// </summary>
+    public async Task LimpiarIntentosDeAccesoAsync()
+    {
+        await using var contexto = CrearContexto();
+        await contexto.IntentosDeAcceso.ExecuteDeleteAsync();
+    }
+
     private static string LeerBaseDeDatos(string cadena)
     {
         foreach (var parte in cadena.Split(';', StringSplitOptions.RemoveEmptyEntries))

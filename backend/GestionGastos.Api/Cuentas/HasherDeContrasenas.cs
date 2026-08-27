@@ -26,7 +26,12 @@ public class HasherDeContrasenas
     /// peor, haría que esa cuenta se comportara distinto de todas las demás — que es exactamente
     /// la clase de diferencia observable que NFR-03 quiere evitar.
     /// </summary>
-    public bool Verificar(string contrasena, string hash)
+    /// <remarks>
+    /// <c>virtual</c> a propósito: es la costura que permite verificar, sin cronómetro, que el
+    /// rechazo de un email bloqueado **también** paga el costo del hash (AC-13). Sin esa costura,
+    /// esa propiedad sólo se puede medir en milisegundos, y un test así es intermitente.
+    /// </remarks>
+    public virtual bool Verificar(string contrasena, string hash)
     {
         try
         {
