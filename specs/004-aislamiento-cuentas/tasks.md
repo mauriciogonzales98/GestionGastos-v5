@@ -52,7 +52,7 @@ Es la forma que toma el Principio I cuando lo que se construye es verificación 
 **Purpose**: arrancar desde una base conocida. No hay nada que instalar: esta feature no agrega
 dependencias, no toca el esquema y no genera migración.
 
-- [ ] T001 Correr la puerta del backend sobre `main` reciente —`dotnet format --verify-no-changes`,
+- [X] T001 Correr la puerta del backend sobre `main` reciente —`dotnet format --verify-no-changes`,
   `dotnet build -warnaserror`, `dotnet test backend/`— y dejar su salida a la vista. Es el verde de
   partida: sin él, un rojo de esta feature no se distingue de un rojo heredado
 
@@ -68,16 +68,16 @@ aislamiento pase en verde sin probar nada —las dos cuentas terminan siendo la 
 no tiene movimientos, los datos no se parecen— se cierran en esta fase o no se cierran nunca
 ([D-06](./research.md)).
 
-- [ ] T002 Crear `backend/GestionGastos.Api.Tests/Integracion/AislamientoEntreCuentasTests.cs` con
+- [X] T002 Crear `backend/GestionGastos.Api.Tests/Integracion/AislamientoEntreCuentasTests.cs` con
   su andamio: la colección de base de datos, el reloj fijo con `FactoriaConReloj`
   ([D-07](./research.md)), y un helper `DosCuentasConMovimientosAsync` que cree **dos** cuentas con
   `CuentaDePrueba.CrearYEntrarAsync` y siembre en cada una movimientos **de la misma fecha y la
   misma categoría, con montos distintos**. Que los datos se parezcan es el punto: si difieren en
   fecha o categoría, el aislamiento lo puede estar haciendo la casualidad y el test no lo distingue
-- [ ] T003 Agregar en ese helper la comprobación de que las dos cuentas son **realmente dos**:
+- [X] T003 Agregar en ese helper la comprobación de que las dos cuentas son **realmente dos**:
   afirmar que sus `Id` diferen y que las dos tienen al menos un movimiento propio. Sin esto, un
   fixture que reuse una cuenta deja toda la suite de aislamiento pasando en verde sin verificar nada
-- [ ] T004 [VERIFY] Puerta del backend: `dotnet format --verify-no-changes`, `dotnet build
+- [X] T004 [VERIFY] Puerta del backend: `dotnet format --verify-no-changes`, `dotnet build
   -warnaserror`, `dotnet test backend/`
 
 **Checkpoint**: hay dos cuentas distintas, cada una con movimientos propios indistinguibles de los
@@ -94,18 +94,18 @@ listado de cada una devuelve los propios y ninguno ajenos.
 
 ### Tests de la historia 1
 
-- [ ] T005 [TEST] [US1] Agregar en `AislamientoEntreCuentasTests.cs` el test de **AC-01**: con dos
+- [X] T005 [TEST] [US1] Agregar en `AislamientoEntreCuentasTests.cs` el test de **AC-01**: con dos
   cuentas que tienen movimientos propios en el mes en curso, el listado de cada una devuelve
   únicamente los suyos. Comprobar por **identificador**, no por cantidad: dos listados de largo 1
   son iguales de largo aunque el movimiento sea el equivocado
-- [ ] T006 [TEST] [P] [US1] Agregar el test del listado vacío: una cuenta **sin** movimientos
+- [X] T006 [TEST] [P] [US1] Agregar el test del listado vacío: una cuenta **sin** movimientos
   propios, con la otra teniendo varios en el mes, recibe un arreglo vacío. Es el caso que distingue
   "acota por cuenta" de "devuelve lo que haya"
-- [ ] T007 [ROJO] [US1] Quitar `m.UsuarioId == usuarioId` de
+- [X] T007 [ROJO] [US1] Quitar `m.UsuarioId == usuarioId` de
   `backend/GestionGastos.Api/Movimientos/MovimientosConsulta.cs`, correr T005 y T006, y **mostrar
   el rojo**. Restaurar y comprobar el verde. Si alguno de los dos pasa en verde con el acotado
   quitado, ese test no verifica el aislamiento y hay que arreglarlo antes de seguir
-- [ ] T008 [VERIFY] [US1] Puerta del backend completa
+- [X] T008 [VERIFY] [US1] Puerta del backend completa
 
 **Checkpoint**: el aislamiento de la lectura está verificado con dos cuentas reales, y se le vio el
 rojo. Es el MVP: entregado solo, ya convierte la propiedad heredada en una comprobada.
