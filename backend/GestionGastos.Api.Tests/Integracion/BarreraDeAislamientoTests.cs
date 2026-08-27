@@ -37,6 +37,16 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// </summary>
     private const string EscrituraDeclarada = "Movimientos/MovimientosEndpoints.cs";
 
+    /// <summary>
+    /// Donde el <c>DbSet</c> se DECLARA, que no es lo mismo que leerlo.
+    ///
+    /// `GestionGastosDbContext` contiene `DbSet&lt;Movimiento&gt; Movimientos =&gt;
+    /// Set&lt;Movimiento&gt;()`: es la definición del conjunto, no una consulta sobre él, y no tiene
+    /// dónde acotar por cuenta. Excluirlo no abre ningún hueco — una consulta escrita ahí adentro
+    /// sería tan visible como rara.
+    /// </summary>
+    private const string DeclaracionDelDbSet = "Persistencia/GestionGastosDbContext.cs";
+
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
 
     /// <summary>
@@ -189,21 +199,31 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// <summary>
     /// <c>true</c> si el texto usa el <c>DbSet</c> de movimientos.
     ///
-    /// Busca el acceso al DbSet, no la palabra "Movimientos": el nombre aparece en namespaces,
-    /// comentarios y nombres de clase por todos lados, y una barrera que se dispara con eso es una
-    /// que se termina apagando.
+    /// **El receptor no se nombra a propósito.** La primera versión buscaba
+    /// <c>(contexto|context|db)\.Movimientos</c> y era ciega a cualquier prefijo: un campo privado
+    /// <c>_contexto</c> —que es la convención de este repositorio, la misma de <c>_baseDeDatos</c>—
+    /// pasaba de largo, y con él pasaba toda la barrera. También se le escapaba
+    /// <c>contexto.Set&lt;Movimiento&gt;()</c>, que llega al mismo DbSet por otra puerta.
+    ///
+    /// Lo que sí hay que excluir es el namespace <c>GestionGastos.Api.Movimientos</c>, que aparece
+    /// en un <c>using</c> o un <c>namespace</c> de casi todos estos archivos: sin el
+    /// <c>(?&lt;!Api)</c>, la barrera se dispararía en todos lados y se terminaría apagando.
+    /// <c>MovimientosConsulta</c> y <c>MapMovimientos()</c> no matchean por el <c>\b</c> y por el
+    /// punto, respectivamente.
     /// </summary>
     private static bool UsaElDbSetDeMovimientos(string codigo) =>
         Regex.IsMatch(
             codigo,
-            @"\b(contexto|context|db)\s*\.\s*Movimientos\b",
+            @"(?<!Api)\.\s*Movimientos\b|\bSet\s*<\s*Movimiento\s*>",
             RegexOptions.None,
             TimeSpan.FromSeconds(5));
 
     private static bool EsRutaDeclarada(string raiz, string archivo)
     {
         var relativa = Path.GetRelativePath(raiz, archivo).Replace('\\', '/');
-        return relativa == CanalDeLectura || relativa == EscrituraDeclarada;
+        return relativa == CanalDeLectura
+            || relativa == EscrituraDeclarada
+            || relativa == DeclaracionDelDbSet;
     }
 
     /// <summary>
