@@ -146,10 +146,22 @@ public class RendimientoLimiteTests(BaseDeDatosFixture baseDeDatos)
             $"{P95(porCredenciales):F0} ms.)");
     }
 
+    /// <summary>
+    /// La mediana de verdad: con una cantidad par de muestras es el promedio de las dos centrales,
+    /// no la de más arriba.
+    ///
+    /// Con 100 muestras la diferencia son fracciones de milisegundo contra una tolerancia de 50, así
+    /// que no cambia ningún resultado. Se corrige igual porque el método se llama `Mediana` y quien
+    /// lo lea va a creerle.
+    /// </summary>
     private static double Mediana(List<double> muestras)
     {
         var ordenadas = muestras.Order().ToList();
-        return ordenadas[ordenadas.Count / 2];
+        var medio = ordenadas.Count / 2;
+
+        return ordenadas.Count % 2 == 1
+            ? ordenadas[medio]
+            : (ordenadas[medio - 1] + ordenadas[medio]) / 2;
     }
 
     private static double P95(List<double> muestras)
