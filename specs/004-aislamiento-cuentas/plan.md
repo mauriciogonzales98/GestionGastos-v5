@@ -53,7 +53,7 @@ Si algún escenario obligara a cambiar una respuesta, deja de ser esta feature.
 | **II. Cada AC tiene su test que lo nombra** | Cada escenario de la spec cita su AC del PRD (`AC-01`, `AC-06`, `AC-08`, `AC-10`) en el nombre del test o en su documentación. Los cinco AC que no se pueden verificar están en la tabla de *Deuda registrada* de la spec: no se dan por cumplidos. |
 | **III. VERIFY es una fase con puerta** | Cada historia cierra con su `[VERIFY]`: `dotnet format --verify-no-changes`, `dotnet build -warnaserror`, `dotnet test`. El cierre de la feature agrega cobertura y las **cuatro** barreras — las tres existentes más la nueva. |
 | **IV. Tests deterministas y aislados** | Reloj clavado con `FactoriaConReloj` ([D-07](./research.md)); cuentas creadas por la API con email único por `Guid`; limpieza entre escenarios con `LimpiarCuentasAsync`. Ningún test duerme, ninguno depende del día de hoy ni del orden. |
-| **V. Las barreras se verifican a sí mismas** | Es literalmente FR-004. `verificar-aislamiento.sh` rompe el acotado a propósito, exige el rojo, lo restaura y exige el verde — el mismo patrón de `verificar-autorizacion.sh` ([D-03](./research.md)). |
+| **V. Las barreras se verifican a sí mismas** | Es literalmente FR-004. `verificar-aislamiento.sh` desarma el aislamiento de las tres formas posibles, exige el rojo en cada una, restaura y exige el verde — el mismo patrón de `verificar-autorizacion.sh` ([D-03](./research.md)). |
 
 **Resultado del gate: PASA.** Sin violaciones, así que *Complexity Tracking* queda vacío y se
 elimina.
@@ -74,9 +74,17 @@ lugar del rojo espontáneo. Está desarrollado en la tabla de abajo.
 | Barrera del SQL (US3) | Mismo desarme que el primero: el SQL deja de nombrar `usuario_id` |
 | Barrera del canal (US3) | Se agrega un uso directo de `contexto.Movimientos` fuera de `MovimientosConsulta` |
 
-Esos cuatro desarmes son exactamente lo que `verificar-aislamiento.sh` automatiza para los dos
-últimos. Los dos primeros se hacen a mano una vez, con la salida a la vista, y se documentan en la
-tarea.
+`verificar-aislamiento.sh` termina automatizando **los cuatro**: corre la suite de aislamiento
+entera en cada desarme, así que el de la consulta hace caer también a los cruzados del listado, y el
+de la escritura a los del alta.
+
+Las tareas `[ROJO]` de US1 y US2 no sobran por eso: se ejecutan **antes** de que el script exista
+—US3 va última— y son las que deciden si esos tests sirven, en el momento en que se escriben. El
+script después convierte esa comprobación de una vez en una de siempre.
+
+Que el script desarme la escritura no contradice [D-05](./research.md): lo que esa decisión descarta
+es una comprobación en el código de producción. Que el script la desarme es otra cosa, y responde a
+que sin ese paso "los cruzados de US2 detectan el desarme" se comprobaría una sola vez en la vida.
 
 ## Project Structure
 

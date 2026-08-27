@@ -37,19 +37,21 @@ verde. Es el Principio V de la constitución: una barrera que nunca se vio falla
 Esperado, con esta forma exacta:
 
 ```text
-== 1/4 · con el aislamiento puesto, la barrera tiene que estar en verde
+== 1/5 · con el aislamiento puesto, la barrera tiene que estar en verde
    verde, como se esperaba
-== 2/4 · sin el acotado por cuenta tiene que ponerse en ROJO
+== 2/5 · sin el acotado por cuenta tiene que ponerse en ROJO
    rojo, como se esperaba
-== 3/4 · con una lectura fuera del canal tiene que ponerse en ROJO
+== 3/5 · con una lectura fuera del canal tiene que ponerse en ROJO
    rojo, como se esperaba
-== 4/4 · restaurado tiene que volver al verde
+== 4/5 · con el alta asignando un propietario ajeno tiene que ponerse en ROJO
+   rojo, como se esperaba
+== 5/5 · restaurado tiene que volver al verde
    verde de nuevo
 
 Barrera de aislamiento: EN PIE. Sabe detectar una consulta que no acota por cuenta.
 ```
 
-Si el paso 2 o el 3 dan verde, la barrera no está mirando lo que cree mirar. Eso es un rojo aunque
+Si alguno de los pasos 2, 3 o 4 da verde, la barrera no está mirando lo que cree mirar. Eso es un rojo aunque
 la suite esté en verde.
 
 ## 3 · A mano, con dos cuentas

@@ -180,8 +180,11 @@ suite se pone en rojo; devolverlo y comprobar que vuelve al verde.
   entre dos cuentas **cada uno de los endpoints de movimientos que existen** —el alta y el
   listado—, es decir el 100 % de esa superficie.
 - **FR-004** *(PRD AC-10, reformulado)*: El sistema MUST contar con una barrera que se ponga en rojo
-  cuando la consulta del listado deja de acotar por cuenta, de modo que desarmar el aislamiento no
-  pueda pasar inadvertido.
+  cuando el aislamiento se desarma, de modo que desarmarlo no pueda pasar inadvertido. Son **dos**
+  mitades y hacen falta las dos: que la consulta del listado deje de acotar por cuenta, y que
+  aparezca una lectura de movimientos **fuera del canal único**. La primera protege la consulta que
+  existe; la segunda, la que todavía no se escribió — que es la que va a fallar, porque nadie la va
+  a estar mirando.
 - **FR-005** *(PRD AC-08)*: El sistema MUST dejar los movimientos de las demás cuentas con los
   mismos valores que antes de cualquier operación que una cuenta realice sobre los suyos.
 
@@ -202,8 +205,10 @@ suite se pone en rojo; devolverlo y comprobar que vuelve al verde.
   propios en el mismo mes.
 - **SC-002**: El 100 % de los endpoints de movimientos que existen —2 de 2— tiene al menos un caso
   de acceso cruzado entre dos cuentas. Es un conteo, no una impresión.
-- **SC-003**: Quitarle a la consulta del listado el acotado por cuenta pone la suite en rojo, y
-  devolverlo la pone en verde. Verificable ejecutando las dos variantes.
+- **SC-003**: Desarmar el aislamiento pone la suite en rojo, en las tres formas en que se puede
+  desarmar: quitarle a la consulta el acotado por cuenta, leer movimientos fuera del canal único, y
+  hacer que el alta asigne un propietario ajeno. Verificable ejecutando las tres variantes y la
+  restauración.
 - **SC-004**: Después de cualquier operación de una cuenta sobre sus propios movimientos, los
   movimientos de la otra cuenta conservan los mismos valores. Se comprueba sobre la otra cuenta, no
   sobre la que operó.

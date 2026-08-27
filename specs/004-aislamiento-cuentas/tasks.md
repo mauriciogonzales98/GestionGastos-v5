@@ -142,15 +142,17 @@ el cuerpo, y comprobar que aparece en el listado de quien lo registró y no en e
 
 ## Phase 5: User Story 3 - Desarmar el aislamiento hace ruido (Priority: P3)
 
-**Goal**: la consulta que deja de acotar por cuenta, o la que nace fuera del canal, pone la suite en
-rojo.
+**Goal**: las tres formas de desarmar el aislamiento —la consulta que deja de acotar, la lectura
+que nace fuera del canal, y el alta que asigna un propietario ajeno— ponen la suite en rojo.
 
-**Independent Test**: quitarle a la consulta el acotado por cuenta y comprobar que la suite se pone
-en rojo; devolverlo y comprobar que vuelve al verde.
+**Independent Test**: desarmar el aislamiento de cada una de las tres formas y comprobar que la
+suite se pone en rojo; restaurar y comprobar que vuelve al verde.
 
-> **Por qué esta historia existe, si US1 y US2 ya detectan el desarme.** Lo detectan, sí: T007 y
-> T011 lo demuestran. Lo que **no** detectan es una consulta *nueva* que nadie acote — no saben que
-> existe. Por eso la barrera vigila el canal y no sólo la condición ([D-04](./research.md)).
+> **Por qué esta historia existe, si US1 y US2 ya detectan el desarme.** Por dos motivos distintos.
+> Lo que US1 y US2 **no** detectan es una consulta *nueva* que nadie acote: no saben que existe, y
+> por eso la barrera vigila el canal y no sólo la condición ([D-04](./research.md)). Y lo que sí
+> detectan —T007 y T011 lo demuestran— lo demuestran **una sola vez**, el día que se escriben. El
+> script lo vuelve a comprobar en cada corrida, que es lo que atrapa al test debilitado sin querer.
 
 ### Tests de la historia 3
 
@@ -168,14 +170,15 @@ en rojo; devolverlo y comprobar que vuelve al verde.
   encontró ninguno —que es lo esperado—, esta tarea se cierra dejándolo dicho en el comentario de
   `MovimientosConsulta`: que sea el único canal de lectura pasó de coincidencia a regla vigilada
 - [ ] T016 [US3] Escribir `backend/verificar-aislamiento.sh` siguiendo la forma de
-  `verificar-autorizacion.sh`: cuatro pasos —verde de partida, rojo con el acotado quitado, rojo con
-  una lectura fuera del canal, verde restaurado—, con `set -euo pipefail`, `trap` que restaure
+  `verificar-autorizacion.sh`: cinco pasos —verde de partida, rojo con el acotado quitado de la
+  consulta, rojo con una lectura fuera del canal, rojo con el alta asignando un propietario ajeno,
+  verde restaurado—, con `set -euo pipefail`, `trap` que restaure
   siempre, y el chequeo de `ConnectionStrings__Default`. La salida exacta que tiene que producir
   está en [quickstart.md](./quickstart.md). Darle bit de ejecución (`chmod +x`) y **verificarlo con
   `git ls-files -s`**: es la cicatriz de FIX-002, un script sin bit de ejecución que el CI no podía
   correr
 - [ ] T017 [ROJO] [US3] Correr `./backend/verificar-aislamiento.sh` entero y mostrar su salida. Los
-  pasos 2 y 3 **tienen que dar rojo**: si alguno pasa en verde, la barrera no está mirando lo que
+  pasos 2, 3 y 4 **tienen que dar rojo**: si alguno pasa en verde, la barrera no está mirando lo que
   cree mirar, y eso es un rojo aunque la suite esté en verde
 - [ ] T018 [VERIFY] [US3] Puerta del backend completa
 

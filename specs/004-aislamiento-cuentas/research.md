@@ -60,8 +60,10 @@ veces (contrato, autorización, linter):
 1. **`BarreraDeAislamientoTests`**: un test que mira el SQL que genera la consulta del listado y
    exige que acote por `usuario_id`, más un test que exige que ninguna otra parte del código lea
    `contexto.Movimientos` fuera del canal único (ver D-04).
-2. **`backend/verificar-aislamiento.sh`**: quita el acotado a propósito, exige el **rojo**, lo
-   restaura y exige el verde.
+2. **`backend/verificar-aislamiento.sh`**: desarma el aislamiento a propósito de las **tres**
+   formas en que se puede desarmar —quitarle el acotado a la consulta, leer fuera del canal, y
+   hacer que el alta asigne un propietario ajeno—, exige el **rojo** en cada una, restaura y exige
+   el verde.
 
 **Rationale**: el Principio V de la constitución no admite una barrera que nunca se vio fallar. La
 pieza 1 sola pasaría en verde el día que se rompa el descubrimiento, que es el único día que
@@ -125,6 +127,11 @@ test comprueba que no pasa.
 dependencia nueva de la persistencia hacia la sesión, y cambiaría el comportamiento de las
 escrituras de toda la aplicación por un riesgo que hoy no está sin cubrir. Anotada para el ticket
 que agregue el `PUT`, donde sí aparece un camino de escritura que puede cambiar el propietario.
+
+**Matiz que hay que no perder**: "sin barrera propia" quiere decir sin comprobación en el código de
+producción. El script **sí** desarma la escritura, y por un motivo distinto: sin ese paso, que los
+cruzados sepan detectar el desarme se comprueba una sola vez, en la tarea que los escribe. Con él,
+se comprueba en cada corrida, y el día que alguien debilite ese test sin querer, se nota.
 
 ---
 
