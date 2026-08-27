@@ -62,6 +62,14 @@ public sealed class LimiteDeIntentos(GestionGastosDbContext contexto, TimeProvid
     /// El mismo UPDATE resuelve el reinicio del contador sin leer antes: si la ventana de bloqueo
     /// venció, o si el email lleva más de <see cref="InactividadQueReinicia"/> sin intentos, el
     /// contador arranca de nuevo en 1 en vez de seguir sumando.
+    ///
+    /// El <c>LEAST</c> es el techo de la columna, que es `tinyint unsigned`. Sólo incrementan los
+    /// intentos que ya pasaron el chequeo de bloqueo, pero ese chequeo se lee al principio de cada
+    /// petición: con cientos de intentos concurrentes sobre el mismo email —el perfil de un ataque
+    /// de fuerza bruta, y bcrypt deja la ventana de solapamiento bien abierta— todos leen "no
+    /// bloqueado" y todos incrementan. Pasado 255, MySQL corta con "Out of range value" y eso llega
+    /// al cliente como un 500. Por encima de <see cref="MaximoDeFallos"/> el valor no cambia
+    /// ninguna decisión, así que clavarlo ahí no pierde nada y saca el desborde del mapa.
     /// </summary>
     public async Task RegistrarFalloAsync(string email)
     {
@@ -77,7 +85,7 @@ public sealed class LimiteDeIntentos(GestionGastosDbContext contexto, TimeProvid
                     (fallos_consecutivos >= {MaximoDeFallos} AND ultimo_fallo <= {finDeVentana})
                         OR ultimo_fallo <= {finDeInactividad},
                     1,
-                    fallos_consecutivos + 1),
+                    LEAST(fallos_consecutivos + 1, {MaximoDeFallos})),
                 ultimo_fallo = {ahora}");
 
         // La purga viaja pegada al fallo, que es el camino que YA escribe. En el de lectura correría

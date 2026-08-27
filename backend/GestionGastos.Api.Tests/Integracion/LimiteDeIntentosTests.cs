@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using GestionGastos.Api.Cuentas;
+using GestionGastos.Api.Dominio;
 using GestionGastos.Api.Sesion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -356,6 +357,42 @@ public class LimiteDeIntentosTests(BaseDeDatosFixture baseDeDatos)
 
         await using var contexto = _baseDeDatos.CrearContexto();
         Assert.Empty(await contexto.IntentosDeAcceso.ToListAsync());
+    }
+
+    /// <summary>
+    /// El contador no puede desbordar el `tinyint unsigned` de la columna.
+    ///
+    /// Sólo incrementan los intentos que ya pasaron el chequeo de bloqueo, pero ese chequeo se lee
+    /// al principio de cada petición: con cientos de intentos concurrentes sobre el mismo email
+    /// —que es el perfil de un ataque de fuerza bruta, y bcrypt deja la ventana de solapamiento bien
+    /// abierta— todos leen "no bloqueado" y todos incrementan. Pasado 255, MySQL corta con un
+    /// `Out of range value` que llega al cliente como un 500.
+    ///
+    /// Se siembra el borde en vez de fabricar la concurrencia: el valor 255 es el que rompe, y
+    /// llegar ahí con peticiones reales sería un test que falla a veces (Principio IV).
+    /// </summary>
+    [Fact]
+    public async Task El_Contador_No_Desborda_El_Byte_De_La_Columna()
+    {
+        await _baseDeDatos.LimpiarIntentosDeAccesoAsync();
+
+        var reloj = new RelojFijo(Hoy);
+        var email = $"desborde-{Guid.NewGuid():N}@ejemplo.com";
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        contexto.IntentosDeAcceso.Add(new IntentoDeAcceso
+        {
+            Email = email,
+            FallosConsecutivos = byte.MaxValue,
+            UltimoFallo = reloj.GetUtcNow().UtcDateTime,
+        });
+        await contexto.SaveChangesAsync();
+
+        var limite = new LimiteDeIntentos(contexto, reloj);
+        await limite.RegistrarFalloAsync(email);
+
+        var fila = await contexto.IntentosDeAcceso.AsNoTracking().SingleAsync(i => i.Email == email);
+        Assert.Equal(LimiteDeIntentos.MaximoDeFallos, fila.FallosConsecutivos);
     }
 
     /// <summary>El cuerpo del error, campo por campo, sin el `traceId` —distinto en cada petición
