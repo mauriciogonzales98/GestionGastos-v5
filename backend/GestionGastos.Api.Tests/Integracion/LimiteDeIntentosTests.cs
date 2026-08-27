@@ -309,6 +309,34 @@ public class LimiteDeIntentosTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal(esperado, await SinTraceIdAsync(porBloqueoSinCuenta));
     }
 
+    /// <summary>
+    /// Un email más largo que la columna se rechaza con el 401 de siempre, no con un 500.
+    ///
+    /// El login nunca validó el email porque nunca lo escribía. Ahora lo escribe: `varchar(254)` y
+    /// MySQL en modo estricto convierten un email de 256 caracteres en un `Data too long` que sube
+    /// sin manejar. Es la misma cicatriz que documenta `ValidacionDeLaCuenta.LargoMaximoDeEmail`,
+    /// que ya se pagó una vez en el alta de cuenta.
+    /// </summary>
+    [Fact]
+    public async Task Un_Email_Mas_Largo_Que_La_Columna_Se_Rechaza_Sin_Romper()
+    {
+        await _baseDeDatos.LimpiarIntentosDeAccesoAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cliente = factoria.CreateClient();
+
+        var demasiadoLargo =
+            new string('a', ValidacionDeLaCuenta.LargoMaximoDeEmail) + "@ejemplo.com";
+
+        using var respuesta = await IntentarAsync(cliente, demasiadoLargo, Contrasena);
+        Assert.Equal(HttpStatusCode.Unauthorized, respuesta.StatusCode);
+
+        // Y tampoco deja rastro: un email que no entra en la columna no puede tener cuenta, así que
+        // contarle los fallos no protege nada y sólo da una forma de escribir basura en la tabla.
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Empty(await contexto.IntentosDeAcceso.ToListAsync());
+    }
+
     /// <summary>El cuerpo del error, campo por campo, sin el `traceId` —distinto en cada petición
     /// por definición, y mudo respecto de la causa del rechazo—.</summary>
     private static async Task<Dictionary<string, string>> SinTraceIdAsync(HttpResponseMessage respuesta)
