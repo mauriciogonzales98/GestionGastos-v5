@@ -84,6 +84,12 @@ public static class SesionEndpoints
                 // El intento rechazado por el bloqueo NO suma al contador ni mueve la marca: la
                 // ventana se cuenta desde el quinto fallo y es fija. Si se moviera, cualquiera
                 // dejaría a otra persona afuera para siempre golpeando su email cada 14 minutos.
+                //
+                // Ese ahorro se mide: este camino no paga el UPSERT ni la purga que sí paga el
+                // rechazo por contraseña incorrecta, así que responde sistemáticamente un poco
+                // antes. Con la purga acotada son un par de milisegundos y AC-13 pasa con holgura,
+                // pero la diferencia existe y va siempre para el mismo lado. Si alguna vez alguien
+                // agrega trabajo al camino del fallo, hay que mirar de nuevo ese margen.
                 return Rechazo();
             }
 
