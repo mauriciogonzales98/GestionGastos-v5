@@ -103,63 +103,63 @@ valores nuevos y no los viejos. Con dos cuentas, comprobar que lo ajeno responde
 
 ### Tests de la historia 1
 
-- [ ] T006 [TEST] [US1] Crear
+- [X] T006 [TEST] [US1] Crear
   `backend/GestionGastos.Api.Tests/Integracion/EdicionDeMovimientoTests.cs` con su andamio —
   colección de base de datos y reloj fijo con `FactoriaConReloj`— y el test de **AC-03**: el dueño
   consulta su movimiento por identificador y recibe la **misma forma** que devuelven el alta y el
   listado. Falla con `404` antes de existir el endpoint: ése es el rojo
-- [ ] T007 [TEST] [P] [US1] Agregar el test de **AC-01**: modificar el monto de 1.500 a 15.000, y
+- [X] T007 [TEST] [P] [US1] Agregar el test de **AC-01**: modificar el monto de 1.500 a 15.000, y
   comprobar que **el listado** lo devuelve en 15.000. Comprobar sobre el listado y no sólo sobre la
   respuesta del `PUT`: la respuesta puede estar bien y la fila mal
-- [ ] T008 [TEST] [P] [US1] Agregar el test de **AC-02**: cambiar categoría y fecha a la vez, y
+- [X] T008 [TEST] [P] [US1] Agregar el test de **AC-02**: cambiar categoría y fecha a la vez, y
   comprobar que el listado muestra la categoría nueva y que el movimiento aparece o no según si su
   fecha nueva cae en el período consultado
-- [ ] T009 [TEST] [US1] Agregar el test de **AC-04** (INV-01, deuda de 004 / AC-07 del PRD):
+- [X] T009 [TEST] [US1] Agregar el test de **AC-04** (INV-01, deuda de 004 / AC-07 del PRD):
   mandar `"usuarioId": <id de la otra cuenta>` en el cuerpo del `PUT` y comprobar que el movimiento
   **sigue siendo de quien lo editó**. Mandar el campo aunque el contrato no lo tenga: hoy se
   descarta al deserializar, y el test tiene que seguir valiendo el día que el DTO gane un campo
-- [ ] T010 [TEST] [US1] Agregar los tests de **AC-05** y **AC-06** (deuda de 004: AC-03 y AC-04)
+- [X] T010 [TEST] [US1] Agregar los tests de **AC-05** y **AC-06** (deuda de 004: AC-03 y AC-04)
   con un helper que compare **dos respuestas entre sí** —la de un identificador ajeno y la de uno
   inexistente— por código, cuerpo y `Content-Type`. **No** afirmar `404` en cada una por separado:
   eso pasa en verde aunque los cuerpos delaten la existencia ([D-03](./research.md)). El
   identificador inexistente se consigue registrando y borrando, que se parece más al caso real que
   un número arbitrario. Comprobar además que el movimiento ajeno queda **sin cambios**
-- [ ] T011 [TEST] [P] [US1] Agregar el test de **AC-07** (INV-06): un `PUT` con monto inválido
+- [X] T011 [TEST] [P] [US1] Agregar el test de **AC-07** (INV-06): un `PUT` con monto inválido
   responde `400` con los errores por campo, con la misma forma que ya usa el alta, y el movimiento
   queda **sin cambios**. Agregar también el caso de orden: un movimiento **ajeno** con cuerpo
   inválido responde `404` y no `400`, porque un `400` confirmaría que se llegó a mirar el cuerpo
-- [ ] T012 [TEST] [P] [US1] Agregar en
+- [X] T012 [TEST] [P] [US1] Agregar en
   `backend/GestionGastos.Api.Tests/Contrato/ContratoMovimientosTests.cs` el caso de
   `MovimientoEditado`: los campos que la API acepta de verdad coinciden con los que declara
   `frontend/src/api/tipos.ts`, en las dos direcciones, como ya hacen los otros tipos
 
 ### Implementación de la historia 1
 
-- [ ] T013 [US1] Renombrar `backend/GestionGastos.Api/Movimientos/ValidacionDelAlta.cs` a
+- [X] T013 [US1] Renombrar `backend/GestionGastos.Api/Movimientos/ValidacionDelAlta.cs` a
   `ValidacionDelMovimiento.cs` y su clase con él ([D-05](./research.md)). Deja de ser del alta en
   cuanto la usa la edición, y un nombre que miente cuesta caro después. Sin cambios de
   comportamiento
-- [ ] T014 [US1] Agregar `MovimientoEditadoDto` en
+- [X] T014 [US1] Agregar `MovimientoEditadoDto` en
   `backend/GestionGastos.Api/Movimientos/MovimientoDtos.cs`, con **`Fecha` obligatoria**. El
   comentario tiene que decir por qué difiere de `NuevoMovimientoDto`: ausente significaría "hoy" y
   una edición sin fecha movería el movimiento en silencio
-- [ ] T015 [US1] Agregar `PropioPorId(contexto, usuarioId, id)` a
+- [X] T015 [US1] Agregar `PropioPorId(contexto, usuarioId, id)` a
   `backend/GestionGastos.Api/Movimientos/MovimientosConsulta.cs`, devolviendo
   `IQueryable<Movimiento>` y **acotando por cuenta en la consulta**, no en memoria (INV-02). Entra
   solo al radar de `Todas_Las_Consultas_Del_Canal_Acotan_Por_Cuenta`, que la descubre por reflexión
   ([D-02](./research.md)): es la apuesta de 004 cobrándose
-- [ ] T016 [US1] Implementar `GET /api/movimientos/{id}` en
+- [X] T016 [US1] Implementar `GET /api/movimientos/{id}` en
   `backend/GestionGastos.Api/Movimientos/MovimientosEndpoints.cs`, usando el canal. `404` con el
   mismo cuerpo para inexistente, ajeno y ya eliminado ([D-06](./research.md))
-- [ ] T017 [US1] Implementar `PUT /api/movimientos/{id}` en el mismo archivo: buscar por el canal
+- [X] T017 [US1] Implementar `PUT /api/movimientos/{id}` en el mismo archivo: buscar por el canal
   **primero**, validar después; la categoría se busca con el mismo criterio que el alta —predefinida
   o propia, y activa— y el tipo se deriva de ella (INV-03, INV-04)
-- [ ] T018 [US1] [P] Agregar `MovimientoEditado` a `frontend/src/api/tipos.ts` con su comentario.
+- [X] T018 [US1] [P] Agregar `MovimientoEditado` a `frontend/src/api/tipos.ts` con su comentario.
   Va junto con T014: el contrato cambia en un solo movimiento o la verificación se pone en rojo
-- [ ] T019 [US1] Devolver el encabezado `Location` en `POST /api/movimientos`, ahora que la ruta
+- [X] T019 [US1] Devolver el encabezado `Location` en `POST /api/movimientos`, ahora que la ruta
   existe. El comentario que hoy explica su ausencia —"Cuando FEAT-001b agregue la lectura
   individual, vuelve con su ruta de verdad"— se reemplaza por el encabezado que prometía
-- [ ] T020 [VERIFY] [US1] Puerta del backend completa, más `pnpm --dir frontend exec tsc --noEmit`
+- [X] T020 [VERIFY] [US1] Puerta del backend completa, más `pnpm --dir frontend exec tsc --noEmit`
   por el cambio en `tipos.ts`
 
 **Checkpoint**: se puede corregir un dato mal cargado, y lo ajeno responde como inexistente. Es el
