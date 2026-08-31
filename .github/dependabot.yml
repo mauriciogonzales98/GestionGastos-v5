@@ -33,6 +33,16 @@ updates:
       backend-menores:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    # El major de EF Core no lo decide EF Core: lo decide Pomelo, que es quien nos conecta a MySQL.
+    # Pomelo 9.0.0 se compiló contra las abstracciones de EF Core 9, así que con EF Core 10 el build
+    # pasa y los tests caen 102 de 136 con MissingMethodException sobre un interno que cambió de
+    # firma. No es configurable, y no se arregla alineando Relational ni Design. Al cerrar el PR #9
+    # no existía ninguna versión 10.x de Pomelo en NuGet, ni preview ni rc.
+    # Pomelo queda deliberadamente SIN ignorar: su 10.x es la señal que destraba esto, y la
+    # queremos como PR. Cuando llegue, se saca este ignore y el major de EF Core vuelve solo.
+    ignore:
+      - dependency-name: "Microsoft.EntityFrameworkCore*"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "chore(deps)"
 
