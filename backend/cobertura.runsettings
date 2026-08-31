@@ -15,7 +15,14 @@
           <IncludeTestAssembly>true</IncludeTestAssembly>
           <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
           <!-- Las migraciones las escribe EF Core; medirlas infla el porcentaje sin decir nada. -->
-          <Exclude>[*]GestionGastos.Api.Migrations.*</Exclude>
+          <!-- Hasta coverlet 6 las máquinas de estado async las excluía ExcludeByAttribute, por su
+               CompilerGeneratedAttribute. Desde coverlet 10 ya no las alcanza —ni con el nombre del
+               atributo completo, probado—, así que 119 clases `<Metodo>d__N` de plomería del
+               compilador entraban al reporte y subían el total de 97,20 % a 98,60 % mientras las
+               líneas sin cubrir pasaban de 31 a 39. El número mejoraba por dilución. El filtro por
+               nombre es la vía que sí funciona: el patrón preciso `[*]*<*>d__*` no matchea, porque
+               coverlet no compara contra los `<>` del nombre. -->
+          <Exclude>[*]GestionGastos.Api.Migrations.*,[*]*d__*</Exclude>
         </Configuration>
       </DataCollector>
     </DataCollectors>
