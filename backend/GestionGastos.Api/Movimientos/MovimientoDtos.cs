@@ -30,3 +30,23 @@ public record MovimientoDto(
     string CategoriaNombre,
     string MonedaCodigo,
     DateOnly Fecha);
+
+/// <summary>
+/// Lo que llega al modificar un movimiento (RF-14).
+///
+/// **`Fecha` es obligatoria acá y opcional en el alta, y la diferencia es a propósito.** Ausente
+/// significa "hoy" al registrar, que es lo correcto; en una edición sería una trampa — quien mande
+/// una modificación sin fecha vería su movimiento saltar a hoy en silencio. Un movimiento editado
+/// conserva su fecha salvo que se pida cambiarla, y exigirla es la forma más simple de garantizarlo.
+///
+/// Tampoco lleva moneda: no se elige al registrar y tampoco al editar. La mitad faltante de RF-14
+/// está en la Deuda registrada de la spec, esperando el catálogo de monedas del ticket 4a.
+///
+/// No lleva propietario, y si llegara igual en el JSON se descarta al deserializar: el dueño lo
+/// decide la sesión (INV-01).
+/// </summary>
+/// <param name="Tipo">"gasto" o "ingreso". Se valida contra el tipo de la categoría elegida.</param>
+/// <param name="Monto">Número con hasta dos decimales.</param>
+/// <param name="CategoriaId">Categoría elegida, del mismo tipo que el movimiento.</param>
+/// <param name="Fecha">Día del movimiento. Obligatoria.</param>
+public record MovimientoEditadoDto(string? Tipo, decimal? Monto, int? CategoriaId, DateOnly? Fecha);

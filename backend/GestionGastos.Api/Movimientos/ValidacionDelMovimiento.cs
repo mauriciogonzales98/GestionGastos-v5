@@ -5,6 +5,10 @@ namespace GestionGastos.Api.Movimientos;
 /// <summary>
 /// Las reglas que el esquema no puede expresar con un motivo legible (D-08).
 ///
+/// **La usan el alta y la edición, y por eso ya no se llama `ValidacionDelAlta`.** Que sea una sola
+/// es FR-003 de FEAT-001b: un movimiento no puede quedar, por vía de una edición, en un estado que
+/// el alta habría rechazado. Dos validaciones parecidas divergen el día que alguien toca una.
+///
 /// El CHECK de la base rechaza un monto negativo, pero devuelve un error genérico de
 /// almacenamiento; el techo de FR-004b lo redondearía en silencio. La persona necesita saber qué
 /// campo está mal y por qué, así que las reglas viven acá y no sólo en el esquema.
@@ -12,26 +16,42 @@ namespace GestionGastos.Api.Movimientos;
 /// La clave de cada error es el nombre del campo de la petición: es lo que permite al frontend
 /// poner el mensaje al lado de su control en vez de volcar un texto suelto.
 /// </summary>
-public static class ValidacionDelAlta
+public static class ValidacionDelMovimiento
 {
     /// <summary>El techo de FR-004b. Entra exacto en decimal(11,2).</summary>
     public const decimal MontoMaximo = 999_999_999.99m;
 
+    /// <summary>Valida el alta.</summary>
     public static Dictionary<string, string[]> Validar(
         NuevoMovimientoDto peticion,
+        Categoria? categoria,
+        out TipoMovimiento tipo) =>
+        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, out tipo);
+
+    /// <summary>Valida la edición. Mismas reglas y mismas claves de error que el alta (FR-003).</summary>
+    public static Dictionary<string, string[]> Validar(
+        MovimientoEditadoDto peticion,
+        Categoria? categoria,
+        out TipoMovimiento tipo) =>
+        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, out tipo);
+
+    private static Dictionary<string, string[]> Validar(
+        string? tipoTexto,
+        decimal? monto,
+        int? categoriaId,
         Categoria? categoria,
         out TipoMovimiento tipo)
     {
         var errores = new Dictionary<string, string[]>(StringComparer.Ordinal);
-        var tipoValido = TipoMovimientoTexto.TryDesdeTexto(peticion.Tipo, out tipo);
+        var tipoValido = TipoMovimientoTexto.TryDesdeTexto(tipoTexto, out tipo);
 
         if (!tipoValido)
         {
             errores["tipo"] = ["Elegí si es un gasto o un ingreso."];
         }
 
-        ValidarMonto(peticion.Monto, errores);
-        ValidarCategoria(peticion.CategoriaId, categoria, tipoValido, tipo, errores);
+        ValidarMonto(monto, errores);
+        ValidarCategoria(categoriaId, categoria, tipoValido, tipo, errores);
 
         return errores;
     }
