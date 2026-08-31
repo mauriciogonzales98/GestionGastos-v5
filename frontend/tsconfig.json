@@ -13,7 +13,12 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom"]
+    // vite/client trae las declaraciones de módulo de los assets que Vite resuelve, `*.css`
+    // entre ellas. Va acá y no en un .d.ts suelto porque esta lista está curada a mano: al fijar
+    // "types" se apaga la carga automática de @types, así que lo que no esté nombrado no existe.
+    // Sin esto, `import './estilos/index.css'` no tiene módulo que lo declare. TypeScript 5 lo
+    // dejaba pasar; el 6 lo corta con TS2882.
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
   },
   "include": ["src", "tests", "vite.config.ts"]
 }
