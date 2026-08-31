@@ -57,7 +57,7 @@ exista.
 **Purpose**: arrancar desde una base conocida. No hay nada que instalar: esta feature no agrega
 dependencias, no toca el esquema y no genera migración.
 
-- [ ] T001 Correr la puerta del backend sobre la rama recién sacada de `main` —`dotnet format
+- [X] T001 Correr la puerta del backend sobre la rama recién sacada de `main` —`dotnet format
   --verify-no-changes`, `dotnet build backend/GestionGastos.slnx -warnaserror`, `dotnet test
   backend/`— y dejar su salida a la vista. Es el verde de partida: sin él, un rojo de esta feature
   no se distingue de uno heredado
@@ -72,21 +72,21 @@ escribió.
 **⚠️ CRÍTICO**: ninguna tarea de US1, US2 o US3 empieza hasta que T005 esté en verde. Si los
 endpoints se escriben antes, la barrera se estrecha mirándolos.
 
-- [ ] T002 [TEST] Agregar a `backend/verificar-aislamiento.sh` un **cuarto desarme**: colar en
+- [X] T002 [TEST] Agregar a `backend/verificar-aislamiento.sh` un **cuarto desarme**: colar en
   `backend/GestionGastos.Api/Movimientos/MovimientosEndpoints.cs` un endpoint que lea
   `contexto.Movimientos` sin acotar por cuenta. Correr el script y **mostrar que ese paso da
   VERDE** — es el agujero de [D-01](./research.md) a la vista. Un desarme que hoy no puede dar rojo
   es exactamente lo que justifica la fase
-- [ ] T003 Estrechar la excepción declarada en
+- [X] T003 Estrechar la excepción declarada en
   `backend/GestionGastos.Api.Tests/Integracion/BarreraDeAislamientoTests.cs`: `MovimientosEndpoints.cs`
   deja de estar exento por archivo y pasa a estarlo **sólo para escrituras** (`Add`, `Update`,
   `Remove`). Cualquier otro uso de `contexto.Movimientos` ahí adentro es infracción. En los demás
   archivos no cambia nada. Actualizar el comentario de `EscrituraDeclarada` para que diga qué
   permite y qué no
-- [ ] T004 [ROJO] Correr `./backend/verificar-aislamiento.sh` entero y mostrar su salida. El
+- [X] T004 [ROJO] Correr `./backend/verificar-aislamiento.sh` entero y mostrar su salida. El
   desarme nuevo **tiene que dar rojo ahora**, y los tres que ya estaban tienen que seguir dándolo.
   Si el cuarto sigue en verde, T003 no está haciendo nada y no se sigue
-- [ ] T005 [VERIFY] Puerta del backend completa
+- [X] T005 [VERIFY] Puerta del backend completa
 
 **Checkpoint**: la barrera vigila también adentro del archivo que va a leer-modificar-guardar, y se
 le vio el rojo por esa vía. Recién ahora se puede agregar superficie.

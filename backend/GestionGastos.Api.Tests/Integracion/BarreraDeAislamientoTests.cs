@@ -32,10 +32,33 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     private const string CanalDeLectura = "Movimientos/MovimientosConsulta.cs";
 
     /// <summary>
-    /// La única escritura declarada. El alta agrega la fila y le pone el propietario de la sesión a
-    /// mano; el acotado de lectura no aplica a un INSERT, así que este uso es legítimo y distinto.
+    /// El archivo donde las ESCRITURAS de movimientos son legítimas: agregar, modificar y borrar
+    /// filas. El acotado por cuenta no aplica a un INSERT, y el UPDATE y el DELETE trabajan sobre
+    /// una entidad que ya vino acotada del canal.
+    ///
+    /// **La exención es por operación, no por archivo, y eso cambió en FEAT-001b.** Antes era por
+    /// archivo entero, y era segura porque acá adentro sólo había un INSERT: un INSERT no tiene a
+    /// quién dejar de acotar. La edición trajo leer-modificar-guardar, y ese "encontrar primero" es
+    /// justo la lectura que puede nacer sin acotar — en el único lugar donde esta barrera no estaba
+    /// mirando.
+    ///
+    /// Comprobado antes de estrecharla: un <c>MapGet</c> que devolvía
+    /// <c>contexto.Movimientos.ToListAsync()</c> —los movimientos de TODAS las cuentas— escrito acá
+    /// adentro compilaba y dejaba la barrera en 4/4 verde. No era un error de quien la escribió:
+    /// era una condición que caducó cuando cambió lo que este archivo hace.
+    ///
+    /// `verificar-aislamiento.sh` tiene el paso 4/6 que le prueba el rojo por esta vía.
     /// </summary>
     private const string EscrituraDeclarada = "Movimientos/MovimientosEndpoints.cs";
+
+    /// <summary>
+    /// Lo único que <see cref="EscrituraDeclarada"/> puede hacer con <c>Movimientos</c>.
+    ///
+    /// Se nombran las tres operaciones y no se acepta cualquier cosa: la diferencia entre
+    /// "este archivo escribe movimientos" y "este archivo hace lo que quiera con movimientos" es
+    /// exactamente el agujero que se cerró.
+    /// </summary>
+    private static readonly string[] EscriturasPermitidas = ["Add", "Update", "Remove"];
 
     /// <summary>
     /// Donde el <c>DbSet</c> se DECLARA, que no es lo mismo que leerlo.
@@ -160,19 +183,25 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
             .EnumerateFiles(raiz, "*.cs", SearchOption.AllDirectories)
             .Where(archivo => !EstaEnMigraciones(raiz, archivo))
             .Where(archivo => !EsRutaDeclarada(raiz, archivo))
-            .Where(archivo => UsaElDbSetDeMovimientos(File.ReadAllText(archivo)))
+            .Where(archivo => UsaElDbSetDeMovimientos(
+                EsLaEscrituraDeclarada(raiz, archivo)
+                    ? SinLasEscriturasPermitidas(File.ReadAllText(archivo))
+                    : File.ReadAllText(archivo)))
             .Select(archivo => Path.GetRelativePath(raiz, archivo).Replace('\\', '/'))
             .Order(StringComparer.Ordinal)
             .ToList();
 
         Assert.True(
             infractores.Count == 0,
-            "Estos archivos usan `contexto.Movimientos` fuera del canal único de lectura " +
-            $"(`{CanalDeLectura}`) y de la escritura declarada (`{EscrituraDeclarada}`):\n  " +
+            "Estos archivos LEEN `contexto.Movimientos` fuera del canal único " +
+            $"(`{CanalDeLectura}`):\n  " +
             string.Join("\n  ", infractores) +
             "\n\nUna lectura de movimientos que no pase por el canal es una que nadie está " +
             "mirando, y el acotado por cuenta se olvida escribiéndola. La salida es agregar el " +
-            "método a `MovimientosConsulta`, no sumar una excepción acá.");
+            "método a `MovimientosConsulta`, no sumar una excepción acá.\n\n" +
+            $"`{EscrituraDeclarada}` puede ESCRIBIR movimientos —" +
+            string.Join(", ", EscriturasPermitidas.Select(o => $"`.Movimientos.{o}(`")) +
+            "— y nada más. Si aparece ahí, es porque lee.");
     }
 
     /// <summary>
@@ -218,11 +247,33 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
             RegexOptions.None,
             TimeSpan.FromSeconds(5));
 
+    /// <summary><c>true</c> si el archivo es aquel donde las escrituras son legítimas.</summary>
+    private static bool EsLaEscrituraDeclarada(string raiz, string archivo) =>
+        Path.GetRelativePath(raiz, archivo).Replace('\\', '/') == EscrituraDeclarada;
+
+    /// <summary>
+    /// El código sin sus escrituras permitidas, para que lo que quede se pueda mirar como se mira
+    /// cualquier otro archivo.
+    ///
+    /// Se borran los usos de la forma <c>.Movimientos.Add(</c> —y `Update` y `Remove`— y se deja
+    /// todo lo demás intacto. Si después de sacarlos sigue habiendo un <c>.Movimientos</c>, ese uso
+    /// no es una escritura declarada: es una lectura, y tiene que ir al canal.
+    ///
+    /// Se recorta la operación y no la línea entera: borrar la línea escondería una lectura escrita
+    /// al lado de una escritura legítima.
+    /// </summary>
+    private static string SinLasEscriturasPermitidas(string codigo) =>
+        EscriturasPermitidas.Aggregate(codigo, (texto, operacion) => Regex.Replace(
+            texto,
+            @"\.\s*Movimientos\s*\.\s*" + operacion + @"\s*\(",
+            "(",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(5)));
+
     private static bool EsRutaDeclarada(string raiz, string archivo)
     {
         var relativa = Path.GetRelativePath(raiz, archivo).Replace('\\', '/');
         return relativa == CanalDeLectura
-            || relativa == EscrituraDeclarada
             || relativa == DeclaracionDelDbSet;
     }
 
