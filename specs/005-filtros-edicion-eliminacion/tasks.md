@@ -176,23 +176,23 @@ sólo el otro.
 
 ### Tests de la historia 2
 
-- [ ] T021 [TEST] [US2] Crear
+- [X] T021 [TEST] [US2] Crear
   `backend/GestionGastos.Api.Tests/Integracion/EliminacionDeMovimientoTests.cs` con el test de
   **AC-08**: el dueño elimina su movimiento, recibe `204`, y el listado deja de devolverlo
-- [ ] T022 [TEST] [US2] Agregar el test de **AC-09** (deuda de 004: AC-05) reusando el helper de
+- [X] T022 [TEST] [US2] Agregar el test de **AC-09** (deuda de 004: AC-05) reusando el helper de
   comparación de T010: el `DELETE` sobre un identificador ajeno responde igual que sobre uno
   inexistente, **y el movimiento de la otra cuenta sigue apareciendo en el listado de su dueño**.
   Esa segunda mitad es la que distingue "respondió bien" de "no tocó nada"
-- [ ] T023 [TEST] [P] [US2] Agregar el test de **AC-10**: eliminar dos veces el mismo movimiento
+- [X] T023 [TEST] [P] [US2] Agregar el test de **AC-10**: eliminar dos veces el mismo movimiento
   devuelve `204` y después `404`, sin ningún error inesperado
 
 ### Implementación de la historia 2
 
-- [ ] T024 [US2] Implementar `DELETE /api/movimientos/{id}` en
+- [X] T024 [US2] Implementar `DELETE /api/movimientos/{id}` en
   `backend/GestionGastos.Api/Movimientos/MovimientosEndpoints.cs`, buscando por el canal y borrando
   la fila ([D-09](./research.md)). Sin baja lógica: si aparece una columna de estado, algo se salió
   del alcance
-- [ ] T025 [VERIFY] [US2] Puerta del backend completa
+- [X] T025 [VERIFY] [US2] Puerta del backend completa
 
 **Checkpoint**: el ciclo de vida del movimiento está completo — se crea, se corrige y se borra— y
 las tres operaciones por identificador respetan el aislamiento.

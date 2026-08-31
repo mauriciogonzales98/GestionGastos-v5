@@ -194,7 +194,7 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         // Modificar.
         var ajeno = await EditarCrudoAsync(a, deB, MontoCorregido, Comida, FechaNueva);
         var fantasma = await EditarCrudoAsync(a, inexistente, MontoCorregido, Comida, FechaNueva);
-        AssertIndistinguibles(ajeno, fantasma, $"PUT sobre ajeno ({deB}) e inexistente ({inexistente})");
+        RespuestasIndistinguibles.Exigir(ajeno, fantasma, $"PUT sobre ajeno ({deB}) e inexistente ({inexistente})");
 
         // Y el movimiento de B quedó intacto: campo por campo, no sólo "sigue estando".
         Assert.Equal(
@@ -248,7 +248,7 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
     /// Dos peticiones **idénticas** al mismo identificador inexistente devuelven cuerpos que
     /// difieren, y difieren **sólo** en `traceId`.
     ///
-    /// Es lo que justifica normalizarlo en <see cref="SinTraza"/>. Sin este test, ignorar un campo
+    /// Es lo que justifica normalizarlo en <see cref="RespuestasIndistinguibles.SinTraza"/>. Sin este test, ignorar un campo
     /// al comparar sería una decisión sin respaldo: mañana alguien agrega otro campo variable, la
     /// normalización lo tapa, y la comparación de indistinguibilidad deja de ver lo que importa.
     /// </summary>
@@ -265,7 +265,7 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         var otra = await CrudoAsync(cuenta, HttpMethod.Get, $"/api/movimientos/{inexistente}");
 
         Assert.NotEqual(una.Cuerpo, otra.Cuerpo);
-        Assert.Equal(SinTraza(una.Cuerpo), SinTraza(otra.Cuerpo));
+        Assert.Equal(RespuestasIndistinguibles.SinTraza(una.Cuerpo), RespuestasIndistinguibles.SinTraza(otra.Cuerpo));
     }
 
     // ---- Helpers -------------------------------------------------------------------------------
@@ -280,42 +280,9 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         var unaAjena = await CrudoAsync(cuenta, verbo, $"/api/movimientos/{ajeno}");
         var unaFantasma = await CrudoAsync(cuenta, verbo, $"/api/movimientos/{inexistente}");
 
-        AssertIndistinguibles(
+        RespuestasIndistinguibles.Exigir(
             unaAjena, unaFantasma, $"{verbo} sobre ajeno ({ajeno}) e inexistente ({inexistente})");
     }
-
-    private static void AssertIndistinguibles(
-        (HttpStatusCode Estado, string Cuerpo, string? Tipo) ajena,
-        (HttpStatusCode Estado, string Cuerpo, string? Tipo) fantasma,
-        string contexto)
-    {
-        Assert.Equal(HttpStatusCode.NotFound, ajena.Estado);
-
-        Assert.True(
-            ajena.Estado == fantasma.Estado
-                && string.Equals(SinTraza(ajena.Cuerpo), SinTraza(fantasma.Cuerpo), StringComparison.Ordinal)
-                && string.Equals(ajena.Tipo, fantasma.Tipo, StringComparison.Ordinal),
-            $"Un movimiento ajeno se distingue de uno inexistente ({contexto}).\n" +
-            $"  ajeno       -> {(int)ajena.Estado} {ajena.Tipo} {ajena.Cuerpo}\n" +
-            $"  inexistente -> {(int)fantasma.Estado} {fantasma.Tipo} {fantasma.Cuerpo}\n\n" +
-            "Cualquier diferencia observable confirma que ese identificador existe, y como son " +
-            "contiguos eso permite contar los movimientos de otra cuenta sin ver ninguno.");
-    }
-
-    /// <summary>
-    /// El cuerpo sin su <c>traceId</c>.
-    ///
-    /// `ProblemDetails` incluye un identificador de traza **por petición**, así que dos respuestas
-    /// nunca son iguales byte a byte — ni siquiera dos peticiones idénticas al mismo identificador.
-    /// Compararlo sería exigir algo imposible; ignorarlo sin más sería aflojar el test.
-    ///
-    /// La propiedad que hay que verificar no es "los cuerpos son idénticos" sino "nada que dependa
-    /// de la existencia difiere", y `traceId` no depende de nada: es aleatorio. Que lo sea está
-    /// comprobado en <see cref="El_TraceId_Es_Volatil_Y_Por_Eso_Se_Ignora_Al_Comparar"/>, para que
-    /// esta normalización no se apoye en una suposición.
-    /// </summary>
-    private static string SinTraza(string cuerpo) =>
-        Regex.Replace(cuerpo, "\"traceId\"\\s*:\\s*\"[^\"]*\"", "\"traceId\":\"<volatil>\"");
 
     /// <summary>
     /// Un identificador que no le corresponde a ningún movimiento.
@@ -332,19 +299,19 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         return ultimo + 1_000_000;
     }
 
-    private static async Task<(HttpStatusCode Estado, string Cuerpo, string? Tipo)> CrudoAsync(
+    private static async Task<RespuestaObservable> CrudoAsync(
         CuentaDePrueba cuenta, HttpMethod verbo, string ruta)
     {
         using var peticion = new HttpRequestMessage(verbo, new Uri(ruta, UriKind.Relative));
         using var respuesta = await cuenta.Cliente.SendAsync(peticion);
 
-        return (
+        return new RespuestaObservable(
             respuesta.StatusCode,
             await respuesta.Content.ReadAsStringAsync(),
             respuesta.Content.Headers.ContentType?.MediaType);
     }
 
-    private static Task<(HttpStatusCode Estado, string Cuerpo, string? Tipo)> EditarAsync(
+    private static Task<RespuestaObservable> EditarAsync(
         CuentaDePrueba cuenta, long id, decimal monto, int categoriaId, DateOnly fecha,
         long? propietarioEnElCuerpo = null) =>
         EditarCrudoAsync(cuenta, id, monto, categoriaId, fecha, propietarioEnElCuerpo);
@@ -354,7 +321,7 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
     /// la categoría hace que el test no pueda expresar el caso que quiere probar: mandaría siempre
     /// un par válido y pasaría en verde sin verificar la regla.
     /// </param>
-    private static async Task<(HttpStatusCode Estado, string Cuerpo, string? Tipo)> EditarCrudoAsync(
+    private static async Task<RespuestaObservable> EditarCrudoAsync(
         CuentaDePrueba cuenta, long id, decimal monto, int categoriaId, DateOnly fecha,
         long? propietarioEnElCuerpo = null, string? tipoForzado = null)
     {
@@ -368,7 +335,7 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         using var respuesta = await cuenta.Cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{id}", UriKind.Relative), cuerpo);
 
-        return (
+        return new RespuestaObservable(
             respuesta.StatusCode,
             await respuesta.Content.ReadAsStringAsync(),
             respuesta.Content.Headers.ContentType?.MediaType);

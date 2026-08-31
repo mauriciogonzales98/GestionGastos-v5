@@ -208,6 +208,35 @@ public static class MovimientosEndpoints
                 moneda.Codigo,
                 movimiento.Fecha));
         });
+
+        // DELETE /api/movimientos/{id} — la eliminación (FR-006).
+        //
+        // Borra la fila: no hay baja lógica (D-09). El PRD usa ese término explícitamente para las
+        // categorías y no para los movimientos, y el contraste parece deliberado.
+        //
+        // La carrera —dos operaciones sobre el mismo movimiento a la vez— se resuelve sola: la
+        // segunda no lo encuentra por el canal y responde 404, que es justo lo que pide AC-10. No
+        // hace falta concurrencia optimista porque no hay estado que corromper, sólo una operación
+        // que llegó tarde.
+        rutas.MapDelete("/api/movimientos/{id:long}", async (
+            long id,
+            GestionGastosDbContext contexto,
+            IUsuarioActual usuarioActual) =>
+        {
+            var movimiento = await MovimientosConsulta
+                .PropioPorId(contexto, usuarioActual.Id, id)
+                .FirstOrDefaultAsync();
+
+            if (movimiento is null)
+            {
+                return NoExiste();
+            }
+
+            contexto.Movimientos.Remove(movimiento);
+            await contexto.SaveChangesAsync();
+
+            return Results.NoContent();
+        });
     }
 
     /// <summary>
