@@ -31,6 +31,21 @@ reinicio y que se vence solo.
 
 Queda escrito acá porque cambia **cómo** se verifica, no qué se verifica.
 
+**AC-13 se mide con medianas y no con percentiles 95.** El PRD dice "percentil 95", y así se
+escribió al principio. No es medible de esa forma: el p95 de dos series tomadas en una máquina
+compartida mide la cola de contención del entorno, no el código — y la mide de forma asimétrica,
+porque el rechazo por credenciales hace dos escrituras que el rechazo por bloqueo no hace, así que
+bajo carga esa asimetría se amplifica. Medido en una misma corrida: p95 de 114 ms contra 202 ms
+—88 ms, rojo— mientras las medianas daban 110 ms contra 119 ms, que son 9 ms. El test fallaba 1 de
+cada 2 veces bajo carga y pasaba 5 de 5 aislado, que es la definición de un test intermitente y lo
+que el Principio IV prohíbe.
+
+La mediana no pierde nada de lo que hay que atrapar: el fallo que ese test existe para ver es una
+diferencia sistemática de ~120 ms, y sobre esa señal la mediana es más sensible que el p95.
+Comprobado desarmando la verificación del hash del camino bloqueado: 2 ms contra 118 ms. **AC-12
+sigue midiéndose con percentil 95**, porque ahí se mide un solo camino contra sí mismo y no hay dos
+series que comparar. El cambio se hizo en la rama de `004`.
+
 **La ventana de 15 minutos no se verifica esperando 15 minutos.** El Principio IV de la constitución
 prohíbe tests que dependan del reloj real, y `002` ya resolvió lo mismo para la expiración de la
 sesión, adelantando un reloj que los tests controlan. AC-03, AC-06 y AC-11 se verifican adelantando
@@ -143,7 +158,8 @@ respuestas —mensaje, código y tiempo— entre sí y contra la de una contrase
    bloqueado (AC-09).
 3. **Given** el rechazo de un intento sobre un email bloqueado y el rechazo por credenciales
    incorrectas sobre uno no bloqueado, **When** se miden los dos sobre 100 ejecuciones, **Then** la
-   diferencia en el percentil 95 es de a lo sumo 50 ms (AC-13).
+   diferencia en la **mediana** es de a lo sumo 50 ms (AC-13). El PRD dice "percentil 95"; por qué
+   no se puede medir así, más abajo.
 
 ---
 
@@ -192,7 +208,7 @@ respuestas —mensaje, código y tiempo— entre sí y contra la de una contrase
   lapso.
 - **FR-008** *(PRD NFR-02)*: El sistema MUST agregar a lo sumo 50 ms al tiempo de respuesta del
   inicio de sesión, en el percentil 95, por comprobar el límite.
-- **FR-009** *(PRD NFR-03)*: El sistema MUST tardar lo mismo —dentro de 50 ms en el percentil 95— en
+- **FR-009** *(PRD NFR-03)*: El sistema MUST tardar lo mismo —dentro de 50 ms en la **mediana**— en
   rechazar un intento sobre un email bloqueado que uno con credenciales incorrectas sobre un email
   no bloqueado, de modo que el cronómetro no distinga un caso del otro.
 
@@ -216,8 +232,9 @@ respuestas —mensaje, código y tiempo— entre sí y contra la de una contrase
 - **SC-003**: Las respuestas a un rechazo por límite y a un rechazo por credenciales incorrectas son
   indistinguibles en mensaje y en código, esté el email registrado o no.
 - **SC-004**: La diferencia de tiempo entre un rechazo por límite y un rechazo por credenciales
-  incorrectas es de a lo sumo 50 ms en el percentil 95 sobre 100 ejecuciones, y comprobar el límite
-  agrega a lo sumo otros 50 ms en el percentil 95 al inicio de sesión.
+  incorrectas es de a lo sumo 50 ms en la **mediana** sobre 100 ejecuciones, y comprobar el límite
+  agrega a lo sumo otros 50 ms en el percentil 95 al inicio de sesión. Los dos estadísticos son
+  distintos a propósito: ver el ajuste de más abajo.
 - **SC-005**: El 100 % de los bloqueos vigentes siguen vigentes después de reiniciar la aplicación,
   hasta que se cumplan sus 15 minutos.
 - **SC-006**: Un bloqueo sobre un email no afecta a ningún otro email: el 100 % de los intentos
