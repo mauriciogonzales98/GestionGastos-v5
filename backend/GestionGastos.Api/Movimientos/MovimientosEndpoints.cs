@@ -99,40 +99,23 @@ public static class MovimientosEndpoints
             DateOnly? hasta,
             int? categoriaId) =>
         {
-            // Sin rango pedido, el recorte sigue siendo el mes actual, y lo sigue decidiendo el
-            // SERVIDOR (FR-013): que el filtro exista no convierte al valor por omisión en algo que
-            // el cliente elige. Quien no manda nada ve exactamente lo que veía antes de FEAT-001b.
+            // Las tres reglas del período —los dos extremos juntos o ninguno, el rango invertido
+            // rechazado, y el mes en curso del SERVIDOR por omisión— viven en `PeriodoPedido` desde
+            // FEAT-001c. No están acá porque el resumen necesita exactamente las mismas: dos copias
+            // de una regla son dos copias que divergen el día que alguien arregla una sola (D-03).
             var hoy = DiaActual.De(reloj, zona);
 
-            // Los dos extremos van juntos o no va ninguno. Con medio rango habría que suponer un
-            // extremo abierto que nadie declaró, y ese supuesto es distinto para cada quien.
-            if (desde is null != hasta is null)
+            var errores = PeriodoPedido.Interpretar(desde, hasta, hoy, out var rango);
+            if (errores.Count > 0)
             {
-                return Results.ValidationProblem(new Dictionary<string, string[]>(StringComparer.Ordinal)
-                {
-                    ["rango"] = ["Indicá las dos fechas del rango, o ninguna."],
-                });
-            }
-
-            // Un rango invertido se rechaza en vez de devolver una lista vacía: la lista vacía se
-            // lee como "no hay nada" y esconde que la pregunta estaba mal formada (FR-015).
-            var rango = desde is { } d && hasta is { } h
-                ? RangoDeFechas.De(d, h)
-                : RangoDelMes.De(hoy);
-
-            if (rango is null)
-            {
-                return Results.ValidationProblem(new Dictionary<string, string[]>(StringComparer.Ordinal)
-                {
-                    ["rango"] = ["La fecha de inicio no puede ser posterior a la de fin."],
-                });
+                return Results.ValidationProblem(errores);
             }
 
             // La categoría NO se valida contra el catálogo: una que no existe simplemente no deja
             // pasar nada. Rechazarla con un 400 confirmaría cuáles existen, que es la misma fuga
             // que el 404 uniforme cierra en las rutas por identificador.
             var movimientos = await MovimientosConsulta
-                .Filtrado(contexto, usuarioActual.Id, rango.Value, categoriaId)
+                .Filtrado(contexto, usuarioActual.Id, rango, categoriaId)
                 .Select(m => new MovimientoDto(
                     m.Id,
                     m.Tipo == TipoMovimiento.Gasto ? TipoMovimientoTexto.Gasto : TipoMovimientoTexto.Ingreso,
