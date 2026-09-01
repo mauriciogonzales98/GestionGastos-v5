@@ -47,7 +47,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// adentro compilaba y dejaba la barrera en 4/4 verde. No era un error de quien la escribió:
     /// era una condición que caducó cuando cambió lo que este archivo hace.
     ///
-    /// `verificar-aislamiento.sh` tiene el paso 4/6 que le prueba el rojo por esta vía.
+    /// `verificar-aislamiento.sh` tiene el paso 4/7 que le prueba el rojo por esta vía.
     /// </summary>
     private const string EscrituraDeclarada = "Movimientos/MovimientosEndpoints.cs";
 
@@ -102,7 +102,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// <summary>
     /// **Todas** las consultas del canal acotan por cuenta, no sólo la del listado.
     ///
-    /// El test de arriba mira `DelMes` y nada más, y el del canal mira quién lee movimientos
+    /// El test de arriba mira `Filtrado` y nada más, y el del canal mira quién lee movimientos
     /// **afuera**. Entre los dos quedaba un hueco justo en el peor lugar: adentro. El mensaje de
     /// error de la barrera del canal empuja a agregar las consultas nuevas acá —"la salida es
     /// agregar el método a `MovimientosConsulta`"—, y hasta ahora eso las metía al único sitio
@@ -111,6 +111,21 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     ///
     /// Se descubren por reflexión y no por una lista: una lista hay que acordarse de actualizarla,
     /// que es la misma clase de olvido que esta barrera existe para atrapar.
+    ///
+    /// **Qué se descubre cambió en la feature 006, y el motivo importa.** Hasta acá el filtro era
+    /// `IQueryable&lt;Movimiento&gt;`, y cubría el canal entero porque toda lectura escrita hasta
+    /// entonces devolvía movimientos. El resumen es la primera que devuelve **sumas**: una
+    /// agregación sin acotar no era una consulta que la barrera aprobara mal, era una que ni
+    /// siquiera enumeraba. Comprobado antes de ensancharlo, igual que en FEAT-001b: un
+    /// `TotalDeTodasLasCuentas(contexto)` que agrupa `contexto.Movimientos` sin `usuario_id` dejaba
+    /// la barrera en 4/4 verde.
+    ///
+    /// Es la segunda vez que una condición de esta barrera caduca en silencio al cambiar lo que
+    /// tiene que cubrir —la primera fue la exención por archivo de FEAT-001b—, así que conviene
+    /// decirlo acá: **lo que se vigila es el canal, no una forma de retorno.** Cualquier
+    /// `IQueryable`, devuelva lo que devuelva, sale de leer movimientos de alguien.
+    ///
+    /// `verificar-aislamiento.sh` tiene el paso 5/7 que le prueba el rojo por esta vía.
     /// </summary>
     [Fact]
     public void Todas_Las_Consultas_Del_Canal_Acotan_Por_Cuenta()
@@ -119,14 +134,14 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
 
         var consultas = typeof(MovimientosConsulta)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(m => typeof(IQueryable<Movimiento>).IsAssignableFrom(m.ReturnType))
+            .Where(m => typeof(IQueryable).IsAssignableFrom(m.ReturnType))
             .ToList();
 
         Assert.NotEmpty(consultas);
 
         foreach (var consulta in consultas)
         {
-            var sql = ((IQueryable<Movimiento>)consulta.Invoke(null, ArgumentosDePrueba(consulta, contexto))!)
+            var sql = ((IQueryable)consulta.Invoke(null, ArgumentosDePrueba(consulta, contexto))!)
                 .ToQueryString();
 
             var donde = sql.Contains("WHERE", StringComparison.OrdinalIgnoreCase)

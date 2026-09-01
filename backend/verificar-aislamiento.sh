@@ -7,14 +7,16 @@
 # esos tests sepan detectar que se caiga. Un test de aislamiento roto se ve exactamente igual que
 # uno que funciona — devuelve verde, y sigue devolviendo verde el día que deja de verificar nada.
 #
-# Este script desarma el aislamiento a propósito de las cuatro formas en que se puede desarmar,
+# Este script desarma el aislamiento a propósito de las cinco formas en que se puede desarmar,
 # exige el ROJO en cada una, restaura y exige el verde.
 #
-# Las cuatro formas no son intercambiables:
+# Las cinco formas no son intercambiables:
 #   · la consulta deja de acotar por cuenta   → una cuenta ve los movimientos de todas
 #   · una lectura nace fuera del canal único  → nadie la está mirando, y nace sin acotar
 #   · una lectura nace DENTRO del archivo que  → el mismo olvido, en el único lugar donde la
 #     la barrera exime por escribir              barrera no estaba mirando (FEAT-001b, D-01)
+#   · una lectura del canal NO devuelve       → la barrera enumeraba por forma de retorno, así que
+#     movimientos sino sumas                    a ésta ni la miraba (FEAT-001c, D-01)
 #   · el alta asigna un propietario ajeno     → lo que escribo cae en la cuenta de otro
 #
 # Va después del paso de Tests en el CI, como las otras tres barreras: recompila con archivos
@@ -75,14 +77,14 @@ exigir_rojo() {
   echo "   rojo, como se esperaba"
 }
 
-echo "== 1/6 · con el aislamiento puesto, la barrera tiene que estar en verde"
+echo "== 1/7 · con el aislamiento puesto, la barrera tiene que estar en verde"
 if ! correr_tests > /dev/null 2>&1; then
   echo "ERROR: la barrera ya falla sin tocar nada. Arreglá eso antes de medirla." >&2
   exit 1
 fi
 echo "   verde, como se esperaba"
 
-echo "== 2/6 · sin el acotado por cuenta tiene que ponerse en ROJO"
+echo "== 2/7 · sin el acotado por cuenta tiene que ponerse en ROJO"
 # Se le quita `m.UsuarioId == usuarioId` al WHERE de TODAS las consultas del canal.
 #
 # El /g no es cosmético: desde FEAT-001b el canal tiene dos consultas acotadas —el listado y la
@@ -98,7 +100,7 @@ grep -q 'm.UsuarioId == usuarioId' "$CONSULTA" && {
 exigir_rojo "se quitó el acotado por cuenta de la consulta del listado"
 restaurar
 
-echo "== 3/6 · con una lectura fuera del canal tiene que ponerse en ROJO"
+echo "== 3/7 · con una lectura fuera del canal tiene que ponerse en ROJO"
 cat > "$COLADO" <<'CS'
 using GestionGastos.Api.Persistencia;
 
@@ -117,7 +119,7 @@ CS
 exigir_rojo "apareció una lectura de movimientos fuera del canal único"
 restaurar
 
-echo "== 4/6 · con una lectura sin acotar DENTRO del archivo exento tiene que ponerse en ROJO"
+echo "== 4/7 · con una lectura sin acotar DENTRO del archivo exento tiene que ponerse en ROJO"
 # La barrera exime a MovimientosEndpoints.cs por ser la escritura declarada. Hasta FEAT-001b esa
 # exención era por archivo entero, y el archivo sólo hacía un INSERT — que no tiene a quién dejar
 # de acotar. La edición trae leer-modificar-guardar, y ese "encontrar primero" es justo la lectura
@@ -131,7 +133,24 @@ grep -q 'api/movimientos/coladas' "$ALTA" || {
 exigir_rojo "apareció una lectura sin acotar dentro del archivo que la barrera exime por escribir"
 restaurar
 
-echo "== 5/6 · con el alta asignando un propietario ajeno tiene que ponerse en ROJO"
+echo "== 5/7 · con una agregación del canal que no acota tiene que ponerse en ROJO"
+# La barrera enumera las consultas del canal por reflexión, y hasta FEAT-001c las enumeraba por su
+# forma de retorno: `IQueryable<Movimiento>`. Eso cubría el canal entero mientras toda lectura
+# devolviera movimientos. El resumen es la primera que devuelve SUMAS, y una agregación sin acotar
+# no era una consulta que la barrera aprobara mal — era una que ni siquiera enumeraba (D-01).
+#
+# Es la misma clase de caducidad que el paso 4/7, por otra vía: allá era una exención por archivo
+# que dejó de alcanzar, acá una condición de tipo. Por eso son dos pasos y no uno.
+perl -0pi -e 's/(    public static IQueryable<Movimiento> PropioPorId\()/    public static IQueryable<decimal> TotalSinAcotar(GestionGastosDbContext contexto) =>\n        contexto.Movimientos.GroupBy(m => m.MonedaId).Select(g => g.Sum(m => m.Monto));\n\n$1/' "$CONSULTA"
+grep -q 'TotalSinAcotar' "$CONSULTA" || {
+  echo "ERROR: no se pudo colar la agregación sin acotar en el canal." >&2
+  echo "       Actualizá la sustitución de verificar-aislamiento.sh." >&2
+  exit 1
+}
+exigir_rojo "apareció en el canal una agregación que no acota por cuenta"
+restaurar
+
+echo "== 6/7 · con el alta asignando un propietario ajeno tiene que ponerse en ROJO"
 # El alta deja de tomar el propietario de la sesión y usa cualquier otra cuenta.
 perl -0pi -e 's/UsuarioId = usuarioActual\.Id,/UsuarioId = await contexto.Usuarios.Where(u => u.Id != usuarioActual.Id).Select(u => u.Id).FirstOrDefaultAsync() is var otro \&\& otro != 0 ? otro : usuarioActual.Id,/' "$ALTA"
 grep -q 'UsuarioId = usuarioActual.Id,' "$ALTA" && {
@@ -142,7 +161,7 @@ grep -q 'UsuarioId = usuarioActual.Id,' "$ALTA" && {
 exigir_rojo "el alta dejó de tomar el propietario de la sesión"
 restaurar
 
-echo "== 6/6 · restaurado tiene que volver al verde"
+echo "== 7/7 · restaurado tiene que volver al verde"
 if ! correr_tests > /dev/null 2>&1; then
   echo "ERROR: se restauró todo y la barrera sigue en rojo." >&2
   echo "       Fijate si quedó algún archivo temporal: $COLADO" >&2
@@ -152,5 +171,6 @@ echo "   verde de nuevo"
 
 echo
 echo "Barrera de aislamiento: EN PIE. Sabe detectar una consulta que no acota por cuenta, una"
-echo "lectura fuera del canal, una lectura sin acotar dentro del archivo exento, y un alta que le"
-echo "pone dueño ajeno a lo que escribe."
+echo "lectura fuera del canal, una lectura sin acotar dentro del archivo exento, una agregación del"
+echo "canal que no acota aunque no devuelva movimientos, y un alta que le pone dueño ajeno a lo que"
+echo "escribe."
