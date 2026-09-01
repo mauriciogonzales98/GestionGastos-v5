@@ -219,13 +219,21 @@ Los criterios del PRD que esta feature **no** puede verificar porque su endpoint
 No se dan por cumplidos ni se descartan: quedan acá con el ticket que los va a poder cubrir, para
 que ese ticket los cubra al nacer.
 
-| AC del PRD | Qué exige | Endpoint que falta | Ticket |
+| AC del PRD | Qué exige | Endpoint que faltaba | Estado |
 |---|---|---|---|
-| AC-02 | El resumen se calcula sólo sobre los movimientos propios | `GET /api/resumen` | FEAT-001c |
-| AC-03 | Consultar un movimiento ajeno responde como uno inexistente | `GET /api/movimientos/{id}` | FEAT-001b |
-| AC-04 | Modificar un movimiento ajeno lo deja sin cambios y responde como uno inexistente | `PUT /api/movimientos/{id}` | FEAT-001b |
-| AC-05 | Eliminar un movimiento ajeno lo deja en la base y responde como uno inexistente | `DELETE /api/movimientos/{id}` | FEAT-001b |
-| AC-07 | Modificar un movimiento propio conserva su propietario original | `PUT /api/movimientos/{id}` | FEAT-001b |
+| AC-02 | El resumen se calcula sólo sobre los movimientos propios | `GET /api/resumen` | **Pendiente** — FEAT-001c |
+| AC-03 | Consultar un movimiento ajeno responde como uno inexistente | `GET /api/movimientos/{id}` | ✅ **Saldado** por FEAT-001b — `EdicionDeMovimientoTests.Un_Movimiento_Ajeno_Responde_Igual_Que_Uno_Inexistente_AC05_AC06` |
+| AC-04 | Modificar un movimiento ajeno lo deja sin cambios y responde como uno inexistente | `PUT /api/movimientos/{id}` | ✅ **Saldado** por FEAT-001b — mismo test, mitad del `PUT`, más la comparación campo por campo del listado ajeno |
+| AC-05 | Eliminar un movimiento ajeno lo deja en la base y responde como uno inexistente | `DELETE /api/movimientos/{id}` | ✅ **Saldado** por FEAT-001b — `EliminacionDeMovimientoTests.Eliminar_Un_Movimiento_Ajeno_No_Lo_Toca_Y_Responde_Como_Inexistente_AC09` |
+| AC-07 | Modificar un movimiento propio conserva su propietario original | `PUT /api/movimientos/{id}` | ✅ **Saldado** por FEAT-001b — `EdicionDeMovimientoTests.Editar_No_Cambia_El_Propietario_AC04` |
+
+> **Cuatro de los cinco quedaron saldados el 2026-09-01, con FEAT-001b.** Los endpoints que
+> faltaban existen y sus tests nombran el AC del PRD que arrastraban. La forma en que se verifican
+> es más estricta de lo que esta tabla pedía: no se afirma un `404` en cada caso por separado, se
+> comparan **dos respuestas entre sí** —la del recurso ajeno y la del inexistente— porque afirmar
+> `404` en las dos pasa en verde aunque los cuerpos delaten la existencia.
+>
+> **AC-02 sigue pendiente** y su endpoint sigue sin existir. Es lo único que queda de esta tabla.
 
 NFR-01 del PRD —que la respuesta ante un dato ajeno sea indistinguible de la de un identificador
 inexistente— queda entero en esta tabla: los tres endpoints que responden por identificador son los

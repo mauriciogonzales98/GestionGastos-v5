@@ -138,4 +138,59 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
             sobranEnLaApi.Count == 0,
             $"{nombre}: la API tiene campos que el contrato no declara: {string.Join(", ", sobranEnLaApi)}");
     }
+
+    /// <summary>
+    /// Los campos que `MovimientoEditado` declara son los que el `PUT` acepta de verdad.
+    ///
+    /// Mismo mecanismo que el caso del alta: se arma el cuerpo con los nombres **del contrato**, no
+    /// con los del DTO, y después se comprueba que cada valor haya llegado. Un campo que la API
+    /// ignora se guardaría con su valor por defecto y el `200` saldría igual.
+    /// </summary>
+    [Fact]
+    public async Task Los_Campos_De_MovimientoEditado_Son_Los_Que_La_Api_Acepta_De_Verdad()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        var delContrato = TiposDelFrontend.CamposDeInterfaz("MovimientoEditado");
+
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
+
+        using var creado = await cliente.PostAsJsonAsync(
+            new Uri("/api/movimientos", UriKind.Relative),
+            new { tipo = "gasto", monto = 10m, categoriaId = 1, fecha = "2026-08-23" });
+        Assert.Equal(HttpStatusCode.Created, creado.StatusCode);
+
+        using var creadoJson = JsonDocument.Parse(await creado.Content.ReadAsStringAsync());
+        var id = creadoJson.RootElement.GetProperty("id").GetInt64();
+
+        var cuerpo = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var campo in delContrato)
+        {
+            cuerpo[campo] = campo switch
+            {
+                "tipo" => "gasto",
+                "monto" => 88.88m,
+                "categoriaId" => 2,
+                "fecha" => "2026-08-11",
+                _ => throw new InvalidOperationException(
+                    $"El contrato declara el campo `{campo}` de MovimientoEditado y este test no " +
+                    "sabe con qué valor ejercitarlo. Agregalo acá: un campo del contrato sin " +
+                    "ejercitar es un campo sin barrera."),
+            };
+        }
+
+        using var respuesta = await cliente.PutAsJsonAsync(
+            new Uri($"/api/movimientos/{id}", UriKind.Relative), cuerpo);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+
+        Assert.Equal("gasto", json.RootElement.GetProperty("tipo").GetString());
+        Assert.Equal(88.88m, json.RootElement.GetProperty("monto").GetDecimal());
+        Assert.Equal(2, json.RootElement.GetProperty("categoriaId").GetInt32());
+        Assert.Equal("2026-08-11", json.RootElement.GetProperty("fecha").GetString());
+    }
 }

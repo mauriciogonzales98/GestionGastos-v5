@@ -54,6 +54,28 @@ export interface NuevoMovimiento {
 }
 
 /**
+ * Lo que se manda al modificar un movimiento ya registrado (RF-14).
+ *
+ * Tiene los mismos campos que `NuevoMovimiento` y aun así es un tipo aparte, por el mismo motivo
+ * que `NuevaCuenta` y `Credenciales`: son dos contratos que pueden divergir. Éste ya diverge en
+ * `fecha`.
+ *
+ * `fecha` es OBLIGATORIA acá y opcional al registrar. Ausente significa "hoy" en el alta, que es lo
+ * correcto; en una edición sería una trampa —el movimiento saltaría a hoy en silencio—, así que se
+ * exige.
+ *
+ * No lleva moneda: no se elige al registrar y tampoco al editar. Tampoco lleva propietario: lo
+ * decide la sesión, nunca el cuerpo.
+ */
+export interface MovimientoEditado {
+  tipo: TipoMovimiento;
+  monto: number;
+  categoriaId: number;
+  /** `YYYY-MM-DD`. Sin hora ni zona horaria. */
+  fecha: string;
+}
+
+/**
  * El formato único de error de las dos capas (RFC 9457). La clave de `errors` es el nombre del
  * campo de la petición, y eso es lo que permite poner cada mensaje al lado de su control en vez de
  * volcar un texto suelto.

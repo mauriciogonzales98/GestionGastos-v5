@@ -3,7 +3,9 @@ namespace GestionGastos.Api.Dominio;
 /// <summary>
 /// El hecho registrado: dinero que salió (gasto) o que entró (ingreso) de la cuenta.
 ///
-/// Se crea y no cambia. La edición y la baja llegan en FEAT-001b.
+/// Desde FEAT-001b tiene ciclo de vida: se crea, se modifica y se elimina. La eliminación es
+/// definitiva —no hay baja lógica ni deshacer— y por eso es la única transición irreversible del
+/// modelo. Lo que NO cambia nunca al editar es su propietario (INV-01).
 /// </summary>
 public class Movimiento
 {

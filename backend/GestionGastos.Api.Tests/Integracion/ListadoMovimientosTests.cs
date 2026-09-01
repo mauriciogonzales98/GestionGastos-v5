@@ -77,7 +77,7 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
 
         var sql = MovimientosConsulta
             // El id no importa: este test sólo mira el SQL que se genera, no filas.
-            .DelMes(contexto, usuarioId: 1, RangoDelMes.De(new DateOnly(2026, 8, 15)))
+            .Filtrado(contexto, usuarioId: 1, RangoDelMes.De(new DateOnly(2026, 8, 15)))
             .ToQueryString();
 
         Assert.Contains("ORDER BY", sql, StringComparison.OrdinalIgnoreCase);

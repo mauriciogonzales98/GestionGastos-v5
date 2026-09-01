@@ -40,7 +40,7 @@ public static class MovimientosEndpoints
 
             // Se valida TODO antes de tocar la base: la respuesta junta los errores de los cuatro
             // campos en una sola pasada, en vez de hacer corregir de a uno.
-            var errores = ValidacionDelAlta.Validar(peticion, categoria, out var tipo);
+            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, out var tipo);
             if (errores.Count > 0)
             {
                 return Results.ValidationProblem(errores);
@@ -84,25 +84,55 @@ public static class MovimientosEndpoints
                 moneda.Codigo,
                 movimiento.Fecha);
 
-            // Sin Location: no existe GET /api/movimientos/{id}, así que la URL apuntaría a un 404.
-            // Un encabezado que promete un recurso inalcanzable es peor que no ponerlo. Cuando
-            // FEAT-001b agregue la lectura individual, vuelve con su ruta de verdad.
-            return Results.Created((string?)null, creado);
+            // El Location apunta a la lectura individual, que existe desde FEAT-001b. Hasta
+            // entonces este Created iba sin encabezado, porque la URL habría dado un 404 y un
+            // encabezado que promete un recurso inalcanzable es peor que no ponerlo.
+            return Results.Created($"/api/movimientos/{movimiento.Id}", creado);
         });
 
         rutas.MapGet("/api/movimientos", async (
             GestionGastosDbContext contexto,
             IUsuarioActual usuarioActual,
             TimeProvider reloj,
-            TimeZoneInfo zona) =>
+            TimeZoneInfo zona,
+            DateOnly? desde,
+            DateOnly? hasta,
+            int? categoriaId) =>
         {
-            // El recorte al mes actual es del servidor y no se expone como control (FR-007):
-            // ponerlo en el cliente lo convertiría en algo que el cliente puede cambiar. Los
-            // parámetros de rango llegan en FEAT-001b.
+            // Sin rango pedido, el recorte sigue siendo el mes actual, y lo sigue decidiendo el
+            // SERVIDOR (FR-013): que el filtro exista no convierte al valor por omisión en algo que
+            // el cliente elige. Quien no manda nada ve exactamente lo que veía antes de FEAT-001b.
             var hoy = DiaActual.De(reloj, zona);
 
+            // Los dos extremos van juntos o no va ninguno. Con medio rango habría que suponer un
+            // extremo abierto que nadie declaró, y ese supuesto es distinto para cada quien.
+            if (desde is null != hasta is null)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>(StringComparer.Ordinal)
+                {
+                    ["rango"] = ["Indicá las dos fechas del rango, o ninguna."],
+                });
+            }
+
+            // Un rango invertido se rechaza en vez de devolver una lista vacía: la lista vacía se
+            // lee como "no hay nada" y esconde que la pregunta estaba mal formada (FR-015).
+            var rango = desde is { } d && hasta is { } h
+                ? RangoDeFechas.De(d, h)
+                : RangoDelMes.De(hoy);
+
+            if (rango is null)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>(StringComparer.Ordinal)
+                {
+                    ["rango"] = ["La fecha de inicio no puede ser posterior a la de fin."],
+                });
+            }
+
+            // La categoría NO se valida contra el catálogo: una que no existe simplemente no deja
+            // pasar nada. Rechazarla con un 400 confirmaría cuáles existen, que es la misma fuga
+            // que el 404 uniforme cierra en las rutas por identificador.
             var movimientos = await MovimientosConsulta
-                .DelMes(contexto, usuarioActual.Id, RangoDelMes.De(hoy))
+                .Filtrado(contexto, usuarioActual.Id, rango.Value, categoriaId)
                 .Select(m => new MovimientoDto(
                     m.Id,
                     m.Tipo == TipoMovimiento.Gasto ? TipoMovimientoTexto.Gasto : TipoMovimientoTexto.Ingreso,
@@ -116,5 +146,136 @@ public static class MovimientosEndpoints
             // Arreglo vacío si no hay movimientos en el mes: NO es un 404 (FR-012).
             return Results.Ok(movimientos);
         });
+        // GET /api/movimientos/{id} — la lectura individual (FR-001).
+        //
+        // Pasa por el canal, que acota por cuenta en la consulta. El 404 es el mismo para las tres
+        // situaciones —no existe, es de otra cuenta, ya se eliminó— y eso no es comodidad: un 403
+        // sobre lo ajeno confirmaría que ese identificador existe, y como son autoincrementales y
+        // contiguos, confirmarlo permite contar los movimientos de otra cuenta sin ver ninguno
+        // (FR-008, D-06).
+        rutas.MapGet("/api/movimientos/{id:long}", async (
+            long id,
+            GestionGastosDbContext contexto,
+            IUsuarioActual usuarioActual) =>
+        {
+            var movimiento = await MovimientosConsulta
+                .PropioPorId(contexto, usuarioActual.Id, id)
+                .Select(m => new MovimientoDto(
+                    m.Id,
+                    m.Tipo == TipoMovimiento.Gasto ? TipoMovimientoTexto.Gasto : TipoMovimientoTexto.Ingreso,
+                    m.Monto,
+                    m.CategoriaId,
+                    m.Categoria!.Nombre,
+                    m.Moneda!.Codigo,
+                    m.Fecha))
+                .FirstOrDefaultAsync();
+
+            return movimiento is null ? NoExiste() : Results.Ok(movimiento);
+        });
+
+        // PUT /api/movimientos/{id} — la edición (FR-002).
+        //
+        // El orden importa y es parte del contrato: se BUSCA primero, acotado por cuenta, y recién
+        // después se valida el cuerpo. Al revés, un movimiento ajeno con un cuerpo inválido
+        // respondería 400 en vez de 404, y ese 400 confirma que se llegó a mirar el cuerpo — o sea,
+        // que el identificador existe.
+        rutas.MapPut("/api/movimientos/{id:long}", async (
+            long id,
+            MovimientoEditadoDto peticion,
+            GestionGastosDbContext contexto,
+            IUsuarioActual usuarioActual) =>
+        {
+            var movimiento = await MovimientosConsulta
+                .PropioPorId(contexto, usuarioActual.Id, id)
+                .FirstOrDefaultAsync();
+
+            if (movimiento is null)
+            {
+                return NoExiste();
+            }
+
+            // Mismo criterio de búsqueda que el alta: predefinida del sistema o propia de esta
+            // cuenta, y activa. Buscar sólo por id dejaría entrar la categoría privada de otra
+            // cuenta cuando el ticket 3 las introduzca, y el nombre ajeno aparecería en el listado.
+            var categoria = peticion.CategoriaId is { } categoriaId
+                ? await contexto.Categorias.FirstOrDefaultAsync(c =>
+                    c.Id == categoriaId
+                    && (c.UsuarioId == null || c.UsuarioId == usuarioActual.Id)
+                    && c.Activa)
+                : null;
+
+            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, out var tipo);
+
+            if (peticion.Fecha is null)
+            {
+                // Obligatoria sólo al editar: ausente significaría "hoy", y una edición sin fecha
+                // movería el movimiento en silencio.
+                errores["fecha"] = ["Indicá la fecha del movimiento."];
+            }
+
+            if (errores.Count > 0)
+            {
+                return Results.ValidationProblem(errores);
+            }
+
+            // El propietario NO se toca: no es un campo del contrato, y si llegara igual en el JSON
+            // se descarta al deserializar. Lo decide la sesión, siempre (INV-01).
+            movimiento.Tipo = tipo;
+            movimiento.Monto = peticion.Monto!.Value;
+            movimiento.CategoriaId = categoria!.Id;
+            movimiento.Fecha = peticion.Fecha!.Value;
+
+            await contexto.SaveChangesAsync();
+
+            var moneda = await contexto.Monedas.SingleAsync(m => m.Id == movimiento.MonedaId);
+
+            return Results.Ok(new MovimientoDto(
+                movimiento.Id,
+                tipo.ATexto(),
+                movimiento.Monto,
+                categoria.Id,
+                categoria.Nombre,
+                moneda.Codigo,
+                movimiento.Fecha));
+        });
+
+        // DELETE /api/movimientos/{id} — la eliminación (FR-006).
+        //
+        // Borra la fila: no hay baja lógica (D-09). El PRD usa ese término explícitamente para las
+        // categorías y no para los movimientos, y el contraste parece deliberado.
+        //
+        // La carrera —dos operaciones sobre el mismo movimiento a la vez— se resuelve sola: la
+        // segunda no lo encuentra por el canal y responde 404, que es justo lo que pide AC-10. No
+        // hace falta concurrencia optimista porque no hay estado que corromper, sólo una operación
+        // que llegó tarde.
+        rutas.MapDelete("/api/movimientos/{id:long}", async (
+            long id,
+            GestionGastosDbContext contexto,
+            IUsuarioActual usuarioActual) =>
+        {
+            var movimiento = await MovimientosConsulta
+                .PropioPorId(contexto, usuarioActual.Id, id)
+                .FirstOrDefaultAsync();
+
+            if (movimiento is null)
+            {
+                return NoExiste();
+            }
+
+            contexto.Movimientos.Remove(movimiento);
+            await contexto.SaveChangesAsync();
+
+            return Results.NoContent();
+        });
     }
+
+    /// <summary>
+    /// La respuesta única de "ese movimiento no está a tu alcance".
+    ///
+    /// Está en un solo lugar a propósito: la indistinguibilidad entre lo ajeno y lo inexistente
+    /// (FR-008) se sostiene sola mientras haya una sola forma de decirlo. Dos `Results.NotFound()`
+    /// escritos por separado divergen el día que alguien mejora un mensaje.
+    /// </summary>
+    private static IResult NoExiste() =>
+        Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "No encontrado");
 }
