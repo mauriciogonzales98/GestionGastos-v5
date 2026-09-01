@@ -209,40 +209,40 @@ combinación de filtros devuelve exactamente el subconjunto que corresponde.
 
 ### Tests de la historia 3
 
-- [ ] T026 [TEST] [US3] Crear `backend/GestionGastos.Api.Tests/Integracion/FiltrosDelListadoTests.cs`
+- [X] T026 [TEST] [US3] Crear `backend/GestionGastos.Api.Tests/Integracion/FiltrosDelListadoTests.cs`
   con el reloj clavado y el test de **AC-13** y **SC-006**: sin filtros, el listado devuelve
   exactamente lo mismo que devolvía antes de esta feature — el mes en curso **del servidor**. Es la
   prueba de regresión de que agregar filtros no cambió el comportamiento por omisión
-- [ ] T027 [TEST] [US3] Agregar el test de **AC-14**: un rango de un solo día que contiene un
+- [X] T027 [TEST] [US3] Agregar el test de **AC-14**: un rango de un solo día que contiene un
   movimiento lo devuelve. **Que el resultado no sea vacío es lo que prueba que los extremos se
   incluyen**; un rango amplio pasaría en verde con los extremos excluidos
-- [ ] T028 [TEST] [P] [US3] Agregar los tests de **AC-11** y **AC-12**: con filtro de categoría
+- [X] T028 [TEST] [P] [US3] Agregar los tests de **AC-11** y **AC-12**: con filtro de categoría
   sólo esa; sin filtro, todas
-- [ ] T029 [TEST] [P] [US3] Agregar el test de **AC-15**: categoría y rango a la vez devuelven los
+- [X] T029 [TEST] [P] [US3] Agregar el test de **AC-15**: categoría y rango a la vez devuelven los
   que cumplen **las dos** condiciones. Sembrar un movimiento que cumpla sólo una de las dos: sin
   él, un `or` implementado por error pasa en verde
-- [ ] T030 [TEST] [P] [US3] Agregar el test de **AC-16**: un rango sin movimientos devuelve `[]` y
+- [X] T030 [TEST] [P] [US3] Agregar el test de **AC-16**: un rango sin movimientos devuelve `[]` y
   **no** un `404`
-- [ ] T031 [TEST] [P] [US3] Agregar el test de **AC-17**: filtrar por una categoría inexistente o de
+- [X] T031 [TEST] [P] [US3] Agregar el test de **AC-17**: filtrar por una categoría inexistente o de
   otra cuenta devuelve `[]` y no un `400`. Rechazarla confirmaría cuáles existen
-- [ ] T032 [TEST] [US3] Agregar los tests de **FR-015**: rango invertido (`desde > hasta`) responde
+- [X] T032 [TEST] [US3] Agregar los tests de **FR-015**: rango invertido (`desde > hasta`) responde
   `400`, y medio rango —sólo `desde` o sólo `hasta`— también. La lista vacía está prohibida acá:
   se lee como "no hay nada" y esconde el error
 
 ### Implementación de la historia 3
 
-- [ ] T033 [US3] Crear `backend/GestionGastos.Api/Dominio/RangoDeFechas.cs` generalizando
+- [X] T033 [US3] Crear `backend/GestionGastos.Api/Dominio/RangoDeFechas.cs` generalizando
   `RangoDelMes` ([D-04](./research.md)), con el invariante `Desde <= Hasta` en el tipo (INV-05) y
   la construcción del mes como fábrica. **Registrar el tipo nuevo en `ArgumentosDePrueba` de
   `BarreraDeAislamientoTests`**: si no, la barrera lanza a propósito diciendo que esa consulta queda
   sin vigilar. No es un obstáculo, es la barrera trabajando
-- [ ] T034 [US3] Extender la consulta del listado en
+- [X] T034 [US3] Extender la consulta del listado en
   `backend/GestionGastos.Api/Movimientos/MovimientosConsulta.cs` para aceptar el rango y la
   categoría opcional, conservando el acotado por cuenta y el orden explícito `fecha DESC, id DESC`
-- [ ] T035 [US3] Aceptar `desde`, `hasta` y `categoriaId` como parámetros de consulta en
+- [X] T035 [US3] Aceptar `desde`, `hasta` y `categoriaId` como parámetros de consulta en
   `GET /api/movimientos` en `backend/GestionGastos.Api/Movimientos/MovimientosEndpoints.cs`, con el
   mes en curso del servidor como valor por omisión (FR-013) y la validación de FR-015
-- [ ] T036 [VERIFY] [US3] Puerta del backend completa
+- [X] T036 [VERIFY] [US3] Puerta del backend completa
 
 **Checkpoint**: las tres historias entregadas. La superficie de movimientos es de 5 endpoints y las
 cinco respetan el aislamiento.

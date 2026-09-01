@@ -86,7 +86,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
 
         var sql = MovimientosConsulta
             // El id no importa: este test sólo mira el SQL que se genera, no filas.
-            .DelMes(contexto, usuarioId: 1, RangoDelMes.De(new DateOnly(2026, 8, 15)))
+            .Filtrado(contexto, usuarioId: 1, RangoDelMes.De(new DateOnly(2026, 8, 15)))
             .ToQueryString();
 
         Assert.Contains("WHERE", sql, StringComparison.OrdinalIgnoreCase);
@@ -154,9 +154,14 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
         {
             var t when t == typeof(GestionGastosDbContext) => contexto,
             var t when t == typeof(long) => 1L,
-            var t when t == typeof(RangoDelMes) => RangoDelMes.De(new DateOnly(2026, 8, 15)),
+            var t when t == typeof(RangoDeFechas) => RangoDelMes.De(new DateOnly(2026, 8, 15)),
             var t when t == typeof(DateOnly) => new DateOnly(2026, 8, 15),
             var t when t == typeof(int) => 1,
+
+            // Un filtro opcional se ejercita CON valor, no con null: con null el predicado se
+            // simplifica y el SQL que se inspecciona deja de ser el que corre en producción cuando
+            // alguien filtra de verdad.
+            var t when t == typeof(int?) => (int?)1,
             var t when t == typeof(string) => "x",
             _ => throw new InvalidOperationException(
                 $"`MovimientosConsulta.{consulta.Name}` tiene un parámetro de tipo " +

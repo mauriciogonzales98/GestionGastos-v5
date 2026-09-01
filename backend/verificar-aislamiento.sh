@@ -83,8 +83,13 @@ fi
 echo "   verde, como se esperaba"
 
 echo "== 2/6 · sin el acotado por cuenta tiene que ponerse en ROJO"
-# Se le quita `m.UsuarioId == usuarioId` al WHERE del listado.
-perl -0pi -e 's/\.Where\(m => m\.UsuarioId == usuarioId && /.Where(m => /' "$CONSULTA"
+# Se le quita `m.UsuarioId == usuarioId` al WHERE de TODAS las consultas del canal.
+#
+# El /g no es cosmético: desde FEAT-001b el canal tiene dos consultas acotadas —el listado y la
+# lectura por identificador— y desarmar sólo la primera dejaría la otra en pie. Además la guarda de
+# abajo exige que no quede ninguna, así que sin el /g el script se acusa a sí mismo de no haber
+# podido desarmar.
+perl -0pi -e 's/\.Where\(m => m\.UsuarioId == usuarioId && /.Where(m => /g' "$CONSULTA"
 grep -q 'm.UsuarioId == usuarioId' "$CONSULTA" && {
   echo "ERROR: no se pudo quitar el acotado; el script quedó mirando un código que ya no existe." >&2
   echo "       Actualizá la sustitución de verificar-aislamiento.sh." >&2
