@@ -251,24 +251,24 @@ cinco respetan el aislamiento.
 
 ## Phase 6: Polish & cierre
 
-- [ ] T037 [P] Corregir el comentario de `backend/GestionGastos.Api/Dominio/Movimiento.cs`, que dice
+- [X] T037 [P] Corregir el comentario de `backend/GestionGastos.Api/Dominio/Movimiento.cs`, que dice
   *"Se crea y no cambia. La edición y la baja llegan en FEAT-001b"*. Esta feature lo vuelve falso, y
   un comentario que miente es peor que ninguno
-- [ ] T038 [P] Actualizar la tabla de *Deuda registrada* de
+- [X] T038 [P] Actualizar la tabla de *Deuda registrada* de
   `specs/004-aislamiento-cuentas/spec.md`: **AC-02**, **AC-03**, **AC-04** y **AC-07** quedan
   cubiertos por los tests de US1 y US2, con el test que los cubre nombrado. **AC-05** también.
   Comprobar que lo que quede en esa tabla siga siendo cierto — es el mismo error que el README del
   plan tuvo durante cuatro tickets
-- [ ] T039 [P] Agregar `verificar-aislamiento.sh` a la lista de barreras corridas y confirmar que
+- [X] T039 [P] Agregar `verificar-aislamiento.sh` a la lista de barreras corridas y confirmar que
   `./backend/verificar-autorizacion.sh` cubre los **tres endpoints nuevos** sin tocar nada: exige
   sesión en todo endpoint y los descubre solo. Si no los cubriera, es un hallazgo
-- [ ] T040 [P] Correr la cobertura con `dotnet test backend/GestionGastos.slnx --settings
+- [X] T040 [P] Correr la cobertura con `dotnet test backend/GestionGastos.slnx --settings
   backend/cobertura.runsettings` y revisar que los tres endpoints nuevos y `PropioPorId` queden
   medidos. Confirmar que el filtro `[*]*d__*` sigue dejando el reporte en 54 clases más las nuevas,
   sin máquinas de estado
-- [ ] T041 [P] Recorrer [quickstart.md](./quickstart.md) de punta a punta, incluidos el paso 5 —el
+- [X] T041 [P] Recorrer [quickstart.md](./quickstart.md) de punta a punta, incluidos el paso 5 —el
   `diff` de los dos cuerpos tiene que salir **vacío**— y el paso 6 con sus siete casos de filtros
-- [ ] T042 [VERIFY] Puerta de cierre de feature, entera y con su salida a la vista: `dotnet format
+- [X] T042 [VERIFY] Puerta de cierre de feature, entera y con su salida a la vista: `dotnet format
   --verify-no-changes`, build con `-warnaserror`, `dotnet test` completo, cobertura, y las
   **cuatro** barreras. Más la puerta del frontend entera —lint, format, typecheck, tests, build—,
   que acá sí importa: `tipos.ts` cambió

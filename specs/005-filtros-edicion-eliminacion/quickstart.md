@@ -13,11 +13,17 @@ que el código no atrapa.
 - MySQL 8.4.10 en `localhost:3306`, con el esquema `gestiongastos` migrado.
 - `ConnectionStrings__Default` apuntando al esquema de **desarrollo**, no al de tests.
 - La API corriendo: `dotnet run --project backend/GestionGastos.Api`.
-- `curl` y `jq`.
+- `curl` y `jq`. Si no tenés `jq`, cualquier lector de JSON sirve: los pasos sólo leen un campo.
 
 ```bash
 API=http://localhost:5xxx   # el puerto que imprime dotnet run
 ```
+
+> **No uses `date +%F` para armar fechas.** Ésa es la fecha de tu máquina, y el listado recorta al
+> mes en curso **del servidor**, que puede estar en otro día — en Argentina (UTC−3) difieren todas
+> las noches a partir de las 21:00. Un recorrido armado con `date` funciona 21 horas por día y
+> desconcierta las otras 3: el movimiento editado desaparece del listado y parece un bug. El paso 2
+> saca el "hoy" del servidor, que es el único que manda acá.
 
 ---
 
@@ -43,12 +49,17 @@ done
 ```bash
 CAT=$(curl -s -b $A $API/api/categorias | jq '[.[] | select(.tipo=="gasto")][0].id')
 
-MOV_A=$(curl -s -b $A -X POST $API/api/movimientos -H 'Content-Type: application/json' \
-  -d "{\"tipo\":\"gasto\",\"monto\":1500,\"categoriaId\":$CAT}" | jq .id)
+# El alta sin `fecha` la completa el servidor con SU hoy. Eso lo vuelve la forma correcta de
+# averiguarlo: no hay endpoint que lo diga, y la fecha de tu máquina no sirve.
+CREADO=$(curl -s -b $A -X POST $API/api/movimientos -H 'Content-Type: application/json' \
+  -d "{\"tipo\":\"gasto\",\"monto\":1500,\"categoriaId\":$CAT}")
+MOV_A=$(echo "$CREADO" | jq .id)
+HOY=$(echo "$CREADO" | jq -r .fecha)
+
 MOV_B=$(curl -s -b $B -X POST $API/api/movimientos -H 'Content-Type: application/json' \
   -d "{\"tipo\":\"gasto\",\"monto\":2500,\"categoriaId\":$CAT}" | jq .id)
 
-echo "A=$MOV_A  B=$MOV_B"
+echo "A=$MOV_A  B=$MOV_B  hoy-del-servidor=$HOY"
 ```
 
 ## 3. El `Location` volvió
@@ -68,7 +79,7 @@ feature el encabezado no venía, porque habría apuntado a un `404`.
 
 ```bash
 curl -s -b $A -X PUT $API/api/movimientos/$MOV_A -H 'Content-Type: application/json' \
-  -d "{\"tipo\":\"gasto\",\"monto\":15000,\"categoriaId\":$CAT,\"fecha\":\"$(date +%F)\"}" | jq .monto
+  -d "{\"tipo\":\"gasto\",\"monto\":15000,\"categoriaId\":$CAT,\"fecha\":\"$HOY\"}" | jq .monto
 
 curl -s -b $A $API/api/movimientos | jq "[.[] | select(.id==$MOV_A)][0].monto"
 ```
@@ -97,7 +108,7 @@ for id in $MOV_B $INEXISTENTE; do
   curl -s -b $A -o /tmp/cuerpo-$id.json -w 'GET    %{http_code} %{content_type}\n' \
     $API/api/movimientos/$id
   curl -s -b $A -X PUT $API/api/movimientos/$id -H 'Content-Type: application/json' \
-    -d "{\"tipo\":\"gasto\",\"monto\":1,\"categoriaId\":$CAT,\"fecha\":\"$(date +%F)\"}" \
+    -d "{\"tipo\":\"gasto\",\"monto\":1,\"categoriaId\":$CAT,\"fecha\":\"$HOY\"}" \
     -o /dev/null -w 'PUT    %{http_code}\n'
   curl -s -b $A -X DELETE $API/api/movimientos/$id -o /dev/null -w 'DELETE %{http_code}\n'
 done
@@ -126,8 +137,7 @@ intacto — AC-06 y AC-09.
 # Sin filtros: el mes en curso del servidor
 curl -s -b $B $API/api/movimientos | jq length
 
-# Rango con los extremos incluidos: un solo día, el de hoy
-HOY=$(date +%F)
+# Rango con los extremos incluidos: un solo día, el de hoy DEL SERVIDOR ($HOY, del paso 2)
 curl -s -b $B "$API/api/movimientos?desde=$HOY&hasta=$HOY" | jq length
 
 # Un mes sin nada
