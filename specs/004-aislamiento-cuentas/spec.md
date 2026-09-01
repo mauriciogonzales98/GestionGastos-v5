@@ -221,19 +221,31 @@ que ese ticket los cubra al nacer.
 
 | AC del PRD | Qué exige | Endpoint que faltaba | Estado |
 |---|---|---|---|
-| AC-02 | El resumen se calcula sólo sobre los movimientos propios | `GET /api/resumen` | **Pendiente** — FEAT-001c |
+| AC-02 | El resumen se calcula sólo sobre los movimientos propios | `GET /api/resumen` | ✅ **Saldado** por FEAT-001c — `ResumenDelPeriodoTests.El_Resumen_No_Suma_Ningun_Monto_De_Otra_Cuenta_AC02` |
 | AC-03 | Consultar un movimiento ajeno responde como uno inexistente | `GET /api/movimientos/{id}` | ✅ **Saldado** por FEAT-001b — `EdicionDeMovimientoTests.Un_Movimiento_Ajeno_Responde_Igual_Que_Uno_Inexistente_AC05_AC06` |
 | AC-04 | Modificar un movimiento ajeno lo deja sin cambios y responde como uno inexistente | `PUT /api/movimientos/{id}` | ✅ **Saldado** por FEAT-001b — mismo test, mitad del `PUT`, más la comparación campo por campo del listado ajeno |
 | AC-05 | Eliminar un movimiento ajeno lo deja en la base y responde como uno inexistente | `DELETE /api/movimientos/{id}` | ✅ **Saldado** por FEAT-001b — `EliminacionDeMovimientoTests.Eliminar_Un_Movimiento_Ajeno_No_Lo_Toca_Y_Responde_Como_Inexistente_AC09` |
 | AC-07 | Modificar un movimiento propio conserva su propietario original | `PUT /api/movimientos/{id}` | ✅ **Saldado** por FEAT-001b — `EdicionDeMovimientoTests.Editar_No_Cambia_El_Propietario_AC04` |
 
-> **Cuatro de los cinco quedaron saldados el 2026-09-01, con FEAT-001b.** Los endpoints que
-> faltaban existen y sus tests nombran el AC del PRD que arrastraban. La forma en que se verifican
-> es más estricta de lo que esta tabla pedía: no se afirma un `404` en cada caso por separado, se
-> comparan **dos respuestas entre sí** —la del recurso ajeno y la del inexistente— porque afirmar
-> `404` en las dos pasa en verde aunque los cuerpos delaten la existencia.
+> **Esta tabla quedó vacía de pendientes el 2026-09-01.** Cuatro de los cinco los saldó FEAT-001b
+> y el último, AC-02, lo saldó FEAT-001c. Todos los endpoints que faltaban existen y sus tests
+> nombran el AC del PRD que arrastraban.
 >
-> **AC-02 sigue pendiente** y su endpoint sigue sin existir. Es lo único que queda de esta tabla.
+> La forma en que se verifican los cuatro de FEAT-001b es más estricta de lo que esta tabla pedía:
+> no se afirma un `404` en cada caso por separado, se comparan **dos respuestas entre sí** —la del
+> recurso ajeno y la del inexistente— porque afirmar `404` en las dos pasa en verde aunque los
+> cuerpos delaten la existencia.
+>
+> **AC-02 exigía otra cosa, y por eso se verifica distinto.** Un resumen no revela la existencia de
+> nada ajeno: revela su *monto*, sumado adentro de un número que se ve idéntico a uno correcto. No
+> hay dos respuestas que comparar, así que el test compara el total contra un valor calculado a
+> mano, con la otra cuenta cargando dos órdenes de magnitud más — de modo que una contaminación no
+> pueda confundirse con un redondeo. Y comprueba **las dos** cuentas, no sólo una: un aislamiento
+> que filtre en una sola dirección pasaría mirando nada más que a la primera.
+>
+> FEAT-001c además ensanchó `verificar-aislamiento.sh` con un quinto desarme, porque la barrera
+> enumeraba las consultas del canal por su forma de retorno y una agregación no devuelve
+> movimientos: ninguna de las dos mitades de la barrera la estaba mirando.
 
 NFR-01 del PRD —que la respuesta ante un dato ajeno sea indistinguible de la de un identificador
 inexistente— queda entero en esta tabla: los tres endpoints que responden por identificador son los

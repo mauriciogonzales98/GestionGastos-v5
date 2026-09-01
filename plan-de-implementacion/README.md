@@ -25,7 +25,7 @@ producto, el plan con el orden y sus razones, y los PRD de los tickets.
 
 ### Ya implementado
 
-Verificado contra el código el 2026-08-31.
+Verificado contra el código el 2026-09-01.
 
 | Orden | Ticket | Título | Qué lo demuestra en el código | PRD |
 |-------|--------|--------|-------------------------------|-----|
@@ -37,6 +37,8 @@ Verificado contra el código el 2026-08-31.
 | 6 | DISC-001-01a | Identidad y sesión | `Sesion/`, `Cuentas/` | `prds/implementados/prd-DISC-001-01a.md` |
 | 7 | DISC-001-01b | Límite de intentos fallidos | `specs/003-limite-intentos/` | `prds/implementados/prd-DISC-001-01b.md` |
 | 8 | DISC-001-01c | Aislamiento entre cuentas verificado | `specs/004-aislamiento-cuentas/`, `verificar-aislamiento.sh` | `prds/pendientes/prd-DISC-001-01c.md` |
+| 9 | FEAT-001b | Filtros del listado, edición y eliminación | `specs/005-filtros-edicion-eliminacion/`, `GET`/`PUT`/`DELETE /api/movimientos/{id}` | no está en el repo |
+| 10 | FEAT-001c | Resumen del mes con desglose por categoría | `specs/006-resumen-del-mes/`, `GET /api/resumen`, `Resumenes/` | no está en el repo |
 
 Los FIX/FEAT de infraestructura (D-1 a D-4) salieron intercalados porque el usuario decidió cerrar
 la deuda de infraestructura antes de seguir con features de producto; el mapa de
@@ -47,8 +49,6 @@ la deuda de infraestructura antes de seguir con features de producto; el mapa de
 
 | Orden | # | Título | PRD |
 |-------|---|--------|-----|
-| 9 | FEAT-001b | Filtros del listado, edición y eliminación | no está en el repo |
-| 10 | FEAT-001c | Resumen del mes con desglose por categoría | no está en el repo |
 | 11 | 3 | Categorías propias del usuario | `prds/pendientes/prd-DISC-001-03.md` |
 | 12 | 4a | Catálogo de monedas y totales por moneda | `prds/pendientes/prd-DISC-001-04a.md` |
 | 13 | 4b | Registrar y filtrar en varias monedas | `prds/pendientes/prd-DISC-001-04b.md` |
@@ -59,11 +59,15 @@ la deuda de infraestructura antes de seguir con features de producto; el mapa de
 `2` no tiene dependencias ni bloquea a nadie: entra en cualquier hueco. El resto es secuencial por
 las razones que están en `plan-DISC-001.md`.
 
-**FEAT-001b y FEAT-001c son los que más destraban.** Entre los dos aportan los cuatro endpoints que
-faltan —`GET`, `PUT` y `DELETE /api/movimientos/{id}`, y `GET /api/resumen`—, y de ellos dependen
-los cinco criterios de aislamiento que la feature 004 no pudo verificar y dejó anotados en la tabla
-de *Deuda registrada* de `specs/004-aislamiento-cuentas/spec.md`: AC-02, AC-03, AC-04, AC-05 y
-AC-07. La barrera de aislamiento ya está en pie, así que esos endpoints nacen vigilados.
+**FEAT-001b y FEAT-001c eran los que más destrababan, y ya están.** Entre los dos aportaron los
+cuatro endpoints que faltaban —`GET`, `PUT` y `DELETE /api/movimientos/{id}`, y `GET /api/resumen`—
+y con ellos quedaron saldados los cinco criterios de aislamiento que la feature 004 no había podido
+verificar: AC-02, AC-03, AC-04, AC-05 y AC-07. La tabla de *Deuda registrada* de
+`specs/004-aislamiento-cuentas/spec.md` quedó sin ninguna fila pendiente.
+
+Las dos features fueron **de backend**: el frontend recibió sólo la declaración del contrato en
+`frontend/src/api/tipos.ts`. Las pantallas que consumen esos endpoints —el listado con filtros, la
+edición, y el gráfico que grafique el resumen— son de los tickets 5 y 6.
 
 ## Lo que no está acá
 
