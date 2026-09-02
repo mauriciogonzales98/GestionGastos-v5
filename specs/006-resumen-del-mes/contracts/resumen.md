@@ -76,7 +76,19 @@ Exige sesión, como todo endpoint (RF-03). Sin ella: `401`.
 | `totalIngresado` | `number` | Suma de los ingresos **de esta moneda** en el período. `0` si no hubo |
 | `totalGastado` | `number` | Suma de los gastos **de esta moneda**. `0` si no hubo |
 | `balance` | `number` | `totalIngresado - totalGastado`. **Puede ser negativo**, y eso es un resultado, no un error |
-| `gastosPorCategoria` | `TotalPorCategoria[]` | Sólo las categorías con al menos un gasto. `[]` es normal |
+| `gastosPorCategoria` | `TotalPorCategoria[]` | Sólo las categorías con al menos un gasto. `[]` es normal. **Ordenado**: de mayor a menor total, y el empate lo desempata el `categoriaId` ascendente |
+
+### El orden del desglose
+
+`gastosPorCategoria` viene **de mayor a menor total, desempatado por `categoriaId` ascendente**, y
+es parte del contrato: quien lo grafique puede confiar en él sin reordenar.
+
+El desempate está escrito porque hace falta. La consulta agregada no lleva `ORDER BY` —el orden es
+un requisito del listado, no del acotado—, así que dos categorías con el mismo total llegan en el
+orden que el motor elija: comprobado, el de carga. Sin desempatar, dos pedidos idénticos devuelven
+las barras intercambiadas.
+
+`monedas` también viene ordenado, por `monedaId` ascendente, y por el mismo motivo.
 
 ### `TotalPorCategoria`
 

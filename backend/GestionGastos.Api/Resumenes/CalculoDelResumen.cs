@@ -69,9 +69,17 @@ public static class CalculoDelResumen
             //
             // Se filtra sobre las mismas filas de las que salen los totales, no con una consulta
             // aparte: es lo que mantiene la igualdad estructural (D-04).
+            //
+            // De mayor a menor, y el empate lo desempata el id. El desempate NO es prolijidad: el
+            // agregado llega sin `ORDER BY` a propósito (`MovimientosConsulta.Agrupado`), así que
+            // dos categorías con el mismo total salen en el orden que el motor elija ese día — y
+            // comprobado, sale el de carga. Sin desempatar, las barras del gráfico se intercambian
+            // solas entre dos pedidos idénticos. Es el mismo motivo por el que el catálogo de
+            // monedas se ordena por id unas líneas más arriba.
             [.. suyas
                 .Where(f => f.Tipo == TipoMovimiento.Gasto)
                 .OrderByDescending(f => f.Total)
+                .ThenBy(f => f.CategoriaId)
                 .Select(f => new TotalPorCategoria(f.CategoriaId, f.CategoriaNombre, f.Total))]);
     }
 }

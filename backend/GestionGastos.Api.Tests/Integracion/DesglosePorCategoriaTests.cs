@@ -202,6 +202,44 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
                 .Select(c => c.GetProperty("categoriaId").GetInt32()));
     }
 
+    /// <summary>
+    /// El desglose viene ordenado de mayor a menor, y **dos categorías empatadas desempatan por
+    /// identificador**.
+    ///
+    /// El orden es parte del contrato porque el gráfico del ticket 5 lo va a consumir: sin decirlo,
+    /// quien lo dibuje no sabe si puede confiar en él o tiene que reordenar, y las dos decisiones
+    /// son igual de razonables.
+    ///
+    /// **El desempate no es prolijidad.** La consulta agregada no lleva `ORDER BY` a propósito
+    /// (`MovimientosConsulta.Agrupado`), así que el orden en que llegan las filas empatadas es el
+    /// que el motor elija ese día. Sin desempate, dos categorías con el mismo total se intercambian
+    /// entre dos pedidos idénticos y las barras del gráfico saltan solas — que es exactamente el
+    /// motivo por el que el catálogo de monedas ya se ordena por id.
+    ///
+    /// Dos empatadas y una tercera arriba: sin la tercera, un orden invertido entero también
+    /// pasaría.
+    /// </summary>
+    [Fact]
+    public async Task El_Desglose_Ordena_Por_Total_Y_Desempata_Por_Categoria()
+    {
+        using var factoria = new FactoriaConReloj(Hoy);
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        // Las dos empatadas se cargan con el id MAYOR primero y con la fecha más nueva, para que el
+        // orden natural de la consulta —si lo hubiera— sea el contrario al que se espera.
+        await RegistrarAsync(cuenta, "gasto", 500m, Salud, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 500m, Transporte, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 1000m, Comida, Temprano);
+
+        using var resumen = await ResumenAsync(cuenta);
+
+        Assert.Equal(
+            [Comida, Transporte, Salud],
+            Moneda(resumen, "ARS").GetProperty("gastosPorCategoria").EnumerateArray()
+                .Select(c => c.GetProperty("categoriaId").GetInt32()));
+    }
+
     // ---------------------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------------------
