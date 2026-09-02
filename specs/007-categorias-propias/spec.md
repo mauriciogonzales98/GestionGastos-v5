@@ -72,6 +72,7 @@ frase exacta: **el desglose no debe empezar a filtrar por `activa`**.
 - Q: ¿Dónde vive la gestión de categorías —crear, renombrar, dar de baja— y cómo se corrige SC-001? → A: En una pantalla aparte, con su ruta. SC-001 se corrige: la promesa es volver y usarla sin recargar, no no moverse.
 - Q: ¿Cómo se llega a la pantalla de gestión de categorías? → A: Con el mismo mecanismo de estado que ya usa `App.tsx` para alternar login ↔ movimientos. Sin dependencias nuevas y sin URL propia.
 - Q: ¿El alta y la edición de un movimiento deben validar que la categoría esté disponible para esa cuenta? → A: Sólo se rechaza la **ajena**. Una categoría propia dada de baja se acepta: hay que poder modificar un movimiento que ya la usa sin verse obligado a reclasificarlo.
+- Q: Existe un test que hoy rechaza dar de alta un movimiento con una categoría dada de baja. ¿Hasta dónde se relaja? → A: Sólo la **edición**, y sólo cuando es la categoría que el movimiento **ya tenía**. El alta la sigue rechazando y ese test se queda como está.
 
 ---
 
@@ -168,7 +169,9 @@ opuestas a la vez: que desapareció del selector, y que ni un número del resume
 4. **Given** una categoría **predefinida**, **When** el usuario intenta eliminarla, **Then** la
    operación se rechaza y esa categoría sigue disponible. *(AC-03)*
 5. **Given** un movimiento registrado con una categoría que después se dio de baja, **When** el
-   usuario edita ese movimiento sin cambiarle la categoría, **Then** la edición se acepta. *(FR-022)*
+   usuario edita ese movimiento sin cambiarle la categoría, **Then** la edición se acepta. *(FR-023)*
+5b. **Given** dos categorías dadas de baja y un movimiento que usa una de ellas, **When** el usuario
+   intenta moverlo a la otra, **Then** la edición se rechaza. *(FR-023)*
 6. **Given** una categoría propia de otra cuenta, **When** el usuario intenta registrar un
    movimiento con ese identificador, **Then** la operación se rechaza sin confirmar si esa categoría
    existe. *(FR-021)*
@@ -207,9 +210,10 @@ sin recargar.
 ### Edge Cases
 
 - **¿Qué pasa si se da de baja una categoría que está seleccionada en el formulario?** Deja de
-  ofrecerse en el selector (FR-010), pero si ya estaba elegida se conserva hasta que la persona
-  elija otra, y guardar **funciona**: FR-022 acepta una categoría propia dada de baja. La respuesta
-  salió de la sesión de clarificación y por eso no hay que vaciar el formulario ni bloquearlo.
+  ofrecerse en el selector (FR-010). Si quedó elegida en el formulario de **alta**, guardar falla
+  (FR-022), así que el formulario tiene que sacarla de la selección al refrescarse el catálogo en
+  vez de dejar que la persona choque contra un error que no puede entender. En la **edición** de un
+  movimiento que ya la tenía, en cambio, se conserva y guardar funciona (FR-023).
 - **¿Y si se le da de baja dos veces a la misma categoría?** La segunda no es un error nuevo: el
   estado final es el mismo y la respuesta tiene que ser la misma que la primera.
 - **¿Qué pasa con un nombre que sólo difiere en mayúsculas o en espacios al borde?** "comida" y
@@ -283,10 +287,13 @@ sin recargar.
   feature no hacía falta: las diez categorías eran globales y cualquier identificador válido servía.
   En cuanto hay categorías propias, `categoriaId` pasa a ser el identificador de algo que puede ser
   de otro. *(consecuencia de FR-012, detectada en la sesión de clarificación)*
-- **FR-022**: El alta y la edición de un movimiento DEBEN aceptar una categoría propia **dada de
-  baja**. No es una omisión: modificar un movimiento viejo no puede obligar a reclasificarlo, y
-  obligarlo reescribiría la historia que la baja lógica existe para preservar. El selector no la
-  ofrece (FR-010), así que por la aplicación no se llega; por la API sí, y está bien que así sea.
+- **FR-022**: El **alta** de un movimiento DEBE seguir rechazando una categoría dada de baja: si no,
+  la baja lógica sería puramente cosmética y se podrían seguir clasificando movimientos nuevos en
+  una categoría archivada. *(comportamiento ya existente desde FEAT-001b; esta feature lo conserva)*
+- **FR-023**: La **edición** de un movimiento DEBE aceptar una categoría dada de baja **cuando es la
+  que ese movimiento ya tenía**. Cambiarle el monto o la fecha a un movimiento viejo no puede
+  obligar a reclasificarlo: eso reescribiría la historia que la baja lógica existe para preservar.
+  Cambiarlo a **otra** categoría dada de baja se DEBE rechazar, por el mismo motivo que FR-022.
   *(decisión de la sesión de clarificación)*
 
 **La pantalla**
