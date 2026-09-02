@@ -49,7 +49,8 @@ filas y el `JOIN` del resumen no cambia de forma
 después de migrar (SC-005); ningún número del resumen cambia ante una baja (FR-011)
 
 **Scale/Scope**: 4 endpoints de categorías (1 modificado, 3 nuevos), 1 migración, 1 canal de lectura
-nuevo con su barrera, 1 pantalla nueva, y un cambio de una condición en la edición de movimientos
+nuevo con su barrera, **1 barrera nueva con su propio script** —la quinta del proyecto—, 1 pantalla
+nueva, y un cambio de una condición en la edición de movimientos
 
 ## Constitution Check
 
@@ -137,7 +138,9 @@ frontend/src/
 └── categorias/
     └── PantallaCategorias.tsx          # NUEVO — la gestión (FR-017)
 
-backend/verificar-aislamiento.sh        # + 2 desarmes: canal de categorías y desglose
+backend/
+├── verificar-aislamiento.sh            # + 1 desarme: el canal de categorías
+└── verificar-desglose.sh               # NUEVO — la quinta barrera (D-05)
 ```
 
 **Structure Decision**: se respeta la separación `backend/` ↔ `frontend/` de `AGENTS.md`, sin

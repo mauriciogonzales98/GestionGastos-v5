@@ -160,7 +160,8 @@ catálogo y no en el de otra, y registrar un movimiento con ella.
       `activa` ni `usuarioId`, con el motivo escrito ([D-07](./research.md#d-07--el-contrato-gana-un-campo-espropia))
 - [ ] T024 [TEST] [US1] Crear `backend/GestionGastos.Api.Tests/Integracion/CategoriasPropiasTests.cs`
       con AC-02: una cuenta recién registrada ve las predefinidas de tipo gasto y ninguna de tipo
-      ingreso en su selector de gasto, todas con `esPropia: false`
+      ingreso en su selector de gasto, todas con `esPropia: false`. Y el **orden** que fija el
+      contrato —por tipo, y dentro de cada tipo por identificador—, que hoy no lo verifica nadie
 - [ ] T025 [US1] Escribir en `CategoriasConsulta.cs` la consulta del ámbito de una cuenta
       —`(usuario_id IS NULL OR usuario_id = @yo) AND activa`— y hacer que el `GET /api/categorias`
       la use
@@ -257,7 +258,14 @@ vez: desapareció del selector, y ningún número del resumen cambió.
       con el caso de acceso cruzado de los **cuatro** endpoints, que es lo que FR-014 y NFR-01 piden
       al 100 %. Los casos sueltos ya están en T029, T040 y T049; acá se reúnen para que la cobertura
       se pueda afirmar mirando un archivo
-- [ ] T055 [VERIFY] [US3] Puerta del backend completa, con su salida
+- [ ] T055 [TEST] [US3] FR-021 y SC-009 en `AislamientoDeCategoriasTests`: una cuenta **no** puede
+      registrar ni editar un movimiento apuntando a una categoría **propia de otra cuenta**, y el
+      rechazo no dice si esa categoría existe. Esto ya funciona desde FEAT-001b y `ValidacionMovimientoTests`
+      lo defiende, pero **ese test arma la categoría ajena a mano porque no existían las propias**:
+      esta feature es la que las vuelve reales, así que es el ticket que introduce el riesgo y tiene
+      que ser el que lo mire. Se escribe con una categoría creada por la otra cuenta a través del
+      endpoint, no insertada a mano
+- [ ] T056 [VERIFY] [US3] Puerta del backend completa, con su salida
 
 **Checkpoint**: el backend entero está. Pasos 6 y 7 del quickstart, que son los que más importan.
 
@@ -270,45 +278,47 @@ vez: desapareció del selector, y ningún número del resumen cambió.
 **Independent Test**: cargar la pantalla y contar las peticiones al catálogo; crear una categoría en
 la pantalla de gestión, volver, y verla en el selector sin recargar.
 
-- [ ] T056 [TEST] [US4] AC-12 en `frontend/src/App.test.tsx`: al cargar la pantalla principal,
+- [ ] T057 [TEST] [US4] AC-12 en `frontend/src/App.test.tsx`: al cargar la pantalla principal,
       `/api/categorias` se pide **exactamente una vez**
-- [ ] T057 [US4] Subir el catálogo de `PantallaMovimientos` a `frontend/src/App.tsx` y bajarlo por
+- [ ] T058 [US4] Subir el catálogo de `PantallaMovimientos` a `frontend/src/App.tsx` y bajarlo por
       props, junto con las funciones que lo modifican
       ([D-08](./research.md#d-08--el-catálogo-sube-a-apptsx)). `FormularioMovimiento` no cambia de
       forma: sigue recibiendo `categorias` por props y no ve de dónde vienen
-- [ ] T058 [TEST] [US4] `frontend/src/categorias/PantallaCategorias.test.tsx`: lista las propias y
+- [ ] T059 [TEST] [US4] `frontend/src/categorias/PantallaCategorias.test.tsx`: lista las propias y
       las predefinidas, y **no ofrece renombrar ni dar de baja** las que tienen `esPropia: false`
       (AC-03 en la pantalla)
-- [ ] T059 [US4] Crear `frontend/src/categorias/PantallaCategorias.tsx` con el alta, el renombre y la
+- [ ] T060 [US4] Crear `frontend/src/categorias/PantallaCategorias.tsx` con el alta, el renombre y la
       baja. Estados de carga y de error como en `PantallaMovimientos`, y **nunca un catch silencioso**
-- [ ] T060 [TEST] [US4] AC-13 y FR-019: crear y renombrar desde la pantalla de gestión se refleja en
+- [ ] T061 [TEST] [US4] AC-13 y FR-019: crear y renombrar desde la pantalla de gestión se refleja en
       el selector del formulario al volver, **sin recargar** y **sin una segunda petición** del
       catálogo
-- [ ] T061 [US4] Agregar la vista de categorías al estado de `App.tsx`, con el mismo mecanismo que ya
+- [ ] T062 [US4] Agregar la vista de categorías al estado de `App.tsx`, con el mismo mecanismo que ya
       alterna login ↔ movimientos. **Sin dependencias nuevas** (FR-018, y la regla de `AGENTS.md`)
-- [ ] T062 [TEST] [US4] El edge case de la spec: si la categoría elegida en el formulario de alta se
+- [ ] T063 [TEST] [US4] El edge case de la spec: si la categoría elegida en el formulario de alta se
       da de baja, el selector la saca de la selección en vez de dejar que la persona choque contra
       un error que no puede entender (FR-022)
-- [ ] T063 [US4] Ajustar `FormularioMovimiento` para T062
-- [ ] T064 [VERIFY] [US4] Puerta del frontend completa —`lint`, `tsc --noEmit`, `test`— y build de
+- [ ] T064 [US4] Ajustar `FormularioMovimiento` para T063
+- [ ] T065 [VERIFY] [US4] Puerta del frontend completa —`lint`, `tsc --noEmit`, `test`— y build de
       producción, con su salida
 
 ---
 
 ## Phase 7: Cierre
 
-- [ ] T065 Recorrer el [quickstart](./quickstart.md) entero, los ocho pasos, y anotar cualquier línea
+- [ ] T066 Recorrer el [quickstart](./quickstart.md) entero, los ocho pasos, y anotar cualquier línea
       que no haga lo que el documento dice
-- [ ] T066 [VERIFY] Las **cinco** barreras: `verificar-contrato.sh`, `verificar-autorizacion.sh`,
+- [ ] T067 [VERIFY] Las **cinco** barreras: `verificar-contrato.sh`, `verificar-autorizacion.sh`,
       `verificar-aislamiento.sh`, `verificar-linter.sh` y `verificar-desglose.sh`. Con su salida
-- [ ] T067 Cobertura del backend con `backend/cobertura.runsettings`, con su salida
-- [ ] T068 [P] Actualizar `plan-de-implementacion/README.md`: el ticket 3 pasa a la tabla de
+- [ ] T068 Cobertura del backend con `backend/cobertura.runsettings`, con su salida
+- [ ] T069 [P] Actualizar `plan-de-implementacion/README.md`: el ticket 3 pasa a la tabla de
       implementados, con lo que lo demuestra en el código
-- [ ] T069 [P] Cerrar la deuda **D6-04** en la tabla de *Deuda registrada* de
+- [ ] T070 [P] Cerrar la deuda **D6-04** en la tabla de *Deuda registrada* de
       `specs/006-resumen-del-mes/spec.md`, nombrando el test y la barrera que la saldan
-- [ ] T070 [P] Anotar en la *Deuda registrada* de [spec.md](./spec.md) lo que esta feature no dejó
+- [ ] T071 [P] Anotar en la *Deuda registrada* de [spec.md](./spec.md) lo que esta feature no dejó
       hecho, y las desviaciones de proceso que haya habido, si las hubo
-- [ ] T071 [VERIFY] Puerta completa de los dos stacks, con su salida
+- [ ] T072 [VERIFY] Puerta completa de los dos stacks, con su salida. **Es también lo único que
+      puede afirmar SC-008** —que el comportamiento no cambió para una cuenta que no usa categorías
+      propias—: no hay un test que lo mida, lo mide que los 190 anteriores sigan en verde
 
 ---
 
@@ -320,7 +330,7 @@ la pantalla de gestión, volver, y verla en el selector sin recargar.
   escriben mirando código que ya está bien.
 - **US1 → US2 → US3**: no se puede renombrar lo que no se puede crear, ni dar de baja lo que no se
   puede renombrar. Y US3 necesita a US1 para tener qué dar de baja.
-- **US4 depende de las tres**, porque la pantalla las usa. Pero **T056 y T057 se pueden hacer en
+- **US4 depende de las tres**, porque la pantalla las usa. Pero **T057 y T058 se pueden hacer en
   paralelo con el backend**: subir el catálogo a `App.tsx` no depende de que existan los endpoints
   nuevos.
 
@@ -335,7 +345,7 @@ la pantalla de gestión, volver, y verla en el selector sin recargar.
   dos veces, la primera quedó mal factorizada.
 - **T052 depende de T050**: hasta que no se pueda dar de baja, no hay forma de armarle el escenario
   a FR-023.
-- **T069 depende de T046**: la deuda de la feature 006 se marca saldada nombrando el test que la
+- **T070 depende de T046**: la deuda de la feature 006 se marca saldada nombrando el test que la
   salda, no antes.
 
 ### Oportunidades de paralelismo
@@ -345,7 +355,7 @@ la pantalla de gestión, volver, y verla en el selector sin recargar.
 - **US1**: T027 a T031 en paralelo una vez que T026 dejó el archivo con su andamio.
 - **US2**: T038 a T041 en paralelo después de T037.
 - **US3**: T047, T048 y T049 en paralelo después de T046.
-- **Fase 7**: T068, T069 y T070 son archivos distintos.
+- **Fase 7**: T069, T070 y T071 son archivos distintos.
 
 ---
 

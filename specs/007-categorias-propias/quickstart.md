@@ -149,14 +149,19 @@ curl -s -b $OTRA $API/api/categorias | jq '[.[] | select(.esPropia)] | length'  
 curl -s -o /dev/null -w '%{http_code}\n' -b $OTRA -X PUT $API/api/categorias/$GIM \
   -H 'Content-Type: application/json' -d '{"nombre":"Mía ahora"}'      # 404
 curl -s -o /dev/null -w '%{http_code}\n' -b $OTRA -X DELETE $API/api/categorias/$GIM   # 404
-curl -s -o /dev/null -w '%{http_code}\n' -b $OTRA -X GET $API/api/categorias/999999    # 404
+curl -s -o /dev/null -w '%{http_code}\n' -b $OTRA -X DELETE $API/api/categorias/999999 # 404
 
 curl -s -b $OTRA -X POST $API/api/movimientos -H 'Content-Type: application/json' \
   -d '{"tipo":"gasto","monto":100,"categoriaId":'$GIM',"fecha":"2026-09-02"}' | jq '.errors.categoriaId'
 ```
 
-`404` en los tres, **con el mismo cuerpo** que el identificador inventado: si difieren, la respuesta
-confirma que la categoría de la otra cuenta existe (AC-11, FR-013). Y el alta del movimiento con una
+`404` en los tres, **con el mismo cuerpo**: los dos primeros son la categoría real de la otra cuenta
+y el tercero es un identificador inventado. Si difieren, la respuesta confirma que la categoría
+ajena existe (AC-11, FR-013).
+
+> El tercero usa `DELETE` y no `GET` a propósito: **no hay** `GET /api/categorias/{id}` en el
+> contrato, así que un `GET` devolvería `404` por ruta inexistente —el motivo equivocado— y el paso
+> pasaría sin probar nada. Y el alta del movimiento con una
 categoría ajena se rechaza (FR-021).
 
 ---
