@@ -4,8 +4,11 @@ namespace GestionGastos.Api.Dominio;
 /// Una moneda del catálogo (RF-31). Es tabla y no enum a propósito: es lo que permite sumar una
 /// moneda sin tocar el código (RF-32), que es lo que el ticket 4a va a explotar.
 ///
-/// En esta feature el catálogo existe pero no se expone: todo movimiento se registra en la
-/// predeterminada (FR-009).
+/// El catálogo todavía no se **elige**: todo movimiento se registra en la predeterminada (FR-009) y
+/// el selector llega con el ticket 4b. Pero desde FEAT-001c sí se expone: el resumen devuelve una
+/// entrada por cada fila de esta tabla, tenga o no movimientos, y por eso hoy ya se ven dos —ARS
+/// con datos y USD en cero—. Agregar una moneda acá agrega una entrada al resumen sin tocar código,
+/// que es exactamente lo que RF-32 quería.
 /// </summary>
 public class Moneda
 {

@@ -76,6 +76,50 @@ export interface MovimientoEditado {
 }
 
 /**
+ * El resumen de un período (RF-19, RF-20, RF-22).
+ *
+ * `desde` y `hasta` viajan SIEMPRE, también cuando no se pidieron. Sin ellos, esta capa tendría que
+ * calcular el mes en curso por su cuenta —en la zona horaria del navegador— para poder titularlo, y
+ * ahí volverían a existir dos criterios de "hoy". El mes por omisión lo decide el servidor, y esto
+ * es cómo se entera el cliente de cuál eligió.
+ */
+export interface Resumen {
+  /** `YYYY-MM-DD`. Primer día del período, incluido. */
+  desde: string;
+  /** `YYYY-MM-DD`. Último día del período, incluido. */
+  hasta: string;
+  /** Una entrada por cada moneda del catálogo, tenga o no movimientos. Nunca viene vacío. */
+  monedas: ResumenPorMoneda[];
+}
+
+/**
+ * Lo que pasó en una moneda durante el período.
+ *
+ * Dos de éstos son dos universos separados: **nada se suma nunca a través de ellos** y no hay
+ * conversión en ningún lado (RF-29). Si alguna vez hace falta un total único, va a ser una decisión
+ * de producto con su tasa de cambio, no una suma que esta capa pueda hacer sola.
+ */
+export interface ResumenPorMoneda {
+  monedaId: number;
+  /** ISO 4217. Viaja junto al id para no cruzar contra un catálogo. */
+  monedaCodigo: string;
+  totalIngresado: number;
+  totalGastado: number;
+  /** Ingresos menos gastos. **Puede ser negativo**, y eso se muestra: un mes en rojo es un dato. */
+  balance: number;
+  /** Sólo las categorías con al menos un gasto en el período. `[]` es normal, no un error. */
+  gastosPorCategoria: TotalPorCategoria[];
+}
+
+/** Cuánto suma una categoría dentro de una moneda y un período. */
+export interface TotalPorCategoria {
+  categoriaId: number;
+  /** El nombre vigente de la categoría, no una copia del momento del alta. */
+  categoriaNombre: string;
+  total: number;
+}
+
+/**
  * El formato único de error de las dos capas (RFC 9457). La clave de `errors` es el nombre del
  * campo de la petición, y eso es lo que permite poner cada mensaje al lado de su control en vez de
  * volcar un texto suelto.

@@ -47,7 +47,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// adentro compilaba y dejaba la barrera en 4/4 verde. No era un error de quien la escribió:
     /// era una condición que caducó cuando cambió lo que este archivo hace.
     ///
-    /// `verificar-aislamiento.sh` tiene el paso 4/6 que le prueba el rojo por esta vía.
+    /// `verificar-aislamiento.sh` tiene el paso 4/7 que le prueba el rojo por esta vía.
     /// </summary>
     private const string EscrituraDeclarada = "Movimientos/MovimientosEndpoints.cs";
 
@@ -102,7 +102,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// <summary>
     /// **Todas** las consultas del canal acotan por cuenta, no sólo la del listado.
     ///
-    /// El test de arriba mira `DelMes` y nada más, y el del canal mira quién lee movimientos
+    /// El test de arriba mira `Filtrado` y nada más, y el del canal mira quién lee movimientos
     /// **afuera**. Entre los dos quedaba un hueco justo en el peor lugar: adentro. El mensaje de
     /// error de la barrera del canal empuja a agregar las consultas nuevas acá —"la salida es
     /// agregar el método a `MovimientosConsulta`"—, y hasta ahora eso las metía al único sitio
@@ -111,6 +111,36 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     ///
     /// Se descubren por reflexión y no por una lista: una lista hay que acordarse de actualizarla,
     /// que es la misma clase de olvido que esta barrera existe para atrapar.
+    ///
+    /// **Qué se descubre cambió en la feature 006, y el motivo importa.** Hasta acá el filtro era
+    /// `IQueryable&lt;Movimiento&gt;`, y cubría el canal entero porque toda lectura escrita hasta
+    /// entonces devolvía movimientos. El resumen es la primera que devuelve **sumas**: una
+    /// agregación sin acotar no era una consulta que la barrera aprobara mal, era una que ni
+    /// siquiera enumeraba. Comprobado antes de ensancharlo, igual que en FEAT-001b: un
+    /// `TotalDeTodasLasCuentas(contexto)` que agrupa `contexto.Movimientos` sin `usuario_id` dejaba
+    /// la barrera en 4/4 verde.
+    ///
+    /// Es la segunda vez que una condición de esta barrera caduca en silencio al cambiar lo que
+    /// tiene que cubrir —la primera fue la exención por archivo de FEAT-001b—, así que conviene
+    /// decirlo acá: **lo que se vigila es el canal, no una forma de retorno.**
+    ///
+    /// **Y por eso el descubrimiento dejó de filtrar por el retorno.** Ensanchar de
+    /// `IQueryable&lt;Movimiento&gt;` a `IQueryable` corría la misma condición un casillero en vez de
+    /// sacarla: un método que **ejecuta adentro** —`Task&lt;decimal&gt;` con un `SumAsync`, que es el
+    /// paso siguiente natural de una agregación— no devuelve `IQueryable`, así que tampoco lo
+    /// enumeraba. Comprobado igual que las otras dos veces: un
+    /// `TotalDeTodasLasCuentas(contexto, rango)` que suma `contexto.Movimientos` sin `usuario_id`
+    /// dejaba la barrera en 4/4 verde, y la otra mitad tampoco lo veía porque este archivo está
+    /// exento del escaneo por ser el canal.
+    ///
+    /// Ahora se enumeran **todos** los métodos públicos estáticos y el que no devuelva un
+    /// `IQueryable` hace fallar el test diciéndolo, en lugar de saltearse. Es la misma forma que ya
+    /// tenía <see cref="ArgumentosDePrueba"/> para un parámetro de tipo desconocido: una consulta
+    /// que la barrera no sabe inspeccionar es una consulta que la barrera no está mirando, y eso se
+    /// grita, no se omite.
+    ///
+    /// `verificar-aislamiento.sh` tiene los pasos 5/8 y 6/8 que le prueban el rojo por estas dos
+    /// vías: la que sale sin ejecutar y la que ejecuta adentro.
     /// </summary>
     [Fact]
     public void Todas_Las_Consultas_Del_Canal_Acotan_Por_Cuenta()
@@ -119,14 +149,22 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
 
         var consultas = typeof(MovimientosConsulta)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(m => typeof(IQueryable<Movimiento>).IsAssignableFrom(m.ReturnType))
             .ToList();
 
         Assert.NotEmpty(consultas);
 
         foreach (var consulta in consultas)
         {
-            var sql = ((IQueryable<Movimiento>)consulta.Invoke(null, ArgumentosDePrueba(consulta, contexto))!)
+            Assert.True(
+                typeof(IQueryable).IsAssignableFrom(consulta.ReturnType),
+                $"`MovimientosConsulta.{consulta.Name}` devuelve `{consulta.ReturnType.Name}`, que " +
+                "no es un `IQueryable`: esta barrera inspecciona el SQL de la consulta ANTES de que " +
+                "se ejecute, y de un resultado ya ejecutado no puede leer nada. Una consulta que la " +
+                "barrera no sabe inspeccionar es una que no está mirando, y ahí el acotado por " +
+                "cuenta vuelve a depender de que alguien se acuerde.\n\nLa salida es devolver el " +
+                "`IQueryable` y ejecutarlo en quien lo pide, no agregar una excepción acá.");
+
+            var sql = ((IQueryable)consulta.Invoke(null, ArgumentosDePrueba(consulta, contexto))!)
                 .ToQueryString();
 
             var donde = sql.Contains("WHERE", StringComparison.OrdinalIgnoreCase)

@@ -2,6 +2,7 @@ using GestionGastos.Api.Categorias;
 using GestionGastos.Api.Cuentas;
 using GestionGastos.Api.Movimientos;
 using GestionGastos.Api.Persistencia;
+using GestionGastos.Api.Resumenes;
 using GestionGastos.Api.Sesion;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -133,6 +134,7 @@ app.MapCuentas();
 app.MapSesion();
 app.MapCategorias();
 app.MapMovimientos();
+app.MapResumen();
 
 await app.RunAsync();
 
