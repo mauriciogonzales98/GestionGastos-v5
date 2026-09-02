@@ -27,6 +27,17 @@ Cookie: <sesión>
 
 Exige sesión, como todo endpoint (RF-03). Sin ella: `401`.
 
+**No acepta `categoriaId`, y eso es una decisión, no un olvido.** El listado sí lo acepta desde
+FEAT-001b, así que la asimetría se declara acá para que nadie la resuelva por omisión: el resumen es
+siempre del período **completo**. Un `categoriaId` en la URL se ignora, como cualquier parámetro que
+el endpoint no declara.
+
+La consecuencia le toca al ticket 5 y conviene saberla antes de maquetar: si el dashboard filtra el
+listado por categoría y muestra el resumen al lado sin filtrar, las dos cifras de la misma pantalla
+se contradicen, y quien mire no tiene cómo saber cuál es cuál. O el filtro tapa las dos vistas a la
+vez, o el resumen se titula de forma que se vea que habla de todo el período. Queda anotado como
+D6-06 en la tabla de *Deuda registrada* de la spec.
+
 ---
 
 ## Respuesta `200`

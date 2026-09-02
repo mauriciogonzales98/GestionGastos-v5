@@ -323,6 +323,7 @@ que lo va a poder cubrir, para que ese ticket lo cubra al nacer. Es la misma tab
 | D6-03 | **RF-30: filtrar el resumen por moneda.** El resumen las discrimina; no se pueden filtrar | Filtrar monedas requiere que haya más de una en uso, y hoy todo se registra en la predeterminada | Ticket 4a / 4b |
 | D6-04 | **AC-14: los movimientos de una categoría dada de baja siguen sumando en el desglose** | Hoy no existen ni las categorías propias ni la baja lógica, así que no hay nada que implementar ni forma de testearlo | Ticket 3 (Categorías propias) — **el desglose no debe empezar a filtrar por `activa`** |
 | D6-05 | **El índice por `categoria_id`** que ayudaría al `GROUP BY` | RNF-01 se cumple sin él, medido en los dos escalones. Un índice de más se paga en cada `INSERT` | Nadie, salvo que `RendimientoResumenTests` se ponga en rojo. Ver [D-10](./research.md#d-10--sin-migración-y-el-índice-se-deja-como-está) |
+| D6-06 | **El resumen no se filtra por categoría**, y el listado sí desde FEAT-001b. Un `categoriaId` en la URL se ignora | El resumen es del período completo por diseño: filtrarlo es una vista distinta, no un parámetro más. Declarado en [`contracts/resumen.md`](./contracts/resumen.md) para que no se resuelva por omisión | Ticket 5 (Dashboard) — **si el filtro tapa el listado y no el resumen, la misma pantalla muestra dos cifras que se contradicen** |
 
 ### Deuda de proceso, no de producto
 
