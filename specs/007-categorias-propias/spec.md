@@ -64,6 +64,17 @@ frase exacta: **el desglose no debe empezar a filtrar por `activa`**.
 
 ---
 
+## Clarifications
+
+### Session 2026-09-02
+
+- Q: ¿Renombrar una categoría propia tiene que respetar la misma regla de unicidad que crearla (FR-005)? → A: Sí, la misma regla: contra las activas disponibles para esa cuenta, propias y predefinidas.
+- Q: ¿Dónde vive la gestión de categorías —crear, renombrar, dar de baja— y cómo se corrige SC-001? → A: En una pantalla aparte, con su ruta. SC-001 se corrige: la promesa es volver y usarla sin recargar, no no moverse.
+- Q: ¿Cómo se llega a la pantalla de gestión de categorías? → A: Con el mismo mecanismo de estado que ya usa `App.tsx` para alternar login ↔ movimientos. Sin dependencias nuevas y sin URL propia.
+- Q: ¿El alta y la edición de un movimiento deben validar que la categoría esté disponible para esa cuenta? → A: Sólo se rechaza la **ajena**. Una categoría propia dada de baja se acepta: hay que poder modificar un movimiento que ya la usa sin verse obligado a reclasificarlo.
+
+---
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Nombrar mis gastos con mis propias palabras (Priority: P1) 🎯 MVP
@@ -124,6 +135,9 @@ comprobando que el nombre nuevo aparece tanto en el listado como en el desglose 
 4. **Given** una categoría propia, **When** el usuario la renombra con el nombre vacío o de más de
    50 caracteres, **Then** la operación se rechaza indicando el motivo y la categoría queda sin
    cambios. *(AC-10)*
+5. **Given** una cuenta que ya tiene disponible una categoría activa de gasto llamada "Comida" —sea
+   propia o predefinida—, **When** intenta renombrar otra propia suya a "Comida", **Then** el
+   renombre se rechaza indicando el motivo y la categoría queda con su nombre anterior. *(FR-005)*
 
 ---
 
@@ -153,7 +167,12 @@ opuestas a la vez: que desapareció del selector, y que ni un número del resume
    dada de baja sigue nombrando los movimientos que la usan. *(AC-09)*
 4. **Given** una categoría **predefinida**, **When** el usuario intenta eliminarla, **Then** la
    operación se rechaza y esa categoría sigue disponible. *(AC-03)*
-5. **Given** una categoría propia de **otra** cuenta, **When** el usuario intenta eliminarla por su
+5. **Given** un movimiento registrado con una categoría que después se dio de baja, **When** el
+   usuario edita ese movimiento sin cambiarle la categoría, **Then** la edición se acepta. *(FR-022)*
+6. **Given** una categoría propia de otra cuenta, **When** el usuario intenta registrar un
+   movimiento con ese identificador, **Then** la operación se rechaza sin confirmar si esa categoría
+   existe. *(FR-021)*
+7. **Given** una categoría propia de **otra** cuenta, **When** el usuario intenta eliminarla por su
    identificador, **Then** recibe el mismo código y el mismo cuerpo que ante un identificador
    inexistente, y esa categoría queda sin cambios. *(AC-11)*
 
@@ -179,15 +198,18 @@ sin recargar.
 2. **Given** la pantalla principal cargada, **When** el usuario crea o renombra una categoría
    propia, **Then** el cambio se refleja en todos los controles que usan el catálogo, sin recargar
    la página. *(AC-13)*
+3. **Given** el usuario en la pantalla de gestión, **When** crea una categoría y vuelve a la
+   pantalla principal, **Then** la categoría nueva está en el selector sin que la aplicación se
+   haya recargado ni haya vuelto a pedir el catálogo entero. *(FR-019)*
 
 ---
 
 ### Edge Cases
 
-- **¿Qué pasa si se da de baja una categoría que está seleccionada en el formulario?** El formulario
-  no puede quedar apuntando a algo que ya no se ofrece: o vuelve a la opción vacía, o la conserva
-  hasta que la persona elija otra. Lo decide el plan; lo que no puede pasar es que se guarde un
-  movimiento con una categoría dada de baja.
+- **¿Qué pasa si se da de baja una categoría que está seleccionada en el formulario?** Deja de
+  ofrecerse en el selector (FR-010), pero si ya estaba elegida se conserva hasta que la persona
+  elija otra, y guardar **funciona**: FR-022 acepta una categoría propia dada de baja. La respuesta
+  salió de la sesión de clarificación y por eso no hay que vaciar el formulario ni bloquearlo.
 - **¿Y si se le da de baja dos veces a la misma categoría?** La segunda no es un error nuevo: el
   estado final es el mismo y la respuesta tiene que ser la misma que la primera.
 - **¿Qué pasa con un nombre que sólo difiere en mayúsculas o en espacios al borde?** "comida" y
@@ -220,9 +242,12 @@ sin recargar.
 
 **Las reglas del nombre**
 
-- **FR-005**: El sistema DEBE rechazar la creación de una categoría propia cuyo nombre y tipo
-  coincidan con los de otra categoría **activa disponible para esa misma cuenta**, sea propia o
-  **predefinida**, indicando el motivo. *(FR-07 del PRD)*
+- **FR-005**: El sistema DEBE rechazar **tanto la creación como el renombre** de una categoría
+  propia cuyo nombre y tipo coincidan con los de otra categoría **activa disponible para esa misma
+  cuenta**, sea propia o **predefinida**, indicando el motivo. Es una sola regla y no dos: si el
+  renombre no la aplicara, se esquivaría en dos pasos —crear con un nombre libre y renombrar al
+  ocupado— y el selector terminaría con dos entradas que la persona no puede distinguir. *(FR-07 del
+  PRD, ampliado al renombre en la sesión de clarificación)*
 - **FR-006**: El sistema DEBE rechazar la creación y la modificación de una categoría propia cuyo
   nombre esté vacío o supere los **50** caracteres, indicando el motivo. *(FR-08 del PRD, con el
   límite corregido al real de la columna)*
@@ -253,6 +278,16 @@ sin recargar.
   PRD)*
 - **FR-014**: La suite DEBE cubrir con al menos un caso de acceso cruzado entre dos cuentas el
   **100 %** de los endpoints de categorías. *(NFR-01 del PRD)*
+- **FR-021**: El alta y la edición de un movimiento DEBEN rechazar una categoría que **no pertenece
+  al ámbito de esa cuenta** —ni predefinida, ni propia suya—, sin confirmar si existe. Hasta esta
+  feature no hacía falta: las diez categorías eran globales y cualquier identificador válido servía.
+  En cuanto hay categorías propias, `categoriaId` pasa a ser el identificador de algo que puede ser
+  de otro. *(consecuencia de FR-012, detectada en la sesión de clarificación)*
+- **FR-022**: El alta y la edición de un movimiento DEBEN aceptar una categoría propia **dada de
+  baja**. No es una omisión: modificar un movimiento viejo no puede obligar a reclasificarlo, y
+  obligarlo reescribiría la historia que la baja lógica existe para preservar. El selector no la
+  ofrece (FR-010), así que por la aplicación no se llega; por la API sí, y está bien que así sea.
+  *(decisión de la sesión de clarificación)*
 
 **La pantalla**
 
@@ -260,15 +295,24 @@ sin recargar.
   de la pantalla principal. *(NFR-02 del PRD; hoy ya se cumple y acá se vuelve una regresión a no
   romper)*
 - **FR-016**: La aplicación DEBE reflejar el resultado de crear, renombrar o dar de baja una
-  categoría en **todos** los controles que usan el catálogo, sin recargar la página. *(NFR-02 del
-  PRD, AC-13)*
-- **FR-017**: La aplicación DEBE ofrecer una forma de crear, renombrar y dar de baja categorías
-  propias, **fuera del camino rápido de carga de un movimiento**. *(alcance decidido en esta spec;
-  el PRD lo pide implícitamente en AC-01, AC-03 y AC-05, que sin pantalla no son observables)*
+  categoría en **todos** los controles que usan el catálogo, sin recargar la página, **incluso
+  después de volver desde la pantalla de gestión**. *(NFR-02 del PRD, AC-13)*
+- **FR-017**: La aplicación DEBE ofrecer la gestión de categorías propias —crear, renombrar y dar de
+  baja— en una **pantalla aparte**, y no en el camino rápido de carga de un movimiento. *(alcance
+  decidido en esta spec; el PRD lo pide implícitamente en AC-01, AC-03 y AC-05, que sin pantalla no
+  son observables)*
+- **FR-018**: La navegación a esa pantalla DEBE usar el mismo mecanismo de estado con el que la
+  aplicación ya alterna entre el login y la pantalla de movimientos. **No se agrega ninguna
+  dependencia nueva** para esto. *(clarificación de esta sesión, y la regla de `AGENTS.md`: no se
+  agregan librerías sin justificarlas en la spec)*
+- **FR-019**: Al volver de la pantalla de gestión a la principal, la aplicación NO DEBE volver a
+  pedir el catálogo entero ni recargar la página para mostrar los cambios. FR-015 sigue valiendo: a
+  lo sumo una petición del catálogo por carga de la pantalla principal. *(consecuencia de la
+  clarificación: con la gestión en otra pantalla, el catálogo tiene que sobrevivir a la navegación)*
 
 **Contrato**
 
-- **FR-018**: Todo cambio en la forma de una petición o una respuesta DEBE quedar reflejado en la
+- **FR-020**: Todo cambio en la forma de una petición o una respuesta DEBE quedar reflejado en la
   definición del contrato que el frontend declara, en el mismo movimiento. La verificación del
   contrato ya existente tiene que seguir en verde.
 
@@ -290,8 +334,8 @@ sin recargar.
 
 ### Measurable Outcomes
 
-- **SC-001**: Una persona puede crear una categoría propia y usarla para registrar un movimiento sin
-  abandonar la pantalla principal ni recargarla.
+- **SC-001**: Una persona puede crear una categoría propia, volver a la pantalla principal y usarla
+  para registrar un movimiento **sin recargar la aplicación**.
 - **SC-002**: Dos cuentas pueden tener cada una una categoría con el mismo nombre y tipo, y ninguna
   de las dos puede ver, nombrar ni tocar la de la otra por ningún camino.
 - **SC-003**: Ante la baja lógica de una categoría con movimientos, **ningún** número del resumen
@@ -301,9 +345,12 @@ sin recargar.
 - **SC-005**: Las diez categorías predefinidas siguen existiendo con el mismo identificador, el mismo
   nombre y el mismo tipo al terminar la feature, y ninguna cuenta puede cambiarlas.
 - **SC-006**: La pantalla principal pide el catálogo **una** vez, y crear o renombrar una categoría
-  se ve en todos los controles que lo usan sin recargar.
+  se ve en todos los controles que lo usan sin recargar, también al volver desde la pantalla de
+  gestión.
 - **SC-007**: El 100 % de los endpoints de categorías tiene al menos un test de acceso cruzado entre
   dos cuentas.
+- **SC-009**: Ninguna cuenta puede registrar ni editar un movimiento apuntando a una categoría de
+  otra, por ningún camino, y el rechazo no revela si esa categoría existe.
 - **SC-008**: El comportamiento del listado, del alta y del resumen no cambia para una cuenta que no
   usa categorías propias: esta feature no toca lo que ya se ve.
 
@@ -323,6 +370,9 @@ sin recargar.
   nombre, no reactivar la vieja.
 - **Las predefinidas se identifican por no tener dueño**, que es como ya están sembradas. No hace
   falta una marca nueva para distinguirlas.
+- **La pantalla de gestión no tiene URL propia.** Se llega por estado, así que recargar el navegador
+  vuelve a la pantalla principal. Nadie pidió poder compartir el link de la gestión de categorías, y
+  darle URL costaba un enrutador. Si algún día hace falta, es un cambio acotado a `App.tsx`.
 - **El tipo de una categoría no se puede cambiar** una vez creada: FR-003 habla del nombre y nada
   más. Cambiarlo movería de tipo a los movimientos que la usan, que es una reescritura de la
   historia por la puerta de atrás.

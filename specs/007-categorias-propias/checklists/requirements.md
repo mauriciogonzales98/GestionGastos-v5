@@ -40,7 +40,8 @@ Dos observaciones de la validación, ninguna bloqueante:
   nivel del esquema, y decirlo en abstracto —"el índice ya contempla al propietario"— no le sirve a
   quien tiene que verificarlo. Los requisitos (FR-001 a FR-018) y los criterios de éxito no nombran
   ninguna estructura.
-- **Dos decisiones se tomaron con el usuario y no quedaron como [NEEDS CLARIFICATION]**: el límite
-  del nombre (50, el real de la columna, contra los 60 que el PRD citó mal) y el alcance de UI
-  (backend + pantalla de gestión; el filtro por categoría y la edición quedan como D7-01 y D7-02).
-  Ambas están registradas en *Assumptions* y en la tabla de reconciliación.
+- **Seis decisiones se tomaron con el usuario y ninguna quedó como [NEEDS CLARIFICATION]**: dos en
+  `/speckit-specify` —el límite del nombre (50, el real de la columna, contra los 60 que el PRD citó
+  mal) y el alcance de UI (backend + pantalla de gestión; el filtro por categoría y la edición quedan
+  como D7-01 y D7-02)— y cuatro en `/speckit-clarify`, registradas en la sección *Clarifications*.
+  Las de `/speckit-specify` están además en *Assumptions* y en la tabla de reconciliación.
