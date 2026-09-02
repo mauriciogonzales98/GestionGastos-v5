@@ -122,10 +122,25 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     ///
     /// Es la segunda vez que una condición de esta barrera caduca en silencio al cambiar lo que
     /// tiene que cubrir —la primera fue la exención por archivo de FEAT-001b—, así que conviene
-    /// decirlo acá: **lo que se vigila es el canal, no una forma de retorno.** Cualquier
-    /// `IQueryable`, devuelva lo que devuelva, sale de leer movimientos de alguien.
+    /// decirlo acá: **lo que se vigila es el canal, no una forma de retorno.**
     ///
-    /// `verificar-aislamiento.sh` tiene el paso 5/7 que le prueba el rojo por esta vía.
+    /// **Y por eso el descubrimiento dejó de filtrar por el retorno.** Ensanchar de
+    /// `IQueryable&lt;Movimiento&gt;` a `IQueryable` corría la misma condición un casillero en vez de
+    /// sacarla: un método que **ejecuta adentro** —`Task&lt;decimal&gt;` con un `SumAsync`, que es el
+    /// paso siguiente natural de una agregación— no devuelve `IQueryable`, así que tampoco lo
+    /// enumeraba. Comprobado igual que las otras dos veces: un
+    /// `TotalDeTodasLasCuentas(contexto, rango)` que suma `contexto.Movimientos` sin `usuario_id`
+    /// dejaba la barrera en 4/4 verde, y la otra mitad tampoco lo veía porque este archivo está
+    /// exento del escaneo por ser el canal.
+    ///
+    /// Ahora se enumeran **todos** los métodos públicos estáticos y el que no devuelva un
+    /// `IQueryable` hace fallar el test diciéndolo, en lugar de saltearse. Es la misma forma que ya
+    /// tenía <see cref="ArgumentosDePrueba"/> para un parámetro de tipo desconocido: una consulta
+    /// que la barrera no sabe inspeccionar es una consulta que la barrera no está mirando, y eso se
+    /// grita, no se omite.
+    ///
+    /// `verificar-aislamiento.sh` tiene los pasos 5/8 y 6/8 que le prueban el rojo por estas dos
+    /// vías: la que sale sin ejecutar y la que ejecuta adentro.
     /// </summary>
     [Fact]
     public void Todas_Las_Consultas_Del_Canal_Acotan_Por_Cuenta()
@@ -134,13 +149,21 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
 
         var consultas = typeof(MovimientosConsulta)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(m => typeof(IQueryable).IsAssignableFrom(m.ReturnType))
             .ToList();
 
         Assert.NotEmpty(consultas);
 
         foreach (var consulta in consultas)
         {
+            Assert.True(
+                typeof(IQueryable).IsAssignableFrom(consulta.ReturnType),
+                $"`MovimientosConsulta.{consulta.Name}` devuelve `{consulta.ReturnType.Name}`, que " +
+                "no es un `IQueryable`: esta barrera inspecciona el SQL de la consulta ANTES de que " +
+                "se ejecute, y de un resultado ya ejecutado no puede leer nada. Una consulta que la " +
+                "barrera no sabe inspeccionar es una que no está mirando, y ahí el acotado por " +
+                "cuenta vuelve a depender de que alguien se acuerde.\n\nLa salida es devolver el " +
+                "`IQueryable` y ejecutarlo en quien lo pide, no agregar una excepción acá.");
+
             var sql = ((IQueryable)consulta.Invoke(null, ArgumentosDePrueba(consulta, contexto))!)
                 .ToQueryString();
 
