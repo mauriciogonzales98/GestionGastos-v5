@@ -31,6 +31,14 @@ type Estado = 'averiguando' | 'sin-sesion' | 'con-sesion';
  */
 type Vista = 'movimientos' | 'categorias';
 
+/**
+ * Con qué vista arranca una sesión. **Siempre movimientos**, y por eso es una constante y no un
+ * literal suelto en tres lugares: es el valor inicial y también al que se vuelve cuando la sesión
+ * termina, y esas dos cosas tienen que ser la misma o la próxima cuenta entra donde salió la
+ * anterior.
+ */
+const VISTA_INICIAL: Vista = 'movimientos';
+
 const SESION_VENCIDA = 'Tu sesión venció. Volvé a entrar.';
 
 /**
@@ -71,7 +79,7 @@ export function App({ hoy }: PropsApp) {
   const [estado, setEstado] = useState<Estado>('averiguando');
   const [sesion, setSesion] = useState<SesionActual | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [vista, setVista] = useState<Vista>('movimientos');
+  const [vista, setVista] = useState<Vista>(VISTA_INICIAL);
 
   /**
    * **El catálogo vive acá y en ningún otro lado** (D-08).
@@ -120,6 +128,7 @@ export function App({ hoy }: PropsApp) {
     setEstado('sin-sesion');
     setAviso(motivo);
     setCategorias([]);
+    setVista(VISTA_INICIAL);
   }, []);
 
   /**
@@ -212,6 +221,7 @@ export function App({ hoy }: PropsApp) {
     // quien acaba de apretar el botón.
     setAviso(null);
     setCategorias([]);
+    setVista(VISTA_INICIAL);
   }
 
   if (estado === 'averiguando') {

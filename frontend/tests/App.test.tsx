@@ -366,3 +366,38 @@ describe('App — lo que la sesión se lleva al cerrarse', () => {
     expect(screen.queryByRole('option', { name: 'Psicólogo' })).not.toBeInTheDocument();
   });
 });
+
+describe('App — la vista también se va con la sesión', () => {
+  /**
+   * Se cierra sesión estando en la gestión de categorías, y la cuenta siguiente entra a
+   * **movimientos**, no a "Mis categorías".
+   *
+   * `vista` es estado de la raíz igual que el catálogo (D-09, FR-018), y por el mismo motivo que
+   * aquél tampoco se desmonta al terminar la sesión. Dejarlo puesto hace que quien entra caiga en
+   * una pantalla que no pidió, y —antes de que el catálogo se vaciara— en la lista de otro con los
+   * botones de renombrar y dar de baja encima.
+   */
+  it('entrar de nuevo lleva a movimientos aunque se haya salido desde la gestión FR-018', async () => {
+    const usuario = userEvent.setup();
+    const propia = { id: 41, nombre: 'Gimnasio', tipo: 'gasto', esPropia: true } as const;
+    vi.mocked(cliente.obtenerCategorias).mockResolvedValue([...CATEGORIAS, propia]);
+    vi.mocked(cliente.iniciarSesion).mockResolvedValue({ email: 'bruno@ejemplo.com' });
+
+    render(<App hoy="2026-08-24" />);
+
+    await usuario.click(await screen.findByRole('button', { name: 'Categorías' }));
+    await screen.findByRole('heading', { name: 'Mis categorías' });
+
+    // La gestión no tiene botón de salir: la sesión se termina sola, que es como se llega acá.
+    vi.mocked(cliente.consultarSesion).mockRejectedValue(new cliente.ErrorDeSesion());
+    vi.mocked(cliente.darDeBajaCategoria).mockRejectedValue(new cliente.ErrorDeSesion());
+    await usuario.click(screen.getByRole('button', { name: 'Dar de baja Gimnasio' }));
+    await screen.findByRole('button', { name: 'Entrar' });
+
+    await usuario.type(screen.getByLabelText('Email'), 'bruno@ejemplo.com');
+    await usuario.type(screen.getByLabelText('Contraseña'), 'otra frase larga');
+    await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    expect(await screen.findByRole('heading', { name: 'Mis movimientos' })).toBeInTheDocument();
+  });
+});
