@@ -14,6 +14,11 @@ reconciliado contra el estado real del código.
 
 ## De dónde sale esta spec
 
+> **Cómo se leen los identificadores acá.** `AC-01`, `FR-001` y `SC-001` sin prefijo son **de esta
+> spec**. Los ajenos van marcados con su origen: `PRD:AC-11` es del PRD de la 4a y `006:AC-31` es de
+> la feature 006. Tres documentos numeran desde 1 y este ticket los cita a los tres — sin la marca,
+> buscar "AC-10" devuelve dos cosas distintas y ninguna avisa.
+
 **Este es el ticket más reconciliado de todos los que van hasta acá, y conviene leer esta sección
 antes que ninguna otra.** El PRD de la 4a está fechado el **2026-08-20** y describe un punto de
 partida que ya no existe: la mayor parte de lo que pide la construyeron FEAT-001a y FEAT-001c
@@ -51,19 +56,19 @@ repartida por el código"— es, en su parte estructural, el estado actual.
 | Requisito | Por qué no aplica |
 |---|---|
 | **FR-07** · que la migración deje los movimientos ya registrados con la moneda predeterminada | La columna `moneda_id` nació **con su clave foránea** en `Inicial`. Nunca hubo un movimiento sin moneda que normalizar, y no puede haberlo: la FK lo impide desde el primer día |
-| **AC-09** · verificar esa normalización sobre una base con movimientos previos | No hay tal base. El escenario que describe no es alcanzable |
+| **`PRD:AC-09`** · verificar esa normalización sobre una base con movimientos previos | No hay tal base. El escenario que describe no es alcanzable |
 
 ### La contradicción con la feature 006
 
-**El AC-07 y el AC-08 del PRD piden lo contrario de lo que la feature 006 decidió y construyó**, y
+**`PRD:AC-07` y `PRD:AC-08` piden lo contrario de lo que la feature 006 decidió y construyó**, y
 esto no es un descuido de ninguno de los dos: son dos criterios razonables que no pueden convivir.
 
 | | Qué pide | Con qué razón |
 |---|---|---|
-| **AC-07 / AC-08** (PRD 4a) | Que el resumen **no** devuelva totales de una moneda sin movimientos en el período, y que un período vacío no devuelva totales de ninguna | Ninguna escrita. El PRD lo enuncia sin justificarlo |
-| **AC-31** (feature 006) | Que devuelva una entrada por **cada moneda del catálogo**, con todo en cero si no hubo movimientos | Escrita y defendida: *"y no una respuesta vacía que obligue a quien la muestre a inventar los ceros"*. Es la razón **D-05** de su research, y está en el contrato, en `ResumenDtos`, en `frontend/src/api/tipos.ts` y en los tests de la 006 |
+| **`PRD:AC-07` / `PRD:AC-08`** | Que el resumen **no** devuelva totales de una moneda sin movimientos en el período, y que un período vacío no devuelva totales de ninguna | Ninguna escrita. El PRD lo enuncia sin justificarlo |
+| **`006:AC-31`** | Que devuelva una entrada por **cada moneda del catálogo**, con todo en cero si no hubo movimientos | Escrita y defendida: *"y no una respuesta vacía que obligue a quien la muestre a inventar los ceros"*. Es la razón **D-05** de su research, y está en el contrato, en `ResumenDtos`, en `frontend/src/api/tipos.ts` y en los tests de la 006 |
 
-**Gana el AC-31 y el resumen no se toca.** Es la misma clase de decisión que la feature 007 tomó con
+**Gana `006:AC-31` y el resumen no se toca.** Es la misma clase de decisión que la feature 007 tomó con
 el límite del nombre —el PRD decía 60, la columna decía 50, ganó la columna—: entre un criterio con
 el razonamiento escrito y otro sin él, gana el que se puede defender. Invertirlo costaría reescribir
 el cálculo, el contrato, los tipos del frontend y los tests de la 006 **para que la pantalla tenga
@@ -75,11 +80,11 @@ Queda anotado en *Deuda registrada* como decisión tomada, no como pendiente.
 
 Dos cosas, y las dos son **verificación de una propiedad que hoy es plausible pero no está probada**:
 
-1. **Que sumar una moneda sea de verdad sólo un dato** (FR-03, NFR-01, AC-02). Hoy se cree porque el
+1. **Que sumar una moneda sea de verdad sólo un dato** (`PRD:FR-03`, `PRD:NFR-01`, `PRD:AC-02`). Hoy se cree porque el
    código está escrito así, no porque alguien lo haya hecho. Es exactamente la clase de afirmación
    que el proyecto ya aprendió a no dar por buena sin verla: el Principio V de la constitución
    existe por eso.
-2. **Que la separación por moneda aguante el volumen** (NFR-03, AC-12). La 006 midió con una sola
+2. **Que la separación por moneda aguante el volumen** (`PRD:NFR-03`, `PRD:AC-12`). La 006 midió con una sola
    moneda; el desglose por par de moneda y categoría multiplica las filas y nadie lo midió.
 
 **FR-04 (rechazar una moneda fuera del catálogo) se difiere a 4b**, y no por comodidad: hoy la
@@ -153,6 +158,10 @@ y midiendo la respuesta del resumen sobre 100 ejecuciones.
 3. **Given** ingresos y gastos en las dos monedas dentro del período, **When** pide el resumen,
    **Then** el balance de cada moneda es sus ingresos menos sus gastos, calculado sin cruzar nada
    entre monedas. *(AC-06)*
+4. **Given** una cuenta con movimientos en dos monedas y varias categorías, **When** se inspecciona
+   la respuesta del resumen, **Then** trae por cada moneda sus tres totales ya sumados y **a lo sumo
+   una fila por categoría**, y **no** trae la lista de movimientos individuales. *(AC-10, que es
+   `PRD:AC-11`)*
 
 ---
 
@@ -174,7 +183,7 @@ contra la que la feature 006 ya verifica.
    *(AC-07)*
 2. **Given** una moneda del catálogo sin ningún movimiento en el período, **When** pide el resumen,
    **Then** esa moneda aparece igual, con sus totales, su balance y su desglose en cero, y sin
-   ningún mensaje de error. *(AC-08, y es el AC-31 de la feature 006 conservado a propósito)*
+   ningún mensaje de error. *(AC-08, y es `006:AC-31` conservado a propósito)*
 3. **Given** una cuenta sin ningún movimiento en el período, **When** pide el resumen, **Then**
    devuelve una entrada en cero por cada moneda del catálogo y ningún error. *(AC-09)*
 
@@ -205,7 +214,7 @@ contra la que la feature 006 ya verifica.
   ninguna modificación del código de la aplicación y sin recompilarla. *(FR-03 del PRD, RF-32)*
 - **FR-002**: Una moneda agregada de ese modo DEBE aparecer en el resumen con sus totales, su
   balance y su desglose, en cero mientras no tenga movimientos. *(FR-03 del PRD, y consecuencia de
-  conservar el AC-31 de la feature 006)*
+  conservar `006:AC-31`)*
 - **FR-003**: El catálogo DEBE contener pesos y dólares tras la migración, y DEBE tener **exactamente
   una** moneda marcada como predeterminada. *(FR-01 y FR-02 del PRD, RF-25, RF-31)*
 - **FR-004**: La unicidad de la moneda predeterminada DEBE sostenerse en la base de datos y no
@@ -221,18 +230,20 @@ contra la que la feature 006 ya verifica.
   mezcle. *(FR-06 del PRD, RF-29)*
 - **FR-007**: Los totales DEBEN calcularse por agregación en la consulta a la base, transfiriendo a
   lo sumo una fila por par de moneda y categoría más los tres totales de cada moneda, y nunca
-  sumando los montos en el cliente. *(NFR-02 del PRD)*
+  sumando los montos en el cliente. *(`PRD:NFR-02`, verificado por AC-10)*
 
 **Lo que no cambia**
 
 - **FR-008**: Con una sola moneda con movimientos, el resumen DEBE devolver exactamente los mismos
-  totales, el mismo balance y el mismo desglose que devolvía antes de esta feature. *(AC-10 del PRD)*
+  totales, el mismo balance y el mismo desglose que devolvía antes de esta feature. *(`PRD:AC-10`)*
 - **FR-009**: El resumen DEBE seguir devolviendo una entrada por **cada** moneda del catálogo, tenga
-  o no movimientos en el período. **Esto contradice el AC-07 y el AC-08 del PRD de la 4a, y es
-  deliberado**: conserva el AC-31 de la feature 006, cuya razón está escrita y cuyo contrato ya
+  o no movimientos en el período. **Esto contradice `PRD:AC-07` y `PRD:AC-08` de la 4a, y es
+  deliberado**: conserva `006:AC-31`, cuya razón está escrita y cuyo contrato ya
   consume el frontend. Ver *De dónde sale esta spec*.
 - **FR-010**: El alta de un movimiento DEBE seguir asignándole la moneda predeterminada leída del
-  catálogo, y NO DEBE ofrecer forma de elegir otra. *(el selector es el ticket 4b)*
+  catálogo, y NO DEBE ofrecer forma de elegir otra. *(el selector es el ticket 4b; AC-02 se apoya
+  entero en esto —es la única vía por la que puede registrar en la moneda nueva—, así que
+  verificarlo es verificar también este requisito)*
 
 **Rendimiento**
 
@@ -292,10 +303,10 @@ tabla de las features 004, 006 y 007.
 
 | # | Qué queda | Por qué no acá | Quién lo cubre |
 |---|---|---|---|
-| D8-01 | **FR-04 del PRD: rechazar un movimiento cuya moneda no esté en el catálogo.** Con su AC-03 y su AC-04 | Hoy la moneda **no viaja en ninguna petición**: ni el alta ni la edición la llevan, y el servidor asigna la predeterminada. No hay entrada que validar, y un test de esto tendría que inventarse primero la vía que dice comprobar | **Ticket 4b**, que abre el selector y con él la primera vía por la que puede llegar una moneda elegida |
+| D8-01 | **FR-04 del PRD: rechazar un movimiento cuya moneda no esté en el catálogo.** Con su `PRD:AC-03` y su `PRD:AC-04` | Hoy la moneda **no viaja en ninguna petición**: ni el alta ni la edición la llevan, y el servidor asigna la predeterminada. No hay entrada que validar, y un test de esto tendría que inventarse primero la vía que dice comprobar | **Ticket 4b**, que abre el selector y con él la primera vía por la que puede llegar una moneda elegida |
 | D8-02 | **El selector de moneda, la columna del listado y el filtro por moneda** | Fuera de alcance explícito del PRD de la 4a: son la 4b entera | Ticket 4b |
 | D8-03 | **RF-30: filtrar el resumen por moneda.** Es la deuda D6-03 de la feature 006, que apuntaba a "4a / 4b" | El resumen ya las discrimina; filtrarlas es una vista distinta y necesita que haya más de una moneda **en uso**, cosa que recién pasa en 4b | Ticket 4b |
-| D8-04 | **AC-07 y AC-08 del PRD de la 4a**, que piden omitir las monedas sin movimientos | **No es deuda, es una decisión tomada**: gana el AC-31 de la feature 006, cuya razón está escrita. Queda acá para que quede constancia de que se miró y se resolvió, no de que se olvidó | Nadie. Si alguna vez se revierte, hay que revertir también el contrato, los tipos del frontend y los tests de la 006 |
+| D8-04 | **`PRD:AC-07` y `PRD:AC-08` de la 4a**, que piden omitir las monedas sin movimientos | **No es deuda, es una decisión tomada**: gana `006:AC-31`, cuya razón está escrita. Queda acá para que quede constancia de que se miró y se resolvió, no de que se olvidó | Nadie. Si alguna vez se revierte, hay que revertir también el contrato, los tipos del frontend y los tests de la 006 |
 | D8-05 | **El formato regional del monto por moneda** —separadores, posición del símbolo—, y la columna `decimales` que ya existe y nadie usa | Es maquetación | Ticket 6 (Maquetación y accesibilidad) |
 | D8-06 | **El dashboard con gráficos y su filtro por moneda** | Es el ticket 5, que depende de éste | Ticket 5 (Dashboard con gráficos) |
 

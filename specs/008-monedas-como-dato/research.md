@@ -10,9 +10,22 @@ qué se descartó.
 ## D-01 · Qué significa exactamente "0 recompilaciones", y cómo se prueba
 
 **Decisión**: la afirmación se prueba con un **script de verificación**, `backend/verificar-monedas.sh`,
-que compila **una sola vez**, calcula el hash del ensamblado y del árbol de fuentes, agrega la moneda
-con **SQL puro**, corre los tests con `dotnet test --no-build`, y vuelve a calcular los dos hashes
-exigiendo que no hayan cambiado.
+que compila **una sola vez**, agrega la moneda con **SQL puro**, corre los tests con
+`dotnet test --no-build`, y al terminar exige dos cosas:
+
+| Mitad de la afirmación | Cómo se comprueba |
+|---|---|
+| **0 recompilaciones** | El hash del ensamblado, tomado antes y después. Si cambió, algo recompiló |
+| **0 líneas de código modificadas** | `git status --porcelain backend/GestionGastos.Api/` **vacío** |
+
+**Las dos mitades necesitan mecanismos distintos, y ahí hay una trampa que conviene ver antes de
+caer en ella.** Un hash del árbol de fuentes tomado antes y después sólo detecta lo que cambió
+**durante** la ventana del script: un archivo modificado antes de arrancar entra en los dos hashes,
+que siguen siendo iguales, y el script pasa en verde con el árbol sucio. `git status` no tiene ese
+punto ciego — compara contra el commit, no contra sí mismo hace un minuto.
+
+Al hash del ensamblado no le pasa lo mismo porque `--no-build` es lo que le da sentido: si algo
+recompiló, fue el script.
 
 **Por qué**: AC-01 no es una afirmación sobre el comportamiento del sistema, es una afirmación sobre
 el **proceso**: "0 líneas de código modificadas y 0 recompilaciones". Un test de integración no la

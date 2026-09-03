@@ -16,7 +16,8 @@ cosas que hoy se creen porque el código está escrito así:
    AC-03). Se prueba con un script que compila una vez, agrega la moneda con SQL puro, corre los
    tests con `--no-build` y exige que el hash del ensamblado y el del árbol de fuentes no hayan
    cambiado. Un test solo no puede sostener una afirmación sobre el proceso ([D-01](./research.md)).
-2. **Que la separación por moneda aguante volumen** (FR-011, AC-04). Se prueba con un caso nuevo de
+2. **Que la separación por moneda aguante volumen** (FR-011, AC-04), y que la respuesta siga
+   trayendo los totales ya agregados y no los movimientos (FR-007, AC-10). Se prueba con un caso nuevo de
    rendimiento que reparte 1000 movimientos en dos monedas, junto al que ya mide con una — dos
    números que se comparan valen más que uno que hay que interpretar ([D-03](./research.md)).
 
@@ -50,8 +51,9 @@ monedas (FR-011, RNF-01).
   más se lleva puesta la corrida siguiente.
 - Los tests de rendimiento no corren en CI (`FullyQualifiedName!~Rendimiento`).
 
-**Scale/Scope**: 3 archivos nuevos, 1 archivo de tests modificado, 2 documentos actualizados
-(`AGENTS.md`, `.github/workflows/ci.yml`). Cero archivos de producción.
+**Scale/Scope**: **2 archivos nuevos** —`MonedaComoDatoTests.cs` y `verificar-monedas.sh`—, 1
+archivo de tests modificado (`RendimientoResumenTests.cs`) y 2 documentos actualizados (`AGENTS.md`,
+`.github/workflows/ci.yml`). **Cero archivos de producción.**
 
 ## Constitution Check
 
@@ -60,7 +62,7 @@ monedas (FR-011, RNF-01).
 | Principio | Cómo lo cumple este plan |
 |---|---|
 | **I · Test-First (no negociable)** | Cada verificación se escribe primero y **se la ve fallar por su razón**. Para el test de integración: se corre contra un catálogo sin la moneda nueva y falla porque no está. Para el script: se corre con una versión que recompila a propósito y se exige que lo detecte — un script de verificación que nunca falló no verifica nada (Principio V aplicado a sí mismo). Para el caso de rendimiento: el guardarraíl de filas sembradas se ve fallar con el sembrado vacío. |
-| **II · Cada AC tiene su test, y el test lo nombra** | Los nueve AC de la spec quedan cubiertos y citados: AC-01/02/03 en `MonedaComoDatoTests` y en el script; AC-04 en `RendimientoResumenTests`; AC-05/06 en `MonedaComoDatoTests`; AC-07/08/09 son regresión y ya están cubiertos por los tests de la 006, que se citan sin duplicarlos. |
+| **II · Cada AC tiene su test, y el test lo nombra** | Los **diez** AC de la spec quedan cubiertos y citados, de dos formas distintas que conviene no confundir. **Con test propio**: AC-01/02/03 (`MonedaComoDatoTests` y el script), AC-04 (`RendimientoResumenTests`), AC-05/06/10 y AC-08/09 (`MonedaComoDatoTests`). **Por cita, sin duplicar**: sólo AC-07, que es la regresión de que con una moneda nada cambió y que los tests del resumen de la feature 006 ya sostienen — T025 anota cuáles son. AC-08 y AC-09 **sí** llevan test propio aunque hablen de comportamiento existente: son la mitad de `006:AC-31` que esta feature decidió conservar contra el PRD (FR-009), y una decisión que se toma contra un documento necesita su propio test, no una cita. |
 | **III · VERIFY es una fase con puerta** | Cada grupo de tareas cierra con su puerta de backend completa y su salida a la vista. La puerta de cierre agrega la barrera nueva a las cinco existentes. |
 | **IV · Tests deterministas y aislados** | El test de integración **limpia la moneda que crea**, porque `LimpiarCuentasAsync` no toca esa tabla ([D-05](./research.md)). El script restaura el catálogo con un `trap`, como las otras cuatro barreras. El caso de rendimiento hereda el guardarraíl que ya exige que el sembrado haya caído en el mes medido. |
 | **V · Las barreras se verifican a sí mismas** | Es el principio que **origina** esta feature: `verificar-monedas.sh` existe porque "se puede agregar una moneda sin tocar código" es hoy una afirmación que nadie ejecutó. Y el script mismo se ve fallar antes de darse por bueno. |

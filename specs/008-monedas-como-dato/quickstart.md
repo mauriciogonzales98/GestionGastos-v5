@@ -30,7 +30,8 @@ sha256sum backend/GestionGastos.Api/bin/Debug/net10.0/GestionGastos.Api.dll
 ```
 
 Guardá ese hash. Es la línea de base de "0 recompilaciones": todo lo que sigue tiene que terminar con
-el mismo número.
+el mismo número. La otra mitad —"0 líneas modificadas"— la comprueba `git status` en el paso 6, y
+son dos mecanismos distintos por el motivo que ahí se explica.
 
 ---
 
@@ -86,8 +87,12 @@ sha256sum backend/GestionGastos.Api/bin/Debug/net10.0/GestionGastos.Api.dll
 git status --porcelain backend/GestionGastos.Api/
 ```
 
-**Esperado**: el mismo hash del paso 2, y `git status` **vacío**. Cero líneas modificadas, cero
-recompilaciones: AC-01 entero, y NFR-01.
+**Esperado**: el mismo hash del paso 2, y `git status` **vacío**. Cero recompilaciones y cero
+líneas modificadas: AC-01 entero, y `PRD:NFR-01`.
+
+**Son dos comprobaciones y no una, a propósito.** El hash cubre la recompilación; el `git status`
+cubre las líneas. Un hash del árbol de fuentes tomado antes y después no serviría para lo segundo:
+un archivo tocado *antes* de empezar entra en los dos hashes y los deja iguales.
 
 ---
 
