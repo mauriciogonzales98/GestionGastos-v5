@@ -85,7 +85,19 @@ if [[ -z "$USUARIO" || -z "$HOST" || -z "$BASE" ]]; then
   exit 1
 fi
 
-sql() { mysql -h "$HOST" -u "$USUARIO" -p"$CLAVE" "$BASE" -N -B -e "$1" 2>/dev/null; }
+# **`-p` sólo cuando hay contraseña, y ésa es la diferencia entre andar y colgarse.**
+#
+# `mysql -p""` NO significa "sin contraseña": con el argumento vacío, mysql la pide **por teclado**.
+# Sin TTY —o sea, en CI— eso imprime `Enter password:` y muere leyendo EOF. La base de CI corre con
+# `MYSQL_ALLOW_EMPTY_PASSWORD`, así que la cadena no trae `Password` y éste es exactamente el caso
+# que se da ahí.
+#
+# Los argumentos van en un array para que la ausencia de `-p` sea la ausencia de un elemento, y no
+# una cadena vacía que el shell igual le pasa a mysql.
+ARGS=(-h "$HOST" -u "$USUARIO" -N -B)
+[[ -n "$CLAVE" ]] && ARGS+=(-p"$CLAVE")
+
+sql() { mysql "${ARGS[@]}" "$BASE" -e "$1" 2>/dev/null; }
 
 limpiar() { sql "DELETE FROM moneda WHERE codigo = '$CODIGO';" || true; }
 trap limpiar EXIT
