@@ -94,6 +94,10 @@ export function App({ hoy }: PropsApp) {
    * siguiente entra en la misma pestaña y ve las categorías propias de la anterior durante todo lo
    * que tarde su propia carga — justo lo que el servidor se cuida de no mandarle nunca (FR-002,
    * FR-012). Se vacía en las dos salidas, el cierre a propósito y el 401.
+   *
+   * `errorDelCatalogo` se va con él y por lo mismo: un fallo de carga de una cuenta le quedaba
+   * puesto a la siguiente, que veía su selector completo y el cartel de que no se pudo cargar al
+   * lado, diciendo lo contrario de lo que la pantalla mostraba.
    */
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [errorDelCatalogo, setErrorDelCatalogo] = useState<string | null>(null);
@@ -128,6 +132,7 @@ export function App({ hoy }: PropsApp) {
     setEstado('sin-sesion');
     setAviso(motivo);
     setCategorias([]);
+    setErrorDelCatalogo(null);
     setVista(VISTA_INICIAL);
   }, []);
 
@@ -221,6 +226,7 @@ export function App({ hoy }: PropsApp) {
     // quien acaba de apretar el botón.
     setAviso(null);
     setCategorias([]);
+    setErrorDelCatalogo(null);
     setVista(VISTA_INICIAL);
   }
 

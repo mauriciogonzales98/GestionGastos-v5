@@ -315,6 +315,36 @@ describe('App — el catálogo se comparte entre las dos pantallas', () => {
    * así que el aviso nace acá — pero se muestra en la pantalla de movimientos, que es la que queda
    * inservible sin categorías.
    */
+  /**
+   * Y el aviso se va con la sesión que lo produjo.
+   *
+   * `errorDelCatalogo` vive en la raíz igual que el catálogo, así que le sobrevivía a la cuenta que
+   * falló: la siguiente entraba con la red ya sana, veía su selector completo **y** el cartel de
+   * "no se pudieron cargar las categorías" al lado, contradiciéndolo.
+   */
+  it('el aviso de fallo no le sobrevive a la sesión que lo produjo', async () => {
+    const usuario = userEvent.setup();
+    vi.mocked(cliente.obtenerCategorias).mockRejectedValueOnce(
+      new cliente.ErrorDelServidor(500, 'boom'),
+    );
+    vi.mocked(cliente.iniciarSesion).mockResolvedValue({ email: 'bruno@ejemplo.com' });
+
+    render(<App hoy="2026-08-24" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/categor/i);
+
+    await usuario.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+    await screen.findByRole('button', { name: 'Entrar' });
+
+    await usuario.type(screen.getByLabelText('Email'), 'bruno@ejemplo.com');
+    await usuario.type(screen.getByLabelText('Contraseña'), 'otra frase larga');
+    await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    // El catálogo de Bruno carga bien: no hay nada que avisar.
+    expect(await screen.findByRole('option', { name: 'Comida' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('si falla la carga del catálogo lo dice en vez de ofrecer un selector vacío', async () => {
     vi.mocked(cliente.obtenerCategorias).mockRejectedValue(
       new cliente.ErrorDelServidor(500, 'boom'),
