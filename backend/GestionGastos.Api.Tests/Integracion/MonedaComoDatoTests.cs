@@ -28,26 +28,6 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
 
     /// <summary>
-    /// **El canario de la suite.**
-    ///
-    /// `moneda` es una tabla que `LimpiarCuentasAsync` NO toca, y hasta esta feature eso estaba
-    /// bien: ningún test creaba monedas, así que no había nada que limpiar. Estos tests sí las
-    /// crean, y una que sobreviva se le queda al siguiente — que entonces falla por lo que hizo la
-    /// corrida anterior y no por el código, que es la peor forma de rojo que hay.
-    ///
-    /// Este caso no verifica ningún requisito: verifica que los otros sean confiables.
-    /// </summary>
-    [Fact]
-    public async Task El_Catalogo_Queda_Con_Las_Dos_Monedas_Sembradas()
-    {
-        await using var contexto = _baseDeDatos.CrearContexto();
-
-        var codigos = await contexto.Monedas.OrderBy(m => m.Id).Select(m => m.Codigo).ToListAsync();
-
-        Assert.Equal(["ARS", "USD"], codigos);
-    }
-
-    /// <summary>
     /// Agrega una moneda al catálogo, corre lo que se le pida con ella puesta, y **la borra pase lo
     /// que pase**.
     ///
@@ -252,6 +232,37 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
         return resumen.Monedas;
     }
 
+}
+
+/// <summary>
+/// **El canario del catálogo de monedas.** No verifica ningún requisito: verifica que los demás
+/// tests sean confiables.
+///
+/// `moneda` es una tabla que `LimpiarCuentasAsync` NO toca, y hasta esta feature eso estaba bien:
+/// ningún test creaba monedas. `MonedaComoDatoTests` sí las crea, y una que sobreviva se le queda
+/// al siguiente — que entonces falla por lo que hizo la corrida anterior y no por el código, que es
+/// la peor forma de rojo que hay. Comprobado haciéndolo ocurrir antes de escribir la limpieza.
+///
+/// **Vive en su propia clase, y no junto a los tests que vigila, por una razón concreta**:
+/// `verificar-monedas.sh` corre `--filter FullyQualifiedName~MonedaComoDato` con una moneda extra
+/// puesta a propósito en el catálogo. Si este caso entrara en ese filtro, la barrera se pondría en
+/// rojo por su propio montaje. Lo que este canario persigue son las monedas que un TEST deja
+/// olvidadas, no las que el script agrega y borra.
+/// </summary>
+[Collection(BaseDeDatosSuite.Nombre)]
+public class CatalogoDeMonedasLimpioTests(BaseDeDatosFixture baseDeDatos)
+{
+    private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
+
+    [Fact]
+    public async Task El_Catalogo_Queda_Con_Las_Dos_Monedas_Sembradas()
+    {
+        await using var contexto = _baseDeDatos.CrearContexto();
+
+        var codigos = await contexto.Monedas.OrderBy(m => m.Id).Select(m => m.Codigo).ToListAsync();
+
+        Assert.Equal(["ARS", "USD"], codigos);
+    }
 }
 
 /// <summary>

@@ -84,14 +84,14 @@ puede registrar un movimiento con ella, y ni el ensamblado ni el árbol de fuent
 
 ### La barrera
 
-- [ ] T011 [US1] Crear `backend/verificar-monedas.sh` —la **sexta** barrera del proyecto—: compila una vez, calcula el hash del ensamblado, agrega la moneda con SQL puro por el cliente `mysql`, corre `dotnet test --no-build --filter "FullyQualifiedName~MonedaComoDato"`, y al terminar exige las **dos mitades de la afirmación, con un mecanismo cada una** ([D-01](./research.md)): el hash del ensamblado igual que antes (**0 recompilaciones**) y `git status --porcelain backend/GestionGastos.Api/` **vacío** (**0 líneas modificadas**). Restaura el catálogo con un `trap`, como las otras cuatro que escriben. Bit de ejecución en `100755`
-- [ ] T012 [ROJO] [US1] Ver fallar al script por su propia vía: forzar una recompilación entre los dos hashes y exigir que **lo detecte y salga en rojo**. Es el Principio V aplicado a sí mismo — un script que nunca falló no verifica nada. Restaurar y exigir el verde. Mostrar las dos salidas
-- [ ] T013 [ROJO] [US1] El segundo desarme, para la otra mitad: dejar sucio un archivo de `backend/GestionGastos.Api/` —alcanza un comentario, que no cambia el binario— y exigir que **el `git status` del script lo detecte**. Restaurar y exigir el verde.
+- [X] T011 [US1] Crear `backend/verificar-monedas.sh` —la **sexta** barrera del proyecto—: compila una vez, calcula el hash del ensamblado, agrega la moneda con SQL puro por el cliente `mysql`, corre `dotnet test --no-build --filter "FullyQualifiedName~MonedaComoDato"`, y al terminar exige las **dos mitades de la afirmación, con un mecanismo cada una** ([D-01](./research.md)): el hash del ensamblado igual que antes (**0 recompilaciones**) y `git status --porcelain backend/GestionGastos.Api/` **vacío** (**0 líneas modificadas**). Restaura el catálogo con un `trap`, como las otras cuatro que escriben. Bit de ejecución en `100755`
+- [X] T012 [ROJO] [US1] Ver fallar al script por su propia vía: forzar una recompilación entre los dos hashes y exigir que **lo detecte y salga en rojo**. Es el Principio V aplicado a sí mismo — un script que nunca falló no verifica nada. Restaurar y exigir el verde. Mostrar las dos salidas
+- [X] T013 [ROJO] [US1] El segundo desarme, para la otra mitad: dejar sucio un archivo de `backend/GestionGastos.Api/` —alcanza un comentario, que no cambia el binario— y exigir que **el `git status` del script lo detecte**. Restaurar y exigir el verde.
 
   **La comprobación tiene que ser `git status` y no un hash del árbol de fuentes tomado antes y después**, y este desarme es justamente el que lo demuestra: un archivo tocado ANTES de arrancar el script entra en los dos hashes, que quedan iguales, y el script pasaría en verde con el árbol sucio. `git status` compara contra el commit y no contra sí mismo hace un minuto, así que no tiene ese punto ciego
-- [ ] T014 [P] [US1] Agregar la barrera a la tabla de *Stack* de `AGENTS.md`, con su comando, qué comprueba y cuánto tarda, en la forma de las otras cinco
-- [ ] T015 [P] [US1] Agregar el paso `Barrera de monedas` a `.github/workflows/ci.yml`, junto a las otras barreras y antes de `verificar-linter.sh` ([D-06](./research.md))
-- [ ] T016 [VERIFY] [US1] Puerta del backend completa **más `./backend/verificar-monedas.sh` entero**, con su salida
+- [X] T014 [P] [US1] Agregar la barrera a la tabla de *Stack* de `AGENTS.md`, con su comando, qué comprueba y cuánto tarda, en la forma de las otras cinco
+- [X] T015 [P] [US1] Agregar el paso `Barrera de monedas` a `.github/workflows/ci.yml`, junto a las otras barreras y antes de `verificar-linter.sh` ([D-06](./research.md))
+- [X] T016 [VERIFY] [US1] Puerta del backend completa **más `./backend/verificar-monedas.sh` entero**, con su salida
 
 **Checkpoint**: RF-032 deja de ser una intención. US1 sola ya entrega el valor del ticket.
 

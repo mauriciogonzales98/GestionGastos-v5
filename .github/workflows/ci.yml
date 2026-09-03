@@ -190,5 +190,16 @@ jobs:
         env:
           ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
 
+      # Sumar una moneda al catálogo tiene que costar 0 líneas de código y 0 recompilaciones
+      # (RF-32). Es una afirmación sobre el proceso, no sobre el comportamiento, así que ningún
+      # test la puede sostener: corren dentro de un proceso ya compilado.
+      #
+      # No modifica archivos, así que no invalida el --no-build de nadie. Sí necesita el árbol
+      # limpio, cosa que en CI siempre se cumple.
+      - name: Barrera de monedas
+        run: ./backend/verificar-monedas.sh
+        env:
+          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+
       - name: Barrera del linter
         run: ./backend/verificar-linter.sh
