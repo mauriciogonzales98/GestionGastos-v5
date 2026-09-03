@@ -185,6 +185,132 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>
+    /// AC-05, FR-006 y SC-002: una **misma** categoría con gastos en dos monedas aparece una vez
+    /// dentro de cada una, con el total de esa moneda, y ninguno incluye montos de la otra.
+    ///
+    /// Es el caso que el PRD llama plausible y por eso peligroso: sumar 10.000 pesos con 50 dólares
+    /// da 10.050, un número que nadie mira dos veces.
+    /// </summary>
+    [Fact]
+    public async Task Una_Categoria_Con_Gastos_En_Dos_Monedas_No_Los_Mezcla_AC05()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 1, TipoMovimiento.Gasto, 10_000m);
+        await SembrarAsync(cuenta.Id, monedaId: 2, categoriaId: 1, TipoMovimiento.Gasto, 50m);
+
+        var monedas = await MonedasDelResumenAsync(cuenta);
+
+        var ars = Assert.Single(monedas, m => m.MonedaCodigo == "ARS");
+        var usd = Assert.Single(monedas, m => m.MonedaCodigo == "USD");
+
+        Assert.Equal(10_000m, Assert.Single(ars.GastosPorCategoria, c => c.CategoriaId == 1).Total);
+        Assert.Equal(50m, Assert.Single(usd.GastosPorCategoria, c => c.CategoriaId == 1).Total);
+        Assert.Equal(10_000m, ars.TotalGastado);
+        Assert.Equal(50m, usd.TotalGastado);
+
+        // La comprobación que atrapa la mezcla: 10.050 sería el número plausible y equivocado.
+        Assert.NotEqual(10_050m, ars.TotalGastado);
+        Assert.NotEqual(10_050m, usd.TotalGastado);
+    }
+
+    /// <summary>
+    /// AC-06, FR-005 y SC-002: el balance de cada moneda es sus ingresos menos sus gastos, sin
+    /// cruzar nada.
+    ///
+    /// Se eligen números que hacen que la mezcla se note: si los universos se cruzaran, el balance
+    /// de alguna de las dos daría 0 —que es un número que parece razonable— en vez de sus valores.
+    /// </summary>
+    [Fact]
+    public async Task El_Balance_De_Cada_Moneda_Sale_De_Sus_Propios_Movimientos_AC06()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 8, TipoMovimiento.Ingreso, 500m);
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 1, TipoMovimiento.Gasto, 200m);
+        await SembrarAsync(cuenta.Id, monedaId: 2, categoriaId: 8, TipoMovimiento.Ingreso, 200m);
+        await SembrarAsync(cuenta.Id, monedaId: 2, categoriaId: 1, TipoMovimiento.Gasto, 500m);
+
+        var monedas = await MonedasDelResumenAsync(cuenta);
+
+        var ars = Assert.Single(monedas, m => m.MonedaCodigo == "ARS");
+        var usd = Assert.Single(monedas, m => m.MonedaCodigo == "USD");
+
+        Assert.Equal(300m, ars.Balance);    // 500 - 200
+        Assert.Equal(-300m, usd.Balance);   // 200 - 500, y en rojo es un resultado, no un error
+    }
+
+    /// <summary>
+    /// AC-10 y FR-007 (`PRD:AC-11`): la respuesta trae los totales **ya agregados** y a lo sumo una
+    /// fila por categoría dentro de cada moneda, y **no** trae los movimientos individuales.
+    ///
+    /// Mira la FORMA de la respuesta, no sus números: es lo que impide que alguien "arregle" un
+    /// rendimiento devolviendo el listado y sumando del lado del cliente. Con seis movimientos
+    /// repartidos en dos categorías y dos monedas, un desglose que no agregara traería seis filas.
+    /// </summary>
+    [Fact]
+    public async Task El_Resumen_Devuelve_Totales_Agregados_Y_No_Movimientos_AC10()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        foreach (var monedaId in new short[] { 1, 2 })
+        {
+            foreach (var categoriaId in new[] { 1, 2 })
+            {
+                await SembrarAsync(cuenta.Id, monedaId, categoriaId, TipoMovimiento.Gasto, 100m);
+                await SembrarAsync(cuenta.Id, monedaId, categoriaId, TipoMovimiento.Gasto, 50m);
+            }
+        }
+
+        using var respuesta = await cuenta.Cliente.GetAsync(new Uri("/api/resumen", UriKind.Relative));
+        var crudo = await respuesta.Content.ReadAsStringAsync();
+
+        var monedas = await MonedasDelResumenAsync(cuenta);
+
+        foreach (var moneda in monedas)
+        {
+            // A lo sumo una fila por categoría: sin agregar serían dos por cada una.
+            Assert.Equal(
+                moneda.GastosPorCategoria.Select(c => c.CategoriaId).Distinct().Count(),
+                moneda.GastosPorCategoria.Count);
+        }
+
+        var ars = Assert.Single(monedas, m => m.MonedaCodigo == "ARS");
+        Assert.Equal(2, ars.GastosPorCategoria.Count);
+        Assert.All(ars.GastosPorCategoria, c => Assert.Equal(150m, c.Total));
+
+        // Y nada que huela a movimiento suelto: ni el id, ni la fecha, ni el monto individual.
+        Assert.DoesNotContain("\"fecha\"", crudo, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"movimientos\"", crudo, StringComparison.Ordinal);
+    }
+
+    /// <summary>Siembra un movimiento directo en la base, para armar escenarios de varias monedas.</summary>
+    private async Task SembrarAsync(
+        long usuarioId, short monedaId, int categoriaId, TipoMovimiento tipo, decimal monto)
+    {
+        await using var contexto = _baseDeDatos.CrearContexto();
+        contexto.Movimientos.Add(new Movimiento
+        {
+            UsuarioId = usuarioId,
+            Tipo = tipo,
+            Monto = monto,
+            MonedaId = monedaId,
+            CategoriaId = categoriaId,
+            Fecha = Hoy,
+        });
+        await contexto.SaveChangesAsync();
+    }
+
+    /// <summary>
     /// Mueve la marca de predeterminada, corre el cuerpo, y la devuelve a donde estaba.
     ///
     /// Dos sentencias en cada sentido, por el índice único sobre la columna generada. El `finally`
