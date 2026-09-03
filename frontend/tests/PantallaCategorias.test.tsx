@@ -147,7 +147,9 @@ describe('PantallaCategorias — renombrar y dar de baja', () => {
     renderizar({ onDarDeBaja });
 
     await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: /^Dar de baja/ }));
-    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: 'Confirmar la baja' }));
+    await usuario.click(
+      within(fila('Gimnasio')).getByRole('button', { name: 'Confirmar la baja' }),
+    );
 
     expect(onDarDeBaja).toHaveBeenCalledWith(43);
   });
@@ -252,7 +254,9 @@ describe('PantallaCategorias — la baja se confirma antes de ejecutarse', () =>
     renderizar({ onDarDeBaja });
 
     await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: /^Dar de baja/ }));
-    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: 'Confirmar la baja' }));
+    await usuario.click(
+      within(fila('Gimnasio')).getByRole('button', { name: 'Confirmar la baja' }),
+    );
 
     expect(onDarDeBaja).toHaveBeenCalledWith(43);
   });

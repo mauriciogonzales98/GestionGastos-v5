@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
+import type { Categoria } from '../src/api/tipos';
 import { CATEGORIAS } from './categorias.fixture';
 
 vi.mock('../src/api/cliente', async () => {
@@ -373,7 +374,10 @@ describe('App — lo que la sesión se lleva al cerrarse', () => {
    */
   it('el catálogo de una cuenta no se le muestra a la siguiente FR-002', async () => {
     const usuario = userEvent.setup();
-    const deAna = [...CATEGORIAS, { id: 40, nombre: 'Psicólogo', tipo: 'gasto', esPropia: true }];
+    const deAna: Categoria[] = [
+      ...CATEGORIAS,
+      { id: 40, nombre: 'Psicólogo', tipo: 'gasto', esPropia: true },
+    ];
     vi.mocked(cliente.obtenerCategorias).mockResolvedValueOnce(deAna);
     vi.mocked(cliente.iniciarSesion).mockResolvedValue({ email: 'bruno@ejemplo.com' });
 
@@ -409,7 +413,7 @@ describe('App — la vista también se va con la sesión', () => {
    */
   it('entrar de nuevo lleva a movimientos aunque se haya salido desde la gestión FR-018', async () => {
     const usuario = userEvent.setup();
-    const propia = { id: 41, nombre: 'Gimnasio', tipo: 'gasto', esPropia: true } as const;
+    const propia: Categoria = { id: 41, nombre: 'Gimnasio', tipo: 'gasto', esPropia: true };
     vi.mocked(cliente.obtenerCategorias).mockResolvedValue([...CATEGORIAS, propia]);
     vi.mocked(cliente.iniciarSesion).mockResolvedValue({ email: 'bruno@ejemplo.com' });
 
