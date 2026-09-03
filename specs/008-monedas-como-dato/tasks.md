@@ -136,13 +136,13 @@ un centavo de la otra moneda.
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T029 Recorrer el [quickstart](./quickstart.md) entero, los siete pasos más la medición, y anotar cualquier línea que no haya salido como dice. Un quickstart que nadie ejecutó es documentación que envejece sin avisar
-- [ ] T030 [VERIFY] Las **seis** barreras: `verificar-contrato.sh`, `verificar-autorizacion.sh`, `verificar-desglose.sh`, `verificar-monedas.sh`, `verificar-aislamiento.sh` y `verificar-linter.sh`, con su salida. `verificar-contrato.sh` en verde es, además, la prueba de que el contrato del resumen no cambió, que es lo que FR-009 pide
-- [ ] T031 Cobertura del backend con `backend/cobertura.runsettings`, con su salida
-- [ ] T032 [P] Confirmar que `git status --porcelain backend/GestionGastos.Api/` está **vacío**. Es el criterio de D-04 hecho comprobación: el trabajo de esta feature es aditivo, y las dos tareas que tocaron producción para producir un rojo restauraron lo que tocaron
-- [ ] T033 [P] Actualizar `plan-de-implementacion/README.md`: el ticket 12 (4a) pasa a la tabla de implementados, con la nota de que la mayor parte ya venía de FEAT-001a y FEAT-001c y que esta feature la verificó
-- [ ] T034 [P] Anotar en la *Deuda registrada* de [spec.md](./spec.md) lo que esta feature no dejó hecho, si aparece algo nuevo durante la implementación. D8-01 a D8-06 ya están; esto es para lo que se descubra
-- [ ] T035 [VERIFY] Puerta completa de los dos stacks, con su salida. El frontend no se tocó, y correrlo igual es lo que lo demuestra
+- [X] T029 Recorrer el [quickstart](./quickstart.md) entero, los siete pasos más la medición, y anotar cualquier línea que no haya salido como dice. Un quickstart que nadie ejecutó es documentación que envejece sin avisar
+- [X] T030 [VERIFY] Las **seis** barreras: `verificar-contrato.sh`, `verificar-autorizacion.sh`, `verificar-desglose.sh`, `verificar-monedas.sh`, `verificar-aislamiento.sh` y `verificar-linter.sh`, con su salida. `verificar-contrato.sh` en verde es, además, la prueba de que el contrato del resumen no cambió, que es lo que FR-009 pide
+- [X] T031 Cobertura del backend con `backend/cobertura.runsettings`, con su salida
+- [X] T032 [P] Confirmar que `git status --porcelain backend/GestionGastos.Api/` está **vacío**. Es el criterio de D-04 hecho comprobación: el trabajo de esta feature es aditivo, y las dos tareas que tocaron producción para producir un rojo restauraron lo que tocaron
+- [X] T033 [P] Actualizar `plan-de-implementacion/README.md`: el ticket 12 (4a) pasa a la tabla de implementados, con la nota de que la mayor parte ya venía de FEAT-001a y FEAT-001c y que esta feature la verificó
+- [X] T034 [P] Anotar en la *Deuda registrada* de [spec.md](./spec.md) lo que esta feature no dejó hecho, si aparece algo nuevo durante la implementación. D8-01 a D8-06 ya están; esto es para lo que se descubra
+- [X] T035 [VERIFY] Puerta completa de los dos stacks, con su salida. El frontend no se tocó, y correrlo igual es lo que lo demuestra
 
 ---
 

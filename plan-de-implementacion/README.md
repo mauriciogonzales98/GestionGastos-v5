@@ -40,6 +40,7 @@ Verificado contra el código el 2026-09-03.
 | 9 | FEAT-001b | Filtros del listado, edición y eliminación | `specs/005-filtros-edicion-eliminacion/`, `GET`/`PUT`/`DELETE /api/movimientos/{id}` | no está en el repo |
 | 10 | FEAT-001c | Resumen del mes con desglose por categoría | `specs/006-resumen-del-mes/`, `GET /api/resumen`, `Resumenes/` | no está en el repo |
 | 11 | DISC-001-03 | Categorías propias del usuario | `specs/007-categorias-propias/`, `Categorias/` con su canal y su validación, `POST`/`PUT`/`DELETE /api/categorias`, la migración `DiscriminadorDeCategoria`, `frontend/src/categorias/PantallaCategorias.tsx` y `verificar-desglose.sh` | `prds/pendientes/prd-DISC-001-03.md` |
+| 12 | DISC-001-04a | Catálogo de monedas y totales por moneda | `specs/008-monedas-como-dato/`, `verificar-monedas.sh`. **La mayor parte ya venía construida**: la tabla `moneda` y su semilla salieron con FEAT-001a, y el resumen por moneda con FEAT-001c. Esta feature la **verificó** —que sumar una moneda cueste 0 líneas y 0 recompilaciones, y que la separación aguante 1000 movimientos en dos monedas— y documentó requisito por requisito qué ya estaba hecho | `prds/pendientes/prd-DISC-001-04a.md` |
 
 Los FIX/FEAT de infraestructura (D-1 a D-4) salieron intercalados porque el usuario decidió cerrar
 la deuda de infraestructura antes de seguir con features de producto; el mapa de
@@ -50,7 +51,6 @@ la deuda de infraestructura antes de seguir con features de producto; el mapa de
 
 | Orden | # | Título | PRD |
 |-------|---|--------|-----|
-| 12 | 4a | Catálogo de monedas y totales por moneda | `prds/pendientes/prd-DISC-001-04a.md` |
 | 13 | 4b | Registrar y filtrar en varias monedas | `prds/pendientes/prd-DISC-001-04b.md` |
 | 14 | 5 | Dashboard con gráficos | `prds/pendientes/prd-DISC-001-05.md` |
 | 15 | 6 | Maquetación y accesibilidad | `prds/pendientes/prd-DISC-001-06.md` |
