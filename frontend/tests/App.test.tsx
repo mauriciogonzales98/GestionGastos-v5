@@ -392,6 +392,7 @@ describe('App — la vista también se va con la sesión', () => {
     vi.mocked(cliente.consultarSesion).mockRejectedValue(new cliente.ErrorDeSesion());
     vi.mocked(cliente.darDeBajaCategoria).mockRejectedValue(new cliente.ErrorDeSesion());
     await usuario.click(screen.getByRole('button', { name: 'Dar de baja Gimnasio' }));
+    await usuario.click(screen.getByRole('button', { name: 'Confirmar la baja' }));
     await screen.findByRole('button', { name: 'Entrar' });
 
     await usuario.type(screen.getByLabelText('Email'), 'bruno@ejemplo.com');

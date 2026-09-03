@@ -136,13 +136,18 @@ describe('PantallaCategorias — renombrar y dar de baja', () => {
     expect(onRenombrar).toHaveBeenCalledWith(43, 'Gimnasio y pileta');
   });
 
+  /**
+   * Pasa por la confirmación porque la baja no se dispara con un solo clic: es irreversible, y el
+   * porqué está en el bloque "la baja se confirma antes de ejecutarse" de más abajo.
+   */
   it('dar de baja una propia la manda por su identificador', async () => {
     const usuario = userEvent.setup();
     const onDarDeBaja = vi.fn().mockResolvedValue(undefined);
 
     renderizar({ onDarDeBaja });
 
-    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: /Dar de baja/ }));
+    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: /^Dar de baja/ }));
+    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: 'Confirmar la baja' }));
 
     expect(onDarDeBaja).toHaveBeenCalledWith(43);
   });
@@ -210,5 +215,60 @@ describe('PantallaCategorias — cada rechazo al lado del control que lo produjo
 
     expect(await screen.findByRole('alert')).toHaveTextContent('El nombre no puede estar vacío.');
     expect(within(fila('Gimnasio')).queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('PantallaCategorias — la baja se confirma antes de ejecutarse', () => {
+  /**
+   * La baja es **un camino de ida**: no hay forma de reactivar una categoría (Key Entities, y la
+   * deuda D7-04 lo deja fuera de alcance a propósito). La única salida de un clic errado es crear
+   * otra con el mismo nombre (FR-009), y entonces los movimientos viejos quedan apuntando a la
+   * vieja: el desglose del resumen muestra dos entradas homónimas y no hay forma de juntarlas.
+   *
+   * Ninguna otra acción irreversible de la aplicación se dispara con un clic pelado.
+   *
+   * El paso de confirmación es el mismo patrón de dos botones que ya usa el renombre: sin
+   * dependencias nuevas y sin un `window.confirm`, que no se puede maquetar ni testear como parte
+   * de la pantalla.
+   */
+  it('el primer clic no da de baja: pide confirmación', async () => {
+    const usuario = userEvent.setup();
+    const onDarDeBaja = vi.fn().mockResolvedValue(undefined);
+
+    renderizar({ onDarDeBaja });
+
+    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: /^Dar de baja/ }));
+
+    expect(onDarDeBaja).not.toHaveBeenCalled();
+    expect(
+      within(fila('Gimnasio')).getByRole('button', { name: 'Confirmar la baja' }),
+    ).toBeInTheDocument();
+  });
+
+  it('el segundo clic sí la da de baja', async () => {
+    const usuario = userEvent.setup();
+    const onDarDeBaja = vi.fn().mockResolvedValue(undefined);
+
+    renderizar({ onDarDeBaja });
+
+    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: /^Dar de baja/ }));
+    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: 'Confirmar la baja' }));
+
+    expect(onDarDeBaja).toHaveBeenCalledWith(43);
+  });
+
+  it('cancelar deja la categoría donde estaba', async () => {
+    const usuario = userEvent.setup();
+    const onDarDeBaja = vi.fn().mockResolvedValue(undefined);
+
+    renderizar({ onDarDeBaja });
+
+    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: /^Dar de baja/ }));
+    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: 'No dar de baja' }));
+
+    expect(onDarDeBaja).not.toHaveBeenCalled();
+    expect(
+      within(fila('Gimnasio')).getByRole('button', { name: 'Dar de baja Gimnasio' }),
+    ).toBeInTheDocument();
   });
 });

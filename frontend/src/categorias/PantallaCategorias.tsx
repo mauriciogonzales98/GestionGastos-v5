@@ -57,6 +57,19 @@ export function PantallaCategorias({
   const [renombrando, setRenombrando] = useState<{ id: number; nombre: string } | null>(null);
 
   /**
+   * Qué fila está pidiendo confirmación para darse de baja. `null` = ninguna.
+   *
+   * **La baja es un camino de ida** (Key Entities; D7-04 deja la restauración fuera de alcance a
+   * propósito), así que no puede dispararse con un clic pelado. La única salida de un clic errado
+   * es crear otra categoría con el mismo nombre (FR-009), y entonces los movimientos viejos quedan
+   * apuntando a la vieja: el desglose muestra dos entradas homónimas y no hay forma de juntarlas.
+   *
+   * Es el mismo patrón de dos botones que usa el renombre, y no un `window.confirm`: ése no se
+   * puede maquetar —el ticket 6 no podría tocarlo— ni se comporta igual en todos los navegadores.
+   */
+  const [confirmandoLaBaja, setConfirmandoLaBaja] = useState<number | null>(null);
+
+  /**
    * Reparte un rechazo del servidor: el mensaje de `nombre` va al lado del control que lo produjo
    * y todo lo demás a la región general. Un error sin lugar donde ir es un rechazo invisible.
    *
@@ -120,6 +133,7 @@ export function PantallaCategorias({
 
   async function darDeBaja(id: number) {
     limpiarErrores();
+    setConfirmandoLaBaja(null);
 
     try {
       await onDarDeBaja(id);
@@ -223,14 +237,39 @@ export function PantallaCategorias({
                     type="button"
                     onClick={() => {
                       limpiarErrores();
+                      setConfirmandoLaBaja(null);
                       setRenombrando({ id: categoria.id, nombre: categoria.nombre });
                     }}
                   >
                     Renombrar {categoria.nombre}
                   </button>
-                  <button type="button" onClick={() => void darDeBaja(categoria.id)}>
-                    Dar de baja {categoria.nombre}
-                  </button>
+                  {confirmandoLaBaja === categoria.id ? (
+                    <>
+                      {/* Dicho entero y no "¿Seguro?": lo que hay que saber antes de apretar es
+                          que no se puede deshacer, y ése es el dato que una pregunta genérica se
+                          guarda. */}
+                      <span role="alert">
+                        Se deja de ofrecer y no se puede reactivar. Los movimientos ya registrados
+                        la conservan.
+                      </span>
+                      <button type="button" onClick={() => void darDeBaja(categoria.id)}>
+                        Confirmar la baja
+                      </button>
+                      <button type="button" onClick={() => setConfirmandoLaBaja(null)}>
+                        No dar de baja
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        limpiarErrores();
+                        setConfirmandoLaBaja(categoria.id);
+                      }}
+                    >
+                      Dar de baja {categoria.nombre}
+                    </button>
+                  )}
                 </>
               )
             ) : (
