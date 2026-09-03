@@ -1,7 +1,9 @@
 import type {
   Categoria,
+  CategoriaEditada,
   Credenciales,
   Movimiento,
+  NuevaCategoria,
   NuevaCuenta,
   NuevoMovimiento,
   ProblemDetails,
@@ -155,6 +157,40 @@ const JSON_ENVIADO = { 'Content-Type': 'application/json' };
 
 export function obtenerCategorias(): Promise<Categoria[]> {
   return pedir<Categoria[]>('/api/categorias');
+}
+
+/**
+ * Crea una categoría propia (FR-004). Devuelve la creada, en la misma forma que el catálogo.
+ *
+ * Que devuelva la categoría y no `void` es lo que permite insertarla en el catálogo que la pantalla
+ * ya tiene, sin volver a pedirlo (FR-019, AC-13).
+ */
+export function crearCategoria(nueva: NuevaCategoria): Promise<Categoria> {
+  return pedir<Categoria>('/api/categorias', {
+    method: 'POST',
+    headers: JSON_ENVIADO,
+    body: JSON.stringify(nueva),
+  });
+}
+
+/** Renombra una categoría propia (FR-007). Devuelve la categoría ya modificada. */
+export function renombrarCategoria(id: number, cambio: CategoriaEditada): Promise<Categoria> {
+  return pedir<Categoria>(`/api/categorias/${id}`, {
+    method: 'PUT',
+    headers: JSON_ENVIADO,
+    body: JSON.stringify(cambio),
+  });
+}
+
+/**
+ * Da de baja una categoría propia (FR-010). La fila no se borra: deja de ofrecerse y sigue
+ * nombrando los movimientos que ya la usan.
+ *
+ * Es idempotente del lado del servidor: darle de baja a algo ya dado de baja también responde
+ * `204`, así que esto no falla por llegar tarde.
+ */
+export function darDeBajaCategoria(id: number): Promise<void> {
+  return pedirSinCuerpo(`/api/categorias/${id}`, { method: 'DELETE' });
 }
 
 export function obtenerMovimientos(): Promise<Movimiento[]> {

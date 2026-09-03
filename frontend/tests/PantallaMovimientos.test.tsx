@@ -6,7 +6,6 @@ import type { Movimiento } from '../src/api/tipos';
 import { CATEGORIAS } from './categorias.fixture';
 
 vi.mock('../src/api/cliente', () => ({
-  obtenerCategorias: vi.fn(),
   obtenerMovimientos: vi.fn(),
   crearMovimiento: vi.fn(),
 }));
@@ -39,7 +38,6 @@ beforeEach(() => {
   // clearAllMocks y no sólo reset del que interesa: los contadores de llamadas se acumulan entre
   // tests, y un "se llamó una vez" que en realidad cuenta las corridas anteriores no verifica nada.
   vi.clearAllMocks();
-  vi.mocked(cliente.obtenerCategorias).mockResolvedValue(CATEGORIAS);
   vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([DEL_20, DEL_10]);
 });
 
@@ -48,7 +46,10 @@ async function renderizar() {
     <PantallaMovimientos
       hoy={HOY}
       email="ana@ejemplo.com"
+      categorias={CATEGORIAS}
+      errorDelCatalogo={null}
       onCerrarSesion={() => {}}
+      onGestionarCategorias={() => {}}
       onSesionVencida={() => {}}
     />,
   );

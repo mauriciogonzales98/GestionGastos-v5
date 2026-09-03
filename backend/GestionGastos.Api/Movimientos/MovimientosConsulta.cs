@@ -72,6 +72,14 @@ public static class MovimientosConsulta
     /// El acotado por cuenta no se escribe acá: sale de <see cref="DeLaCuenta"/>, igual que el del
     /// listado. Y aun así `BarreraDeAislamientoTests` inspecciona su SQL y le exige el `usuario_id`
     /// — construcción y vigilancia, que son las dos mitades del Principio V y no una redundancia.
+    ///
+    /// **Y NO filtra por `categoria.activa`. Nunca puede empezar a hacerlo** (FR-011, AC-06, D-05).
+    /// Es el reflejo natural de quien acaba de sumar la baja lógica al modelo y sería un daño
+    /// silencioso: los movimientos de una categoría dada de baja dejarían de sumar, y el resumen de
+    /// un mes cerrado hace dos años pasaría a dar otro número sin que nadie tocara un movimiento.
+    /// La baja lógica apaga una categoría en el SELECTOR, no en la historia. `BarreraDelDesgloseTests`
+    /// inspecciona este SQL y se pone en rojo si aparece `activa`; el filtro va en
+    /// `CategoriasConsulta`, que es donde se decide qué se OFRECE.
     /// </summary>
     public static IQueryable<MontoAgrupado> Agrupado(
         GestionGastosDbContext contexto,

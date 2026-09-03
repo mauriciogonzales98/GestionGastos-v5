@@ -321,9 +321,29 @@ que lo va a poder cubrir, para que ese ticket lo cubra al nacer. Es la misma tab
 | D6-01 | **La pantalla del resumen.** El backend devuelve los números y nadie los muestra todavía | Igual que FEAT-001b, esta feature fue de backend: el frontend recibió sólo la declaración del contrato | Ticket 5 (Dashboard con gráficos) y ticket 6 (Maquetación) |
 | D6-02 | **La representación gráfica** de los totales por categoría (RF-19 la nombra) | Acá se entregó el cálculo verificado, que es lo que un gráfico necesita para no mentir | Ticket 5 |
 | D6-03 | **RF-30: filtrar el resumen por moneda.** El resumen las discrimina; no se pueden filtrar | Filtrar monedas requiere que haya más de una en uso, y hoy todo se registra en la predeterminada | Ticket 4a / 4b |
-| D6-04 | **AC-14: los movimientos de una categoría dada de baja siguen sumando en el desglose** | Hoy no existen ni las categorías propias ni la baja lógica, así que no hay nada que implementar ni forma de testearlo | Ticket 3 (Categorías propias) — **el desglose no debe empezar a filtrar por `activa`** |
+| ~~D6-04~~ | ~~**AC-14: los movimientos de una categoría dada de baja siguen sumando en el desglose**~~ | **SALDADA** por el ticket 3 (`specs/007-categorias-propias/`, 2026-09-03). Ver abajo | — |
 | D6-05 | **El índice por `categoria_id`** que ayudaría al `GROUP BY` | RNF-01 se cumple sin él, medido en los dos escalones. Un índice de más se paga en cada `INSERT` | Nadie, salvo que `RendimientoResumenTests` se ponga en rojo. Ver [D-10](./research.md#d-10--sin-migración-y-el-índice-se-deja-como-está) |
 | D6-06 | **El resumen no se filtra por categoría**, y el listado sí desde FEAT-001b. Un `categoriaId` en la URL se ignora | El resumen es del período completo por diseño: filtrarlo es una vista distinta, no un parámetro más. Declarado en [`contracts/resumen.md`](./contracts/resumen.md) para que no se resuelva por omisión | Ticket 5 (Dashboard) — **si el filtro tapa el listado y no el resumen, la misma pantalla muestra dos cifras que se contradicen** |
+
+#### Cómo se saldó D6-04
+
+El ticket 3 trajo las categorías propias y la baja lógica, y con ellas la forma de producir la
+diferencia que acá no existía. Se saldó en **dos capas**, no en una:
+
+1. **`CategoriasPropiasTests.Dar_De_Baja_Una_Categoria_No_Cambia_Ni_Un_Numero_Del_Resumen_AC06`** —
+   guarda el resumen entero, da de baja una categoría con movimientos y exige que el documento
+   siguiente sea **idéntico**. Es la capa de resultado.
+2. **`BarreraDelDesgloseTests.El_Desglose_No_Filtra_Por_Categoria_Activa`** — inspecciona el SQL que
+   genera `MovimientosConsulta.Agrupado` y exige que no nombre `activa`. Es la capa de construcción,
+   y existe porque un test de resultado sólo protege el escenario que arma.
+3. **`backend/verificar-desglose.sh`** —la quinta barrera del proyecto— le prueba a la barrera que
+   sabe ponerse en rojo: le cuela el filtro, exige el rojo, restaura y exige el verde.
+
+**Lo que esta deuda advertía ocurrió tal cual y quedó medido.** Antes de escribir la barrera se le
+agregó `&& m.Categoria!.Activa` a la consulta del resumen y se corrió la suite entera: **195 de 195
+en verde**. Hasta el ticket 3 todas las categorías tenían `activa = true`, así que el filtro no
+cambiaba ningún número y ningún test podía notarlo. Ese verde era exactamente la deuda, y hoy es un
+rojo.
 
 ### Deuda de proceso, no de producto
 

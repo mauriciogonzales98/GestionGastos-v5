@@ -110,9 +110,25 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
             e.Property(c => c.UsuarioId).HasColumnName("usuario_id");
             e.Property(c => c.Activa).HasColumnName("activa").HasColumnType("bit(1)").HasDefaultValue(true);
 
-            // Impide dos categorías con el mismo nombre y tipo dentro del mismo ámbito. "Otros"
-            // existe en gasto y en ingreso: son dos filas, y difieren en `tipo`.
-            e.HasIndex(c => new { c.UsuarioId, c.Nombre, c.Tipo })
+            // 0 mientras está activa, su propio id al darla de baja. El DEFAULT es lo que deja que
+            // las diez filas sembradas sobrevivan la migración sin que nadie las toque (D-10).
+            e.Property(c => c.Discriminador)
+                .HasColumnName("discriminador")
+                .HasColumnType("bigint")
+                .HasDefaultValue(0L);
+
+            // Impide dos categorías ACTIVAS con el mismo nombre y tipo dentro del mismo ámbito.
+            // "Otros" existe en gasto y en ingreso: son dos filas, y difieren en `tipo`.
+            //
+            // `discriminador` entra al índice para que la unicidad conviva con la baja lógica
+            // (D-01): las activas comparten el casillero 0 y chocan entre sí, y cada dada de baja
+            // se lleva el suyo, así que no le ocupa el nombre a nadie. Es lo que hace posible
+            // FR-009 sin aflojar FR-005.
+            //
+            // El nombre del índice NO cambia: es el mismo índice cumpliendo la misma regla con una
+            // columna más, y renombrarlo obligaría a mirar dos nombres en el historial para
+            // entender una sola cosa.
+            e.HasIndex(c => new { c.UsuarioId, c.Nombre, c.Tipo, c.Discriminador })
                 .IsUnique()
                 .HasDatabaseName("ux_categoria_ambito_nombre_tipo");
 
