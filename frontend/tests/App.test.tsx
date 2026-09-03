@@ -325,3 +325,44 @@ describe('App — el catálogo se comparte entre las dos pantallas', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/categor/i);
   });
 });
+
+describe('App — lo que la sesión se lleva al cerrarse', () => {
+  /**
+   * FR-002 y FR-012 del lado del cliente: **el catálogo no sobrevive a la cuenta que lo pidió.**
+   *
+   * El backend nunca le manda a una cuenta las categorías propias de otra, y hasta acá eso alcanzaba
+   * porque el catálogo vivía dentro de la pantalla y moría con ella. Desde D-08 vive en la raíz, que
+   * no se desmonta al cerrar sesión: si nadie lo limpia, la lista sigue en memoria y la cuenta
+   * siguiente la ve mientras su propia carga viaja.
+   *
+   * El escenario es la máquina compartida, sin nada que forzar: Ana tiene una categoría propia con
+   * un nombre que no quiere que nadie lea, cierra sesión, y entra Bruno en la misma pestaña.
+   *
+   * La segunda carga se deja **sin resolver** a propósito. Ahí está el agujero: si se la dejara
+   * responder, taparía la lista vieja y el test pasaría con o sin arreglo.
+   */
+  it('el catálogo de una cuenta no se le muestra a la siguiente FR-002', async () => {
+    const usuario = userEvent.setup();
+    const deAna = [...CATEGORIAS, { id: 40, nombre: 'Psicólogo', tipo: 'gasto', esPropia: true }];
+    vi.mocked(cliente.obtenerCategorias).mockResolvedValueOnce(deAna);
+    vi.mocked(cliente.iniciarSesion).mockResolvedValue({ email: 'bruno@ejemplo.com' });
+
+    render(<App hoy="2026-08-24" />);
+
+    // Ana entra, ve lo suyo y se va.
+    expect(await screen.findByRole('option', { name: 'Psicólogo' })).toBeInTheDocument();
+    await usuario.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+    await screen.findByRole('button', { name: 'Entrar' });
+
+    // La carga de Bruno queda en el aire: es la ventana en la que se ve lo que quedó.
+    const { promesa } = promesaControlada<typeof CATEGORIAS>();
+    vi.mocked(cliente.obtenerCategorias).mockReturnValue(promesa);
+
+    await usuario.type(screen.getByLabelText('Email'), 'bruno@ejemplo.com');
+    await usuario.type(screen.getByLabelText('Contraseña'), 'otra frase larga');
+    await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    await screen.findByRole('heading', { name: 'Mis movimientos' });
+    expect(screen.queryByRole('option', { name: 'Psicólogo' })).not.toBeInTheDocument();
+  });
+});

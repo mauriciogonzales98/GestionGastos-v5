@@ -80,6 +80,12 @@ export function App({ hoy }: PropsApp) {
    * que cada una lo pidiera por su cuenta. Serían dos peticiones al arrancar (AC-12 pide una) y,
    * peor, dos copias que se desincronizan en cuanto una crea una categoría: la persona la crea en
    * la gestión, vuelve al formulario y no está.
+   *
+   * **Y por eso mismo hay que vaciarlo al cerrar la sesión.** La raíz no se desmonta cuando la
+   * sesión termina, así que un catálogo que vive acá le sobrevive a la cuenta que lo pidió: la
+   * siguiente entra en la misma pestaña y ve las categorías propias de la anterior durante todo lo
+   * que tarde su propia carga — justo lo que el servidor se cuida de no mandarle nunca (FR-002,
+   * FR-012). Se vacía en las dos salidas, el cierre a propósito y el 401.
    */
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [errorDelCatalogo, setErrorDelCatalogo] = useState<string | null>(null);
@@ -113,6 +119,7 @@ export function App({ hoy }: PropsApp) {
     setSesion(null);
     setEstado('sin-sesion');
     setAviso(motivo);
+    setCategorias([]);
   }, []);
 
   /**
@@ -204,6 +211,7 @@ export function App({ hoy }: PropsApp) {
     // Sin aviso: no venció, se cerró a propósito. Decir "tu sesión venció" acá sería mentirle a
     // quien acaba de apretar el botón.
     setAviso(null);
+    setCategorias([]);
   }
 
   if (estado === 'averiguando') {
