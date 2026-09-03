@@ -293,6 +293,104 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
         Assert.DoesNotContain("\"movimientos\"", crudo, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// AC-08, FR-009 y SC-005: una moneda del catálogo **sin** movimientos en el período aparece
+    /// igual, con todo en cero y sin ningún error.
+    ///
+    /// **Esto es `006:AC-31` conservado a propósito, y contradice `PRD:AC-07` y `PRD:AC-08` de la
+    /// 4a.** No es un descuido: son dos criterios razonables que no pueden convivir, y ganó el que
+    /// tiene la razón escrita — devolver los ceros en vez de una respuesta vacía que obligue a quien
+    /// la muestre a inventarlos. La decisión está registrada como D8-04 en la spec.
+    ///
+    /// Y no es sólo una decisión heredada: **es lo que hace que agregar una moneda al catálogo se
+    /// note sin que nadie registre nada con ella**, que es AC-01. Si el resumen informara sólo sobre
+    /// las monedas con actividad, `PRD:RF-32` se cumpliría a medias.
+    /// </summary>
+    [Fact]
+    public async Task Una_Moneda_Sin_Movimientos_Aparece_En_Cero_AC08()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        // Sólo ARS tiene movimientos. USD está en el catálogo y no se usó.
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 1, TipoMovimiento.Gasto, 700m);
+
+        var monedas = await MonedasDelResumenAsync(cuenta);
+
+        var usd = Assert.Single(monedas, m => m.MonedaCodigo == "USD");
+        Assert.Equal(0m, usd.TotalIngresado);
+        Assert.Equal(0m, usd.TotalGastado);
+        Assert.Equal(0m, usd.Balance);
+        Assert.Empty(usd.GastosPorCategoria);
+    }
+
+    /// <summary>
+    /// AC-09 y SC-005: una cuenta sin ningún movimiento en el período devuelve una entrada en cero
+    /// por **cada** moneda del catálogo, y ningún error.
+    ///
+    /// Un período vacío es una respuesta válida, no un caso de error: la lista de monedas sale del
+    /// catálogo y no del agregado, así que siempre hay sobre qué informar.
+    /// </summary>
+    [Fact]
+    public async Task Un_Periodo_Sin_Movimientos_Devuelve_Ceros_Y_No_Un_Vacio_AC09()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        var monedas = await MonedasDelResumenAsync(cuenta);
+
+        Assert.Equal(2, monedas.Count);
+        Assert.All(monedas, m =>
+        {
+            Assert.Equal(0m, m.TotalIngresado);
+            Assert.Equal(0m, m.TotalGastado);
+            Assert.Equal(0m, m.Balance);
+            Assert.Empty(m.GastosPorCategoria);
+        });
+    }
+
+    /// <summary>
+    /// AC-07, FR-008 y SC-004: **con una sola moneda con movimientos, nada cambió.**
+    ///
+    /// Este caso NO duplica los tests del resumen de la feature 006: los nombra. La regresión de que
+    /// los totales, el balance y el desglose sigan dando lo mismo ya está cubierta, con más casos y
+    /// mejor, por `ResumenEndpointTests` y `ResumenDelMesTests` — y `verificar-contrato.sh` en verde
+    /// al cierre prueba además que el contrato no se movió, que es lo que FR-009 pide.
+    ///
+    /// Lo que sí aporta acá es la comprobación de que esta feature no rompió el caso base: una
+    /// cuenta con movimientos en una sola moneda ve exactamente los mismos números que vería sin
+    /// nada de esto. Es barato y cierra el AC sin inventar una segunda fuente de verdad.
+    /// </summary>
+    [Fact]
+    public async Task Con_Una_Sola_Moneda_El_Resumen_Da_Lo_Mismo_De_Siempre_AC07()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 8, TipoMovimiento.Ingreso, 1000m);
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 1, TipoMovimiento.Gasto, 300m);
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 2, TipoMovimiento.Gasto, 100m);
+
+        var ars = Assert.Single(await MonedasDelResumenAsync(cuenta), m => m.MonedaCodigo == "ARS");
+
+        Assert.Equal(1000m, ars.TotalIngresado);
+        Assert.Equal(400m, ars.TotalGastado);
+        Assert.Equal(600m, ars.Balance);
+
+        // INV-02: la suma del desglose es el total gastado. No se verifica al final, se cumple
+        // porque los dos números salen de las mismas filas.
+        Assert.Equal(ars.TotalGastado, ars.GastosPorCategoria.Sum(c => c.Total));
+
+        // De mayor a menor, que es el orden del contrato.
+        Assert.Equal([300m, 100m], ars.GastosPorCategoria.Select(c => c.Total));
+    }
+
     /// <summary>Siembra un movimiento directo en la base, para armar escenarios de varias monedas.</summary>
     private async Task SembrarAsync(
         long usuarioId, short monedaId, int categoriaId, TipoMovimiento tipo, decimal monto)

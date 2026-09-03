@@ -125,10 +125,10 @@ un centavo de la otra moneda.
 
 **Independent Test**: la salida del resumen con una moneda es la de antes de esta feature.
 
-- [ ] T025 [TEST] [P] [US3] AC-08, FR-009 y SC-005 en `MonedaComoDatoTests`: una moneda del catálogo **sin** movimientos en el período aparece igual, con totales, balance y desglose en cero, y sin ningún error. Citar en el comentario que esto es el AC-31 de la feature 006 conservado a propósito, y que **contradice el AC-07/AC-08 del PRD de la 4a** por la decisión registrada en D8-04
-- [ ] T026 [TEST] [P] [US3] AC-09 y SC-005 en `MonedaComoDatoTests`: una cuenta sin ningún movimiento en el período devuelve una entrada en cero por **cada** moneda del catálogo, y ningún error
-- [ ] T027 [US3] AC-07, FR-008 y SC-004: comprobar que los tests del resumen de la feature 006 siguen en verde sin haber sido modificados, y **no duplicarlos**. Anotar en `MonedaComoDatoTests` cuáles son los que cubren esta regresión, para que quien lea sepa dónde está verificada
-- [ ] T028 [VERIFY] [US3] Puerta del backend completa, con su salida
+- [X] T025 [TEST] [P] [US3] AC-08, FR-009 y SC-005 en `MonedaComoDatoTests`: una moneda del catálogo **sin** movimientos en el período aparece igual, con totales, balance y desglose en cero, y sin ningún error. Citar en el comentario que esto es el AC-31 de la feature 006 conservado a propósito, y que **contradice el AC-07/AC-08 del PRD de la 4a** por la decisión registrada en D8-04
+- [X] T026 [TEST] [P] [US3] AC-09 y SC-005 en `MonedaComoDatoTests`: una cuenta sin ningún movimiento en el período devuelve una entrada en cero por **cada** moneda del catálogo, y ningún error
+- [X] T027 [US3] AC-07, FR-008 y SC-004: comprobar que los tests del resumen de la feature 006 siguen en verde sin haber sido modificados, y **no duplicarlos**. Anotar en `MonedaComoDatoTests` cuáles son los que cubren esta regresión, para que quien lea sepa dónde está verificada
+- [X] T028 [VERIFY] [US3] Puerta del backend completa, con su salida
 
 **Checkpoint**: las tres historias cerradas.
 
