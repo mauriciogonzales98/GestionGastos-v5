@@ -53,9 +53,37 @@ command -v mysql > /dev/null 2>&1 || {
   exit 1
 }
 
-leer() { sed -n "s/.*$1=\([^;]*\).*/\1/p" <<< "$ConnectionStrings__Default"; }
-HOST="$(leer 'Server')"; BASE="$(leer 'Database')"
-USUARIO="$(leer 'User Id')"; CLAVE="$(leer 'Password')"
+# **Lee una clave de la cadena de conexión sin asumir cómo está escrita.**
+#
+# ADO.NET no fija ni la capitalización ni los espacios alrededor del `=`, y las dos cadenas que este
+# repo usa de hecho difieren: en local dice `User Id=` y en `ci.yml` dice `User ID=`. Un `sed`
+# sensible a mayúsculas devolvía vacío contra la de CI, y `mysql -u ""` no falla limpio — cae al
+# usuario del sistema operativo, así que el error que aparecía era un `Access denied` para un
+# usuario que nadie nombró.
+#
+# Acepta varios nombres para la misma clave —`User Id`, `User ID`, `Uid`— porque la cadena de
+# conexión es un formato que nadie de este lado define.
+leer() {
+  local clave
+  for clave in "$@"; do
+    local valor
+    valor="$(sed -nE "s/.*(^|;)[[:space:]]*$clave[[:space:]]*=[[:space:]]*([^;]*).*/\2/Ip" \
+             <<< "$ConnectionStrings__Default")"
+    if [[ -n "$valor" ]]; then
+      echo "$valor"
+      return
+    fi
+  done
+}
+
+HOST="$(leer 'Server' 'Data Source' 'Host')"; BASE="$(leer 'Database' 'Initial Catalog')"
+USUARIO="$(leer 'User Id' 'User ID' 'Uid' 'UserName')"; CLAVE="$(leer 'Password' 'Pwd')"
+
+if [[ -z "$USUARIO" || -z "$HOST" || -z "$BASE" ]]; then
+  echo "ERROR: no se pudo leer la cadena de conexión. Faltan servidor, base o usuario." >&2
+  echo "       servidor=[$HOST] base=[$BASE] usuario=[$USUARIO]" >&2
+  exit 1
+fi
 
 sql() { mysql -h "$HOST" -u "$USUARIO" -p"$CLAVE" "$BASE" -N -B -e "$1" 2>/dev/null; }
 
