@@ -1,10 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  ErrorDeSesion,
-  crearMovimiento,
-  obtenerCategorias,
-  obtenerMovimientos,
-} from '../api/cliente';
+import { ErrorDeSesion, crearMovimiento, obtenerMovimientos } from '../api/cliente';
 import type { Categoria, Movimiento, NuevoMovimiento } from '../api/tipos';
 import { FormularioMovimiento } from './FormularioMovimiento';
 import { ListadoMovimientos } from './ListadoMovimientos';
@@ -14,7 +9,17 @@ export interface PropsPantallaMovimientos {
   hoy: string;
   /** El email de la cuenta en sesión, para que se vea con cuál se está trabajando (FR-004). */
   email: string;
+  /**
+   * El catálogo que alimenta el selector. **Baja por props y ya no se pide acá** (D-08): vive en la
+   * raíz para que esta pantalla y la de gestión miren la misma lista, y para que se pida una sola
+   * vez (AC-12).
+   */
+  categorias: Categoria[];
+  /** El aviso de que el catálogo no se pudo cargar, si pasó. Lo produce la raíz, que es quien pide. */
+  errorDelCatalogo: string | null;
   onCerrarSesion: () => void;
+  /** Lleva a la pantalla de gestión del catálogo (FR-017). */
+  onGestionarCategorias: () => void;
   /**
    * Se llama cuando una petición vuelve `401`, con el aviso que explica qué pasó y qué se perdió.
    *
@@ -56,38 +61,22 @@ export function esDelMesDe(fecha: string, hoy: string): boolean {
 export function PantallaMovimientos({
   hoy,
   email,
+  categorias,
+  errorDelCatalogo,
   onCerrarSesion,
+  onGestionarCategorias,
   onSesionVencida,
 }: PropsPantallaMovimientos) {
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [cargandoListado, setCargandoListado] = useState(true);
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
   const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null);
 
   useEffect(() => {
-    // Las dos cargas van por separado a propósito: el formulario ya es usable mientras el listado
-    // carga, y si una falla la otra puede seguir sirviendo. Un Promise.all las ataría.
-    //
-    // Cada una tiene su `catch`. Sin ellos, un backend caído dejaba el indicador de carga
-    // encendido para siempre y el selector de categorías vacío: guardar era imposible y la única
-    // señal era un unhandled rejection en la consola, que nadie mira.
-    void obtenerCategorias()
-      .then(setCategorias)
-      .catch((error: unknown) => {
-        // Un 401 no es "falló la carga": es que ya no hay sesión, y quedarse acá mostrando un
-        // error de carga dejaría la pantalla protegida a la vista con los datos de una sesión
-        // muerta. La reacción la decide la raíz (D-09).
-        if (error instanceof ErrorDeSesion) {
-          onSesionVencida(SESION_VENCIDA);
-          return;
-        }
-
-        setErrorDeCarga(
-          'No se pudieron cargar las categorías. Revisá la conexión y recargá la página.',
-        );
-      });
-
+    // El catálogo ya no se pide acá: lo carga la raíz una sola vez y baja por props (D-08, AC-12).
+    // Queda el listado, con su propio `catch`: sin él, un backend caído dejaba el indicador de
+    // carga encendido para siempre y la única señal era un unhandled rejection en la consola, que
+    // nadie mira.
     void obtenerMovimientos()
       .then(setMovimientos)
       .catch((error: unknown) => {
@@ -143,6 +132,9 @@ export function PantallaMovimientos({
         {/* Se ve con qué cuenta se está trabajando (FR-004): sin esto, dos cuentas en el mismo
             navegador son indistinguibles hasta que alguien carga un gasto en la equivocada. */}
         <p>{email}</p>
+        <button type="button" onClick={onGestionarCategorias}>
+          Categorías
+        </button>
         {/* Un `<button>` y no un enlace: cambia estado del servidor, y los enlaces son para
             navegar. Un enlace acá además sería seguible por un prefetch del navegador. */}
         <button type="button" onClick={onCerrarSesion}>
@@ -159,6 +151,11 @@ export function PantallaMovimientos({
       {/* role="alert": la carga falló y no hay nada que la persona pueda hacer desde el formulario
           para enterarse sola. */}
       {errorDeCarga ? <p role="alert">{errorDeCarga}</p> : null}
+
+      {/* El fallo de carga del catálogo lo produce la raíz, que es quien lo pide, pero se muestra
+          acá: es esta pantalla la que queda inservible sin él —sin categorías no se puede
+          registrar nada— y es donde la persona lo va a notar. */}
+      {errorDelCatalogo ? <p role="alert">{errorDelCatalogo}</p> : null}
 
       {cargandoListado ? (
         <p>Cargando movimientos…</p>

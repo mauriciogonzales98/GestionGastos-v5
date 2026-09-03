@@ -25,6 +25,38 @@ export interface Categoria {
   id: number;
   nombre: string;
   tipo: TipoMovimiento;
+  /**
+   * `true` = la creó esta cuenta y puede renombrarla o darla de baja; `false` = predefinida del
+   * sistema, de solo lectura (FR-008).
+   *
+   * Es lo único que la pantalla de gestión necesita para saber qué ofrecer sobre cada fila, y por
+   * eso viaja en vez de `usuarioId` (D-07): un número de cuenta no le sirve a nadie de este lado y
+   * obligaría al cliente a saber cuál es la suya para poder compararlo. `activa` tampoco viaja —
+   * el listado ya devuelve sólo activas.
+   */
+  esPropia: boolean;
+}
+
+/**
+ * Lo que se manda al crear una categoría propia (FR-004).
+ *
+ * `tipo` se fija al crear y no vuelve a viajar nunca: `CategoriaEditada` no lo lleva, porque
+ * cambiarlo movería de tipo a todos los movimientos que ya la usan.
+ */
+export interface NuevaCategoria {
+  nombre: string;
+  tipo: TipoMovimiento;
+}
+
+/**
+ * Lo que se manda al renombrar una categoría propia (FR-007).
+ *
+ * Tiene un solo campo y aun así es un tipo aparte de `NuevaCategoria`, por el mismo motivo que
+ * `NuevaCuenta` y `Credenciales`: son dos contratos que pueden divergir. Éste ya diverge, y en lo
+ * más importante — no lleva `tipo`.
+ */
+export interface CategoriaEditada {
+  nombre: string;
 }
 
 /** Un movimiento tal como lo devuelven el alta y el listado: la misma forma en los dos. */

@@ -23,4 +23,19 @@ public class Categoria
 
     /// <summary>Baja lógica de RF-09. Igual que <see cref="UsuarioId"/>, anticipo del ticket 3.</summary>
     public bool Activa { get; set; } = true;
+
+    /// <summary>
+    /// <c>0</c> mientras la categoría está activa; su propio <see cref="Id"/> cuando se da de baja.
+    ///
+    /// **Existe sólo para el índice único** (D-01). Sin él, `UNIQUE (usuario_id, nombre, tipo)`
+    /// haría que una categoría dada de baja siguiera ocupando su nombre para siempre, y FR-009
+    /// —volver a crear una con el mismo nombre— sería imposible. Con él, la fila de baja se lleva
+    /// una clave que nadie más puede repetir y deja el casillero `0` libre.
+    ///
+    /// El valor es el `Id` y no un `1`: dos bajas homónimas también tienen que poder convivir, y
+    /// con un booleano la segunda chocaría contra la primera.
+    ///
+    /// No viaja en el contrato: es un detalle del esquema, no algo que el cliente deba conocer.
+    /// </summary>
+    public long Discriminador { get; set; }
 }

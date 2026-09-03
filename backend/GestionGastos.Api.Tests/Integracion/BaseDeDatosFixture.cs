@@ -77,13 +77,26 @@ public class BaseDeDatosFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Deja la base sin movimientos y sin cuentas. Las cuentas se borran DESPUÉS de los
-    /// movimientos: `movimiento.usuario_id` es una clave foránea RESTRICT y al revés falla.
+    /// Deja la base sin movimientos, sin categorías propias y sin cuentas.
+    ///
+    /// **El orden lo fijan las claves foráneas, todas RESTRICT**: los movimientos primero porque
+    /// apuntan a una categoría y a una cuenta; las categorías propias después porque apuntan a una
+    /// cuenta; las cuentas al final. Cualquier otro orden falla.
+    ///
+    /// Las categorías propias entran acá con la feature 007. Antes no hacía falta —las diez
+    /// predefinidas son inmutables y ningún test las creaba— pero desde que una cuenta puede crear
+    /// las suyas, un test que crea una categoría se la deja puesta al siguiente: el nombre queda
+    /// ocupado y el test que intenta el mismo nombre falla por lo que hizo la corrida anterior, no
+    /// por el código.
+    ///
+    /// **Sólo las propias.** Las predefinidas tienen `usuario_id NULL`, las siembra la migración y
+    /// media suite las da por dadas: borrarlas dejaría la base sin catálogo.
     /// </summary>
     public async Task LimpiarCuentasAsync()
     {
         await using var contexto = CrearContexto();
         await contexto.Movimientos.ExecuteDeleteAsync();
+        await contexto.Categorias.Where(c => c.UsuarioId != null).ExecuteDeleteAsync();
         await contexto.Usuarios.ExecuteDeleteAsync();
     }
 

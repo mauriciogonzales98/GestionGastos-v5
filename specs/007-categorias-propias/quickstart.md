@@ -5,6 +5,9 @@ desarrollo. La verificación automática vive en la suite; esto es para verlo co
 
 > Las líneas usan `jq`. Si no está instalado, `python3 -m json.tool` sirve para mirar la respuesta,
 > aunque no para las líneas que extraen un campo.
+>
+> **El puerto es el de `backend/GestionGastos.Api/Properties/launchSettings.json`: `5125`.** Decía
+> 5000 y con eso los ocho pasos fallan en la primera línea, sin llegar a probar nada de la feature.
 
 ## Antes de empezar
 
@@ -20,7 +23,7 @@ Registrá dos cuentas desde la aplicación —`una@ejemplo.local` y `otra@ejempl
 cookie de sesión de cada una. Los pasos 1 a 6 son con la primera.
 
 ```bash
-API=http://localhost:5000
+API=http://localhost:5125
 UNA=/tmp/una.cookies
 OTRA=/tmp/otra.cookies
 ```
@@ -61,11 +64,17 @@ curl -s -b $UNA -X POST $API/api/categorias -H 'Content-Type: application/json' 
   -d '{"nombre":"Gimnasio","tipo":"gasto"}' | jq '.errors.nombre'
 
 curl -s -b $UNA -X POST $API/api/categorias -H 'Content-Type: application/json' \
-  -d '{"nombre":"  supermercado  ","tipo":"gasto"}' | jq '.errors.nombre'
+  -d '{"nombre":"  comida  ","tipo":"gasto"}' | jq '.errors.nombre'
 ```
 
 Los dos `400`. El segundo es el que importa: choca contra una **predefinida**, con otras mayúsculas
 y con espacios de sobra. Si ése pasa, la comprobación de ámbito de D-02 no está o no recorta.
+
+> Este paso decía `"  supermercado  "`, y **no probaba nada**: "Supermercado" no existe en el
+> catálogo. Las diez predefinidas de FR-006 son Comida, Transporte, Vivienda, Servicios, Salud,
+> Ocio, Otros (gasto) y Sueldo, Ingreso extra, Otros (ingreso). El nombre venía del ejemplo del PRD,
+> que citó una categoría que la semilla nunca tuvo, y como el alta lo aceptaba con un `201` el paso
+> parecía roto cuando el roto era el ejemplo. Se cambió a `"  comida  "`, que sí choca.
 
 ```bash
 curl -s -b $UNA -X POST $API/api/categorias -H 'Content-Type: application/json' \

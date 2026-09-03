@@ -54,6 +54,31 @@ public class SinSesionTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal(0, await contexto.Movimientos.CountAsync());
     }
 
+    /// <summary>
+    /// RF-03 sobre el alta de categorías: sin sesión responde 401 **y no crea la fila**.
+    ///
+    /// La segunda mitad es la que importa acá. Sin sesión no hay a qué cuenta atribuirle la
+    /// categoría, así que un alta que se ejecutara igual dejaría una fila sin dueño en la tabla que
+    /// esta feature acaba de volver privada — el peor lugar donde dejar algo huérfano.
+    /// </summary>
+    [Fact]
+    public async Task Sin_Sesion_El_Alta_De_Categoria_No_Ejecuta_Su_Efecto_RF03()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cliente = factoria.CreateClient();
+
+        using var respuesta = await cliente.PostAsJsonAsync(
+            new Uri("/api/categorias", UriKind.Relative),
+            new { nombre = "Colada sin sesión", tipo = "gasto" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, respuesta.StatusCode);
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Equal(0, await contexto.Categorias.CountAsync(c => c.UsuarioId != null));
+    }
+
     [Fact]
     public async Task Los_Dos_Endpoints_De_Acceso_Siguen_Siendo_Alcanzables_Sin_Sesion()
     {

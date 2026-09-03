@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
+using GestionGastos.Api.Categorias;
 using GestionGastos.Api.Dominio;
 using GestionGastos.Api.Movimientos;
 using GestionGastos.Api.Persistencia;
@@ -180,6 +181,64 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>
+    /// **Todas** las consultas del canal de categorías acotan por ámbito.
+    ///
+    /// Es la misma vigilancia que la de movimientos, sobre otra tabla y con otro predicado, y llega
+    /// con la feature 007 porque hasta ella no había nada que aislar: las diez categorías eran de
+    /// todo el mundo, así que una consulta sin acotar no devolvía nada de nadie. Desde que cada
+    /// cuenta tiene las suyas, `contexto.Categorias` sin condición devuelve las privadas de todas.
+    ///
+    /// **El predicado NO se comparte con el de movimientos, y eso es deliberado** (D-03): una
+    /// categoría puede ser de nadie —`usuario_id IS NULL` son las predefinidas del sistema, que se
+    /// ven desde todas las cuentas— así que su acotado no es `usuario_id = @yo` a secas. Lo que se
+    /// comparte es la vigilancia: el SQL tiene que nombrar `usuario_id` en el WHERE, y cómo lo
+    /// nombra lo decide el canal.
+    ///
+    /// Comprobado antes de escribirla, igual que las tres veces anteriores: un
+    /// `TodasSinAcotar(contexto)` que devuelve `contexto.Categorias` entero dejaba esta barrera en
+    /// 4/4 verde. No era un descuido de quien la escribió — era una condición que nunca había
+    /// tenido que existir.
+    ///
+    /// `verificar-aislamiento.sh` tiene el paso 7/8 que le prueba el rojo por esta vía.
+    /// </summary>
+    [Fact]
+    public void Todas_Las_Consultas_Del_Canal_De_Categorias_Acotan_Por_Ambito()
+    {
+        using var contexto = _baseDeDatos.CrearContexto();
+
+        var consultas = typeof(CategoriasConsulta)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .ToList();
+
+        Assert.NotEmpty(consultas);
+
+        foreach (var consulta in consultas)
+        {
+            Assert.True(
+                typeof(IQueryable).IsAssignableFrom(consulta.ReturnType),
+                $"`CategoriasConsulta.{consulta.Name}` devuelve `{consulta.ReturnType.Name}`, que " +
+                "no es un `IQueryable`: esta barrera inspecciona el SQL de la consulta ANTES de que " +
+                "se ejecute, y de un resultado ya ejecutado no puede leer nada. Una consulta que la " +
+                "barrera no sabe inspeccionar es una que no está mirando, y ahí el acotado por " +
+                "ámbito vuelve a depender de que alguien se acuerde.\n\nLa salida es devolver el " +
+                "`IQueryable` y ejecutarlo en quien lo pide, no agregar una excepción acá.");
+
+            var sql = ((IQueryable)consulta.Invoke(null, ArgumentosDePrueba(consulta, contexto))!)
+                .ToQueryString();
+
+            var donde = sql.Contains("WHERE", StringComparison.OrdinalIgnoreCase)
+                ? sql[sql.IndexOf("WHERE", StringComparison.OrdinalIgnoreCase)..]
+                : string.Empty;
+
+            Assert.True(
+                donde.Contains("usuario_id", StringComparison.OrdinalIgnoreCase),
+                $"`CategoriasConsulta.{consulta.Name}` no acota por ámbito: su SQL no nombra " +
+                "`usuario_id` en el WHERE. Una consulta de categorías sin acotar devuelve también " +
+                $"las privadas de las demás cuentas.\n\nSQL:\n{sql}");
+        }
+    }
+
+    /// <summary>
     /// Los argumentos con los que invocar una consulta del canal, por tipo.
     ///
     /// Los valores no importan —sólo se mira el SQL que se genera, no filas—, pero el método tiene
@@ -201,8 +260,9 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
             // alguien filtra de verdad.
             var t when t == typeof(int?) => (int?)1,
             var t when t == typeof(string) => "x",
+            var t when t == typeof(TipoMovimiento) => TipoMovimiento.Gasto,
             _ => throw new InvalidOperationException(
-                $"`MovimientosConsulta.{consulta.Name}` tiene un parámetro de tipo " +
+                $"`{consulta.DeclaringType!.Name}.{consulta.Name}` tiene un parámetro de tipo " +
                 $"{p.ParameterType.Name} que esta barrera no sabe construir. Agregalo acá: sin eso, " +
                 "esa consulta queda sin vigilar y el aislamiento depende de que alguien se acuerde."),
         })];

@@ -397,6 +397,44 @@ tabla de las features 004 y 006.
 | D7-02 | **La pantalla de edición de un movimiento**, que también consume el catálogo | Igual que D7-01: la edición existe en el backend desde 005 y en la pantalla no | Ticket 6 |
 | D7-03 | **Reasignar los movimientos de una categoría dada de baja** a otra | Fuera de alcance explícito del PRD: la baja lógica existe precisamente para no tocarlos | Nadie |
 | D7-04 | **Restaurar una categoría dada de baja** | Fuera de alcance explícito del PRD; AC-09 fija que el camino es crear una nueva | Nadie |
+| D7-05 | **La barrera del canal de categorías vigila el CANAL, no quién lo esquiva.** `BarreraDeAislamientoTests` enumera por reflexión los métodos públicos de `CategoriasConsulta` y le exige `usuario_id` a cada uno, pero **no** hay un escaneo de archivos que impida que alguien lea `contexto.Categorias` fuera del canal, como sí existe para movimientos | El alcance de la tarea que la escribió eran los métodos del canal, y ensancharla a mitad de camino habría sido escribir sin haber visto el rojo de esa otra vía. Hoy no hay ninguna lectura de categorías fuera del canal, así que la barrera está en pie: lo que falta es lo que la protegería de la lectura que alguien escriba el mes que viene | El primer ticket que agregue una lectura de categorías. `verificar-aislamiento.sh` ya tiene la forma —su paso 3/9 hace exactamente eso para movimientos— así que es agregar una mitad conocida, no inventarla |
+| D7-06 | **La pantalla de categorías no tiene estilos propios.** Reusa las clases de layout (`l-pila`, `l-fila`, `l-cabecera`) y nada más: la lista es un `<ul>` sin maquetar | Ticket 6 es el de maquetación y accesibilidad, y adelantarle decisiones visuales acá sería trabajo que ese ticket va a rehacer. Lo que sí está resuelto es lo que no es cosmético: la fila tiene nombre accesible, los errores van con `role="alert"` al lado de su campo, y la pantalla se recorre con teclado | Ticket 6 (Maquetación) |
+
+---
+
+## Desviaciones de proceso
+
+Cosas que se apartaron de lo planeado, dichas en lugar de disimuladas.
+
+- **La migración generada por EF no se pudo usar tal cual, y hubo que corregirla a mano dos veces.**
+  El andamiaje produjo diez `UpdateData` sobre las filas sembradas con las listas de columnas y de
+  valores **vacías**, que se traducen a `UPDATE categoria SET WHERE id = 1` —no es SQL válido— y
+  además tocaban justo lo que D-10 pedía no tocar. Y no previó que InnoDB respalda la clave foránea
+  `FK_categoria_usuario_usuario_id` con el mismo índice que había que rehacer, así que el `DROP
+  INDEX` fallaba con *"needed in a foreign key constraint"*. La migración final suelta la FK, rehace
+  el índice y la vuelve a poner, con el motivo escrito adentro. **Sigue siendo una sola migración**,
+  como fijaba D-10.
+
+- **El test de PantallaCategorias vive en `frontend/tests/`, no en `frontend/src/categorias/`.**
+  La tarea T059 nombraba la segunda ruta; el `include` de `vite.config.ts` sólo recoge `tests/**`,
+  así que ahí el archivo nunca habría corrido. Se siguió la convención real del repositorio.
+
+- **Dos expectativas de test se corrigieron después de verlas en rojo**, y ninguna de las dos por
+  acomodar el código: la primera afirmaba que renombrar "Gimnasio" a "GIMNASIO" dejaba el nombre en
+  "Gimnasio" —corregirle las mayúsculas a una categoría es un renombre legítimo, no un no-op—; la
+  segunda comparaba dos cuerpos `404` byte a byte, y `ProblemDetails` lleva un `traceId` por
+  petición. La segunda pasó a usar `RespuestasIndistinguibles`, que ya existía para esto.
+
+- **El quickstart tenía un paso que no probaba nada, y se arregló.** El paso 3 usaba
+  `"  supermercado  "` para chocar contra una predefinida, y "Supermercado" no está en las diez
+  sembradas: el alta respondía `201` y el paso parecía roto cuando el roto era el ejemplo. Se cambió
+  a `"  comida  "`. En el mismo recorrido apareció que el documento apuntaba al puerto 5000 y la
+  aplicación escucha en el 5125.
+
+- **`RendimientoLimiteTests` dio un rojo bajo la corrida de cobertura** (60,4 ms de p95 contra un
+  criterio de 50 ms) y pasa al volver a correrlo sin instrumentación. Es un test de reloj de pared y
+  es el mismo motivo por el que CI excluye `Rendimiento`; queda dicho para que el número de la
+  cobertura no se lea como una suite en verde perfecta.
 
 ---
 

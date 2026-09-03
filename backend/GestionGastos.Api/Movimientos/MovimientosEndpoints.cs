@@ -177,14 +177,24 @@ public static class MovimientosEndpoints
                 return NoExiste();
             }
 
-            // Mismo criterio de búsqueda que el alta: predefinida del sistema o propia de esta
-            // cuenta, y activa. Buscar sólo por id dejaría entrar la categoría privada de otra
-            // cuenta cuando el ticket 3 las introduzca, y el nombre ajeno aparecería en el listado.
+            // Mismo criterio de ÁMBITO que el alta —predefinida del sistema o propia de esta
+            // cuenta— y por el mismo motivo: buscar sólo por id dejaría entrar la categoría privada
+            // de otra cuenta, y el nombre ajeno aparecería en el listado (FR-021).
+            //
+            // **La única diferencia con el alta es el `activa`, y es deliberada** (FR-023): vale si
+            // está activa **o** si es la que ese movimiento ya tenía. Corregirle el monto o la
+            // fecha a un movimiento viejo no puede obligar a reclasificarlo — la baja apaga una
+            // categoría para lo NUEVO, no para lo que ya estaba clasificado.
+            //
+            // Escribirlo como "la edición no filtra por activa" sería más corto y estaría mal
+            // (D-04): eso dejaría MOVER un movimiento a cualquier categoría apagada, que es
+            // clasificarlo de nuevo con algo que ya no se ofrece. Lo que se admite es conservar,
+            // no elegir.
             var categoria = peticion.CategoriaId is { } categoriaId
                 ? await contexto.Categorias.FirstOrDefaultAsync(c =>
                     c.Id == categoriaId
                     && (c.UsuarioId == null || c.UsuarioId == usuarioActual.Id)
-                    && c.Activa)
+                    && (c.Activa || c.Id == movimiento.CategoriaId))
                 : null;
 
             var errores = ValidacionDelMovimiento.Validar(peticion, categoria, out var tipo);

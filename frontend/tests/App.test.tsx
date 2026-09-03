@@ -15,6 +15,9 @@ vi.mock('../src/api/cliente', async () => {
     obtenerCategorias: vi.fn(),
     obtenerMovimientos: vi.fn(),
     crearMovimiento: vi.fn(),
+    crearCategoria: vi.fn(),
+    renombrarCategoria: vi.fn(),
+    darDeBajaCategoria: vi.fn(),
   };
 });
 
@@ -30,10 +33,15 @@ function promesaControlada<T>() {
 }
 
 beforeEach(() => {
+  // Los contadores de llamadas se limpian entre tests: sin esto, un test que cuenta cuántas veces
+  // se pidió el catálogo mide lo que hicieron todos los anteriores del archivo.
+  vi.clearAllMocks();
+
   vi.mocked(cliente.consultarSesion).mockResolvedValue({ email: 'ana@ejemplo.com' });
   vi.mocked(cliente.cerrarSesion).mockResolvedValue(undefined);
   vi.mocked(cliente.obtenerCategorias).mockResolvedValue(CATEGORIAS);
   vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([]);
+  vi.mocked(cliente.darDeBajaCategoria).mockResolvedValue(undefined);
 });
 
 describe('App — qué pantalla se muestra', () => {
@@ -188,5 +196,132 @@ describe('App — cierre de sesión', () => {
     await usuario.click(await screen.findByRole('button', { name: 'Cerrar sesión' }));
 
     expect(await screen.findByRole('button', { name: 'Entrar' })).toBeInTheDocument();
+  });
+});
+
+describe('App — el catálogo de categorías', () => {
+  /**
+   * AC-12 (FR-018): al cargar la pantalla, el catálogo se pide **exactamente una vez**.
+   *
+   * Es lo que fija D-08. El catálogo lo necesitan dos pantallas —el selector del formulario y la
+   * gestión— y la salida fácil es que cada una lo pida por su cuenta: dos peticiones al arrancar, y
+   * peor, dos copias que se desincronizan en cuanto una crea una categoría y la otra no se entera.
+   *
+   * El test cuenta llamadas y no mira la pantalla a propósito: la desincronización no se ve, se
+   * cuenta.
+   */
+  it('pide el catálogo exactamente una vez al cargar AC-12', async () => {
+    render(<App hoy="2026-08-24" />);
+
+    await screen.findByRole('heading', { name: 'Mis movimientos' });
+
+    expect(vi.mocked(cliente.obtenerCategorias)).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Y sigue siendo una sola después de ir a la gestión de categorías y volver.
+   *
+   * Es la mitad que un contador tomado sólo al arrancar no ve: el catálogo puede pedirse una vez y
+   * volver a pedirse en cada cambio de vista, que es exactamente lo que pasa si vive en la pantalla
+   * en vez de arriba.
+   */
+  it('no vuelve a pedir el catálogo al ir a categorías y volver AC-12', async () => {
+    const usuario = userEvent.setup();
+
+    render(<App hoy="2026-08-24" />);
+
+    await usuario.click(await screen.findByRole('button', { name: 'Categorías' }));
+    await screen.findByRole('heading', { name: 'Mis categorías' });
+
+    await usuario.click(screen.getByRole('button', { name: 'Volver a movimientos' }));
+    await screen.findByRole('heading', { name: 'Mis movimientos' });
+
+    expect(vi.mocked(cliente.obtenerCategorias)).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('App — el catálogo se comparte entre las dos pantallas', () => {
+  /**
+   * AC-13 y FR-019: lo que se crea en la gestión aparece en el selector del formulario **al
+   * volver**, sin recargar y sin una segunda petición del catálogo.
+   *
+   * Es la razón entera por la que el catálogo subió a la raíz (D-08). Con una copia por pantalla,
+   * esto pasaría igual la primera vez que se probara a mano —porque la pantalla se remonta y vuelve
+   * a pedir— y el costo sería una petición de más en cada ida y vuelta. Por eso el test cuenta
+   * llamadas además de mirar la pantalla.
+   */
+  it('una categoría creada en la gestión aparece en el selector al volver AC-13', async () => {
+    const usuario = userEvent.setup();
+    vi.mocked(cliente.crearCategoria).mockResolvedValue({
+      id: 43,
+      nombre: 'Mascotas',
+      tipo: 'gasto',
+      esPropia: true,
+    });
+
+    render(<App hoy="2026-08-24" />);
+
+    await usuario.click(await screen.findByRole('button', { name: 'Categorías' }));
+    await usuario.type(await screen.findByLabelText('Nombre'), 'Mascotas');
+    await usuario.click(screen.getByRole('button', { name: 'Crear categoría' }));
+
+    expect(vi.mocked(cliente.crearCategoria)).toHaveBeenCalledWith({
+      nombre: 'Mascotas',
+      tipo: 'gasto',
+    });
+
+    await usuario.click(screen.getByRole('button', { name: 'Volver a movimientos' }));
+
+    const selector = await screen.findByLabelText('Categoría');
+    expect(selector).toContainHTML('<option value="43">Mascotas</option>');
+
+    // Y el catálogo no se volvió a pedir: la lista se actualizó con lo que devolvió el alta.
+    expect(vi.mocked(cliente.obtenerCategorias)).toHaveBeenCalledTimes(1);
+  });
+
+  it('un renombre en la gestión se ve en el selector al volver AC-13', async () => {
+    const usuario = userEvent.setup();
+    vi.mocked(cliente.obtenerCategorias).mockResolvedValue([
+      ...CATEGORIAS,
+      { id: 43, nombre: 'Gimnasio', tipo: 'gasto', esPropia: true },
+    ]);
+    vi.mocked(cliente.renombrarCategoria).mockResolvedValue({
+      id: 43,
+      nombre: 'Gimnasio y pileta',
+      tipo: 'gasto',
+      esPropia: true,
+    });
+
+    render(<App hoy="2026-08-24" />);
+
+    await usuario.click(await screen.findByRole('button', { name: 'Categorías' }));
+    await usuario.click(await screen.findByRole('button', { name: 'Renombrar Gimnasio' }));
+
+    const campo = screen.getByLabelText('Nombre nuevo');
+    await usuario.clear(campo);
+    await usuario.type(campo, 'Gimnasio y pileta');
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await usuario.click(screen.getByRole('button', { name: 'Volver a movimientos' }));
+
+    const selector = await screen.findByLabelText('Categoría');
+    expect(selector).toContainHTML('<option value="43">Gimnasio y pileta</option>');
+    expect(selector).not.toContainHTML('>Gimnasio<');
+    expect(vi.mocked(cliente.obtenerCategorias)).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Si el catálogo no se puede cargar, se dice. La petición vive en la raíz desde la feature 007,
+   * así que el aviso nace acá — pero se muestra en la pantalla de movimientos, que es la que queda
+   * inservible sin categorías.
+   */
+  it('si falla la carga del catálogo lo dice en vez de ofrecer un selector vacío', async () => {
+    vi.mocked(cliente.obtenerCategorias).mockRejectedValue(
+      new cliente.ErrorDelServidor(500, 'boom'),
+    );
+
+    render(<App hoy="2026-08-24" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/categor/i);
   });
 });

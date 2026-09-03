@@ -5,7 +5,6 @@ import { PantallaMovimientos } from '../src/movimientos/PantallaMovimientos';
 import { CATEGORIAS } from './categorias.fixture';
 
 vi.mock('../src/api/cliente', () => ({
-  obtenerCategorias: vi.fn(),
   obtenerMovimientos: vi.fn(),
   crearMovimiento: vi.fn(),
 }));
@@ -13,7 +12,6 @@ vi.mock('../src/api/cliente', () => ({
 const cliente = await import('../src/api/cliente');
 
 beforeEach(() => {
-  vi.mocked(cliente.obtenerCategorias).mockResolvedValue(CATEGORIAS);
   vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([]);
   vi.mocked(cliente.crearMovimiento).mockResolvedValue({
     id: 1,
@@ -39,7 +37,10 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
       <PantallaMovimientos
         hoy="2026-08-23"
         email="ana@ejemplo.com"
+        categorias={CATEGORIAS}
+        errorDelCatalogo={null}
         onCerrarSesion={() => {}}
+        onGestionarCategorias={() => {}}
         onSesionVencida={() => {}}
       />,
     );
@@ -47,9 +48,13 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
 
     // El orden del DOM es el orden de tabulación: no hay tabindex positivo que lo altere.
     //
-    // El primer control de la pantalla es "Cerrar sesión", que vive en la cabecera y por lo tanto
-    // va antes del formulario. Se verifica en vez de saltearlo: si algún día apareciera con
-    // `tabindex` para sacarlo del camino, quien navega con teclado no podría cerrar sesión.
+    // Los primeros controles de la pantalla son los dos de la cabecera —"Categorías" y "Cerrar
+    // sesión"—, que van antes del formulario. Se verifican en vez de saltearlos: si alguno
+    // apareciera con `tabindex` para sacarlo del camino, quien navega con teclado no podría
+    // alcanzarlo. "Categorías" llega con la feature 007 y es la puerta a la pantalla de gestión.
+    await usuario.tab();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Categorías' }));
+
     await usuario.tab();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cerrar sesión' }));
 

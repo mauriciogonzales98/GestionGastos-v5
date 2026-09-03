@@ -67,6 +67,23 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
     [categorias, tipo],
   );
 
+  /**
+   * La selección efectiva: la elegida, o ninguna si dejó de estar en el catálogo (FR-022).
+   *
+   * Pasa de verdad: la categoría se da de baja desde la pantalla de gestión mientras el movimiento
+   * está a medio cargar, y el catálogo baja sin ella. Sin esto, el `<select>` se queda con un valor
+   * que ya no tiene `<option>` —el control se ve vacío— pero el estado sigue guardando el id viejo,
+   * así que "Registrar" manda una categoría que el servidor rechaza con un mensaje que la persona
+   * no puede entender: eligió algo y le dicen que no eligió nada.
+   *
+   * Se deriva en vez de corregir el estado con un `useEffect`: el efecto haría un render de más y
+   * abriría una ventana en la que el valor mostrado y el enviado difieren, que es justamente el
+   * problema que se está arreglando.
+   */
+  const seleccionVigente = delTipoElegido.some((c) => String(c.id) === categoriaId)
+    ? categoriaId
+    : '';
+
   function cambiarTipo(nuevo: TipoMovimiento) {
     setTipo(nuevo);
     // Se limpia la selección: dejarla puesta permitiría enviar un gasto con categoría de ingreso,
@@ -108,7 +125,7 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
   async function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
 
-    const delCliente = validar(monto, categoriaId);
+    const delCliente = validar(monto, seleccionVigente);
     if (Object.keys(delCliente).length > 0) {
       setErrores(delCliente);
       setErrorGeneral(null);
@@ -120,7 +137,12 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
     setEnviando(true);
 
     try {
-      await onGuardar({ tipo, monto: Number(monto), categoriaId: Number(categoriaId), fecha });
+      await onGuardar({
+        tipo,
+        monto: Number(monto),
+        categoriaId: Number(seleccionVigente),
+        fecha,
+      });
     } catch (error) {
       // Nada se traga: un error de validación se enruta a sus campos y cualquier otro se muestra
       // en la región del formulario. En los dos casos el formulario conserva lo cargado.
@@ -193,7 +215,11 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
         {(props) => (
           // `<select>` nativo: un combo propio tendría que reimplementar teclado, foco y anuncio,
           // y AGENTS.md prohíbe la dependencia que lo evitaría.
-          <select {...props} value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}>
+          <select
+            {...props}
+            value={seleccionVigente}
+            onChange={(e) => setCategoriaId(e.target.value)}
+          >
             <option value="">Elegí una categoría</option>
             {delTipoElegido.map((c) => (
               <option key={c.id} value={c.id}>

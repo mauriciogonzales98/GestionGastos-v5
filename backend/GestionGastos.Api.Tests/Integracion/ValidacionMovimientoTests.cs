@@ -226,6 +226,99 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
         }
     }
 
+    /// <summary>
+    /// **FR-023: editar un movimiento sin cambiarle la categoría se acepta aunque esa categoría
+    /// esté dada de baja.**
+    ///
+    /// Es el único casillero de la tabla del contrato que cambia con esta feature, y el motivo es
+    /// que la alternativa es peor: corregirle el monto o la fecha a un movimiento viejo no puede
+    /// obligar a reclasificarlo. La baja apaga una categoría para lo NUEVO, no para lo que ya
+    /// estaba clasificado.
+    ///
+    /// La segunda mitad es la que impide que esto se escriba como "la edición no filtra por
+    /// activa", que sería más corto y estaría mal (D-04): mover el movimiento a **otra** categoría
+    /// dada de baja se sigue rechazando. Lo que se admite es conservar la que ya tenía, no elegir
+    /// una apagada.
+    ///
+    /// **El test `Rechaza_Una_Categoria_Dada_De_Baja` de arriba no se toca**: cubre el ALTA, y el
+    /// alta no cambia (FR-022). Si se pusiera en rojo, sería que el cambio de la edición se filtró
+    /// al alta, y eso es un error del código.
+    /// </summary>
+    [Fact]
+    public async Task La_Edicion_Acepta_La_Categoria_Que_El_Movimiento_Ya_Tenia_FR023()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        var suya = await CrearCategoriaAsync(cuenta, "La que va a quedar vieja");
+        var otra = await CrearCategoriaAsync(cuenta, "La otra que también se da de baja");
+
+        var movimiento = await RegistrarAsync(cuenta, suya, 100m);
+
+        await DarDeBajaAsync(cuenta, suya);
+        await DarDeBajaAsync(cuenta, otra);
+
+        // Conservando su categoría: se acepta, y el monto nuevo queda guardado.
+        using (var conLaSuya = await EditarAsync(cuenta, movimiento, suya, monto: 250m))
+        {
+            Assert.Equal(HttpStatusCode.OK, conLaSuya.StatusCode);
+
+            using var json = JsonDocument.Parse(await conLaSuya.Content.ReadAsStringAsync());
+            Assert.Equal(250m, json.RootElement.GetProperty("monto").GetDecimal());
+            Assert.Equal(suya, json.RootElement.GetProperty("categoriaId").GetInt32());
+        }
+
+        // Moviéndolo a OTRA dada de baja: se rechaza.
+        using var aLaOtra = await EditarAsync(cuenta, movimiento, otra, monto: 250m);
+        Assert.Equal(HttpStatusCode.BadRequest, aLaOtra.StatusCode);
+
+        using var error = JsonDocument.Parse(await aLaOtra.Content.ReadAsStringAsync());
+        Assert.True(error.RootElement.GetProperty("errors").TryGetProperty("categoriaId", out _));
+
+        // Y no se movió: un 400 que igual guarda cumple el código y falla la regla.
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Equal(suya, (await contexto.Movimientos.SingleAsync(m => m.Id == movimiento)).CategoriaId);
+    }
+
+    private static async Task<int> CrearCategoriaAsync(CuentaDePrueba cuenta, string nombre)
+    {
+        using var respuesta = await cuenta.Cliente.PostAsJsonAsync(
+            new Uri("/api/categorias", UriKind.Relative), new { nombre, tipo = "gasto" });
+
+        Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+        return json.RootElement.GetProperty("id").GetInt32();
+    }
+
+    private static async Task DarDeBajaAsync(CuentaDePrueba cuenta, int categoriaId)
+    {
+        using var respuesta = await cuenta.Cliente.DeleteAsync(
+            new Uri($"/api/categorias/{categoriaId}", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+    }
+
+    private static async Task<long> RegistrarAsync(CuentaDePrueba cuenta, int categoriaId, decimal monto)
+    {
+        using var respuesta = await cuenta.Cliente.PostAsJsonAsync(
+            new Uri("/api/movimientos", UriKind.Relative),
+            new { tipo = "gasto", monto, categoriaId, fecha = "2026-08-23" });
+
+        Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+        return json.RootElement.GetProperty("id").GetInt64();
+    }
+
+    private static Task<HttpResponseMessage> EditarAsync(
+        CuentaDePrueba cuenta, long id, int categoriaId, decimal monto) =>
+        cuenta.Cliente.PutAsJsonAsync(
+            new Uri($"/api/movimientos/{id}", UriKind.Relative),
+            new { tipo = "gasto", monto, categoriaId, fecha = "2026-08-23" });
+
     private async Task<HttpResponseMessage> EnviarCrudoAsync(string cuerpo)
     {
         // JSON crudo y no un objeto anónimo: hace falta poder mandar `null`, cadenas vacías y

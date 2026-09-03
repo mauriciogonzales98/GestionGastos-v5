@@ -178,5 +178,17 @@ jobs:
         env:
           ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
 
+      # El desglose del resumen no puede empezar a filtrar por `categoria.activa`: los movimientos
+      # de una categoría dada de baja dejarían de sumar, y el resumen de un mes ya cerrado pasaría
+      # a dar otro número sin que nadie tocara un movimiento. El agujero ya estuvo abierto —hasta la
+      # feature 007 todas las categorías estaban activas, así que el filtro puesto dejaba la suite
+      # entera en verde— y por eso hace falta comprobar que su barrera sabe ponerse en rojo.
+      #
+      # Recompila con la consulta modificada, así que va con las otras barreras.
+      - name: Barrera del desglose
+        run: ./backend/verificar-desglose.sh
+        env:
+          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+
       - name: Barrera del linter
         run: ./backend/verificar-linter.sh
