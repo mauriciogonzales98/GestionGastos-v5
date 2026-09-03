@@ -46,7 +46,7 @@ feature `git status` muestra algo ahí adentro, algo salió mal.
 
 **Purpose**: saber de qué verde se parte, para que cualquier rojo posterior sea atribuible.
 
-- [ ] T001 Correr la puerta del backend completa sobre la rama recién sacada —`dotnet format --verify-no-changes`, `dotnet build -warnaserror`, `dotnet test backend/`— y anotar el conteo de tests. Es la línea de base: sin ella, un rojo del primer día se confunde con uno heredado
+- [X] T001 Correr la puerta del backend completa sobre la rama recién sacada —`dotnet format --verify-no-changes`, `dotnet build -warnaserror`, `dotnet test backend/`— y anotar el conteo de tests. Es la línea de base: sin ella, un rojo del primer día se confunde con uno heredado
 
 ---
 
@@ -58,10 +58,10 @@ feature `git status` muestra algo ahí adentro, algo salió mal.
 `LimpiarCuentasAsync` **no** toca ([D-05](./research.md)), así que la primera moneda que un test cree
 y no borre se le queda al siguiente. Se resuelve antes de crear ninguna.
 
-- [ ] T002 [TEST] Crear `backend/GestionGastos.Api.Tests/Integracion/MonedaComoDatoTests.cs` con un primer caso que afirme que el catálogo tiene **exactamente dos** monedas, `ARS` y `USD`. Es el canario: cualquier moneda que sobreviva a un test lo pone en rojo
-- [ ] T003 [ROJO] Agregar temporalmente a ese archivo un segundo caso que inserte una moneda **y no la borre**, y correr los dos con `dotnet test --filter "FullyQualifiedName~MonedaComoDato"`. **ROJO en T002**, y el rojo es el daño de D-05 ocurriendo de verdad. Mostrar la salida
-- [ ] T004 Escribir en `MonedaComoDatoTests` el helper que agrega una moneda y la borra al terminar, con `try`/`finally` para que la limpieza corra también cuando el caso falla. Pasar el caso de T003 a usarlo. **Verde.** Documentar por qué la limpieza NO va en `LimpiarCuentasAsync`: ahí borraría las dos monedas sembradas para toda la suite, el mismo error que ese método ya evita en categorías filtrando por `usuario_id != null`
-- [ ] T005 [VERIFY] Puerta del backend completa, con su salida
+- [X] T002 [TEST] Crear `backend/GestionGastos.Api.Tests/Integracion/MonedaComoDatoTests.cs` con un primer caso que afirme que el catálogo tiene **exactamente dos** monedas, `ARS` y `USD`. Es el canario: cualquier moneda que sobreviva a un test lo pone en rojo
+- [X] T003 [ROJO] Agregar temporalmente a ese archivo un segundo caso que inserte una moneda **y no la borre**, y correr los dos con `dotnet test --filter "FullyQualifiedName~MonedaComoDato"`. **ROJO en T002**, y el rojo es el daño de D-05 ocurriendo de verdad. Mostrar la salida
+- [X] T004 Escribir en `MonedaComoDatoTests` el helper que agrega una moneda y la borra al terminar, con `try`/`finally` para que la limpieza corra también cuando el caso falla. Pasar el caso de T003 a usarlo. **Verde.** Documentar por qué la limpieza NO va en `LimpiarCuentasAsync`: ahí borraría las dos monedas sembradas para toda la suite, el mismo error que ese método ya evita en categorías filtrando por `usuario_id != null`
+- [X] T005 [VERIFY] Puerta del backend completa, con su salida
 
 **Checkpoint**: se pueden crear monedas en los tests sin envenenar la suite.
 
