@@ -42,6 +42,14 @@ export function PantallaCategorias({
   const [nombre, setNombre] = useState('');
   const [tipo, setTipo] = useState<TipoMovimiento>('gasto');
   const [errorDelNombre, setErrorDelNombre] = useState<string | undefined>(undefined);
+
+  /**
+   * El error del renombre va aparte del de `errorDelNombre` **aunque el servidor los mande con la
+   * misma clave**: es el mismo campo de la misma validación (FR-005), pero no el mismo control.
+   * Con un solo estado, el rechazo de un renombre aparecía colgado del campo del alta —que puede
+   * estar vacío o a medio escribir— y el input que lo causó se quedaba sin decir nada.
+   */
+  const [errorDelRenombre, setErrorDelRenombre] = useState<string | undefined>(undefined);
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -49,16 +57,21 @@ export function PantallaCategorias({
   const [renombrando, setRenombrando] = useState<{ id: number; nombre: string } | null>(null);
 
   /**
-   * Reparte un rechazo del servidor: el mensaje de `nombre` va al lado de su campo y todo lo demás
-   * a la región general. Un error sin lugar donde ir es un rechazo invisible.
+   * Reparte un rechazo del servidor: el mensaje de `nombre` va al lado del control que lo produjo
+   * y todo lo demás a la región general. Un error sin lugar donde ir es un rechazo invisible.
+   *
+   * <paramref name="enElCampo"/> es ese control. Lo elige quien llama porque el servidor no puede:
+   * el alta y el renombre comparten la clave `nombre`, así que la única forma de saber a cuál de
+   * los dos inputs pertenece el mensaje es haberlo pedido. La baja no pasa ninguno —no tiene campo
+   * donde poner nada— y su mensaje cae entero en la región general.
    */
-  function mostrar(error: unknown) {
+  function mostrar(error: unknown, enElCampo?: (mensaje: string | undefined) => void) {
     if (error instanceof ErrorDeValidacion) {
-      const delNombre = error.errores.nombre?.[0];
-      setErrorDelNombre(delNombre);
+      const delNombre = enElCampo ? error.errores.nombre?.[0] : undefined;
+      enElCampo?.(delNombre);
 
       const sueltos = Object.entries(error.errores)
-        .filter(([clave]) => clave !== 'nombre')
+        .filter(([clave]) => !(enElCampo && clave === 'nombre'))
         .flatMap(([, mensajes]) => mensajes);
 
       setErrorGeneral(sueltos.length > 0 ? sueltos.join(' ') : delNombre ? null : ERROR_GENERICO);
@@ -70,6 +83,7 @@ export function PantallaCategorias({
 
   function limpiarErrores() {
     setErrorDelNombre(undefined);
+    setErrorDelRenombre(undefined);
     setErrorGeneral(null);
   }
 
@@ -81,7 +95,7 @@ export function PantallaCategorias({
     try {
       await onCrear({ nombre, tipo });
     } catch (error) {
-      mostrar(error);
+      mostrar(error, setErrorDelNombre);
       return;
     } finally {
       setEnviando(false);
@@ -97,7 +111,7 @@ export function PantallaCategorias({
     try {
       await onRenombrar(id, nuevo);
     } catch (error) {
-      mostrar(error);
+      mostrar(error, setErrorDelRenombre);
       return;
     }
 
@@ -167,20 +181,39 @@ export function PantallaCategorias({
             {categoria.esPropia ? (
               renombrando?.id === categoria.id ? (
                 <>
-                  <label htmlFor={`renombre-${categoria.id}`}>Nombre nuevo</label>
-                  <input
-                    id={`renombre-${categoria.id}`}
-                    type="text"
-                    value={renombrando.nombre}
-                    onChange={(e) => setRenombrando({ id: categoria.id, nombre: e.target.value })}
-                  />
+                  {/* Mismo componente que el alta: el mensaje queda dentro de esta fila, con su
+                      `aria-invalid` y su `role="alert"`, en vez de arriba de la pantalla. El
+                      `campo` lleva el id porque es el `id` del control, y sólo hay una fila en
+                      modo renombre a la vez. */}
+                  <CampoConError
+                    campo={`renombre-${categoria.id}`}
+                    etiqueta="Nombre nuevo"
+                    error={errorDelRenombre}
+                  >
+                    {(props) => (
+                      <input
+                        {...props}
+                        type="text"
+                        value={renombrando.nombre}
+                        onChange={(e) =>
+                          setRenombrando({ id: categoria.id, nombre: e.target.value })
+                        }
+                      />
+                    )}
+                  </CampoConError>
                   <button
                     type="button"
                     onClick={() => void guardarRenombre(categoria.id, renombrando.nombre)}
                   >
                     Guardar
                   </button>
-                  <button type="button" onClick={() => setRenombrando(null)}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      limpiarErrores();
+                      setRenombrando(null);
+                    }}
+                  >
                     Cancelar
                   </button>
                 </>
@@ -188,7 +221,10 @@ export function PantallaCategorias({
                 <>
                   <button
                     type="button"
-                    onClick={() => setRenombrando({ id: categoria.id, nombre: categoria.nombre })}
+                    onClick={() => {
+                      limpiarErrores();
+                      setRenombrando({ id: categoria.id, nombre: categoria.nombre });
+                    }}
                   >
                     Renombrar {categoria.nombre}
                   </button>

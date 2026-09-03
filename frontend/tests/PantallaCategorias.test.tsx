@@ -158,3 +158,57 @@ describe('PantallaCategorias — renombrar y dar de baja', () => {
     expect(onVolver).toHaveBeenCalled();
   });
 });
+
+describe('PantallaCategorias — cada rechazo al lado del control que lo produjo', () => {
+  /**
+   * El rechazo de un renombre se muestra **en la fila que se está renombrando**, no colgado del
+   * campo del alta.
+   *
+   * El error del servidor viene con la clave `nombre` en los dos casos —es el mismo campo de la
+   * misma validación (FR-005)— así que un único estado para los dos lo manda siempre al mismo
+   * lugar: el formulario de arriba. La persona ve marcado como inválido un campo que puede estar
+   * vacío, y el input que causó el rechazo se queda sin decir nada.
+   */
+  it('el rechazo del renombre se ve en la fila, no en el formulario de alta', async () => {
+    const usuario = userEvent.setup();
+    const onRenombrar = vi
+      .fn()
+      .mockRejectedValue(
+        new ErrorDeValidacion({ nombre: ['Ya tenés una categoría de ese tipo con ese nombre.'] }),
+      );
+
+    renderizar({ onRenombrar });
+
+    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: /Renombrar/ }));
+    const campo = within(fila('Gimnasio')).getByLabelText('Nombre nuevo');
+    await usuario.clear(campo);
+    await usuario.type(campo, 'Comida');
+    await usuario.click(within(fila('Gimnasio')).getByRole('button', { name: 'Guardar' }));
+
+    expect(await within(fila('Gimnasio')).findByRole('alert')).toHaveTextContent(
+      'Ya tenés una categoría de ese tipo con ese nombre.',
+    );
+
+    // Y el campo del alta, que no tiene nada que ver, queda limpio.
+    expect(screen.getByLabelText('Nombre')).toBeValid();
+  });
+
+  /**
+   * La otra mitad: el rechazo del alta sigue yendo a su campo. Sin este caso, mover el error del
+   * renombre podría llevárselos a los dos.
+   */
+  it('el rechazo del alta sigue yendo al campo del alta', async () => {
+    const usuario = userEvent.setup();
+    const onCrear = vi
+      .fn()
+      .mockRejectedValue(new ErrorDeValidacion({ nombre: ['El nombre no puede estar vacío.'] }));
+
+    renderizar({ onCrear });
+
+    await usuario.type(screen.getByLabelText('Nombre'), 'x');
+    await usuario.click(screen.getByRole('button', { name: 'Crear categoría' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El nombre no puede estar vacío.');
+    expect(within(fila('Gimnasio')).queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
