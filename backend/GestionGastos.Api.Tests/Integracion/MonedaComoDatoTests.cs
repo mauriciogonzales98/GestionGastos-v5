@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using GestionGastos.Api.Dominio;
 using GestionGastos.Api.Persistencia;
 using Microsoft.EntityFrameworkCore;
@@ -288,9 +289,26 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal(2, ars.GastosPorCategoria.Count);
         Assert.All(ars.GastosPorCategoria, c => Assert.Equal(150m, c.Total));
 
-        // Y nada que huela a movimiento suelto: ni el id, ni la fecha, ni el monto individual.
-        Assert.DoesNotContain("\"fecha\"", crudo, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"movimientos\"", crudo, StringComparison.Ordinal);
+        // **Las claves de la respuesta son exactamente éstas y ninguna más.**
+        //
+        // La versión anterior de esta comprobación buscaba que el JSON no contuviera `"fecha"` ni
+        // `"movimientos"`, y era teatro: el contrato del resumen nunca tuvo un campo con esos
+        // nombres, así que las dos aserciones pasaban sin poder fallar — y alguien que agregara la
+        // lista de movimientos bajo cualquier otro nombre las pasaba igual.
+        //
+        // Enumerar el conjunto completo sí falla: cualquier campo nuevo, se llame como se llame,
+        // rompe esto y obliga a decidir a conciencia si el contrato tiene que crecer (FR-007).
+        using var json = JsonDocument.Parse(crudo);
+
+        Assert.Equal(
+            ["desde", "hasta", "monedas"],
+            json.RootElement.EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+
+        Assert.All(
+            json.RootElement.GetProperty("monedas").EnumerateArray(),
+            moneda => Assert.Equal(
+                ["balance", "gastosPorCategoria", "monedaCodigo", "monedaId", "totalGastado", "totalIngresado"],
+                moneda.EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal)));
     }
 
     /// <summary>
