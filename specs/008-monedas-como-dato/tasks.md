@@ -76,11 +76,11 @@ puede registrar un movimiento con ella, y ni el ensamblado ni el árbol de fuent
 
 ### Tests
 
-- [ ] T006 [TEST] [P] [US1] AC-03 y FR-003 en `MonedaComoDatoTests`: el catálogo migrado tiene `ARS` y `USD`, y **exactamente una** marcada como predeterminada. El test cuenta las predeterminadas, no comprueba cuál es: que sea `ARS` es semilla, que haya una sola es la invariante (FR-004)
-- [ ] T007 [TEST] [US1] AC-01 y FR-002 en `MonedaComoDatoTests`: agregada una moneda al catálogo con el helper de T004, `GET /api/resumen` devuelve **una entrada más**, con sus tres totales y su desglose en cero, y al final de la lista
-- [ ] T008 [ROJO] [US1] El rojo de T007, producido quitando la propiedad: reemplazar temporalmente en `backend/GestionGastos.Api/Resumenes/CalculoDelResumen.cs` la lectura del catálogo por una lista fija de dos monedas, correr T007 y exigir **ROJO**. Restaurar el archivo y exigir el verde. Es lo que prueba que el test mira el catálogo y no una casualidad. Mostrar las dos salidas
-- [ ] T009 [TEST] [US1] AC-02, FR-001, FR-010 y SC-001 en `MonedaComoDatoTests`: mover la predeterminada a la moneda nueva **con dos sentencias, apagar y después prender** ([D-02](./research.md)), registrar un gasto por `POST /api/movimientos`, y comprobar que suma en los totales de esa moneda y en los de ninguna otra. Comentar por qué van dos sentencias: una sola puede violar `ux_moneda_unica_predeterminada` según el orden en que el motor toque las filas
-- [ ] T010 [ROJO] [US1] Correr T009 **sin** mover la predeterminada. **ROJO**: el movimiento cae en `ARS`. Es lo que distingue "la moneda nueva se usa" de "se registró algo en alguna moneda". Mostrar la salida
+- [X] T006 [TEST] [P] [US1] AC-03 y FR-003 en `MonedaComoDatoTests`: el catálogo migrado tiene `ARS` y `USD`, y **exactamente una** marcada como predeterminada. El test cuenta las predeterminadas, no comprueba cuál es: que sea `ARS` es semilla, que haya una sola es la invariante (FR-004)
+- [X] T007 [TEST] [US1] AC-01 y FR-002 en `MonedaComoDatoTests`: agregada una moneda al catálogo con el helper de T004, `GET /api/resumen` devuelve **una entrada más**, con sus tres totales y su desglose en cero, y al final de la lista
+- [X] T008 [ROJO] [US1] El rojo de T007, producido quitando la propiedad: reemplazar temporalmente en `backend/GestionGastos.Api/Resumenes/CalculoDelResumen.cs` la lectura del catálogo por una lista fija de dos monedas, correr T007 y exigir **ROJO**. Restaurar el archivo y exigir el verde. Es lo que prueba que el test mira el catálogo y no una casualidad. Mostrar las dos salidas
+- [X] T009 [TEST] [US1] AC-02, FR-001, FR-010 y SC-001 en `MonedaComoDatoTests`: mover la predeterminada a la moneda nueva **con dos sentencias, apagar y después prender** ([D-02](./research.md)), registrar un gasto por `POST /api/movimientos`, y comprobar que suma en los totales de esa moneda y en los de ninguna otra. Comentar por qué van dos sentencias: una sola puede violar `ux_moneda_unica_predeterminada` según el orden en que el motor toque las filas
+- [X] T010 [ROJO] [US1] Correr T009 **sin** mover la predeterminada. **ROJO**: el movimiento cae en `ARS`. Es lo que distingue "la moneda nueva se usa" de "se registró algo en alguna moneda". Mostrar la salida
 
 ### La barrera
 
