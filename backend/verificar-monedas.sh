@@ -95,9 +95,25 @@ fi
 # Los argumentos van en un array para que la ausencia de `-p` sea la ausencia de un elemento, y no
 # una cadena vacía que el shell igual le pasa a mysql.
 ARGS=(-h "$HOST" -u "$USUARIO" -N -B)
-[[ -n "$CLAVE" ]] && ARGS+=(-p"$CLAVE")
 
-sql() { mysql "${ARGS[@]}" "$BASE" -e "$1" 2>/dev/null; }
+# La contraseña viaja por `MYSQL_PWD` y no por `-p`: así no aparece en `ps` —que es lo que el
+# warning de mysql viene a decir— y, sobre todo, **el warning desaparece por el motivo correcto**.
+# Antes se lo tapaba mandando todo `stderr` a /dev/null, y con él se iban también los errores de
+# conexión: `AGENTS.md` prohíbe el catch silencioso y ése lo era, escrito en bash.
+[[ -n "$CLAVE" ]] && export MYSQL_PWD="$CLAVE"
+
+sql() { mysql "${ARGS[@]}" "$BASE" -e "$1"; }
+
+# **Se comprueba la conexión ANTES de usarla.** Sin esto, el primer fallo aparecía en medio del
+# paso 2, con `set -e` matando el script sin imprimir una sola línea sobre la causa: quien mirara
+# CI veía la barrera cortada a la mitad y ninguna pista de que el problema era la cadena de
+# conexión.
+if ! sql "SELECT 1;" > /dev/null; then
+  echo "ERROR: no se pudo conectar a la base." >&2
+  echo "       servidor=[$HOST] base=[$BASE] usuario=[$USUARIO] contraseña=[$([[ -n "$CLAVE" ]] && echo "sí" || echo "no")]" >&2
+  echo "       El error de mysql está arriba de estas líneas." >&2
+  exit 1
+fi
 
 limpiar() { sql "DELETE FROM moneda WHERE codigo = '$CODIGO';" || true; }
 trap limpiar EXIT
