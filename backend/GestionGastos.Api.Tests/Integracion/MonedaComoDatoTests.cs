@@ -148,8 +148,14 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
     /// `ux_moneda_unica_predeterminada` es un índice único sobre una columna generada que vale 1
     /// para la predeterminada y NULL para el resto. Un `UPDATE` que apague una y prenda otra en la
     /// misma sentencia puede violarlo transitoriamente, según el orden en que el motor toque las
-    /// filas. Entre las dos hay un instante sin ninguna predeterminada, en el que un alta fallaría
-    /// con `SingleAsync` — acá no importa, pero que nadie copie el patrón a producción sin pensarlo.
+    /// filas. Entre las dos hay un instante sin ninguna predeterminada.
+    ///
+    /// **Qué pasa si el proceso muere justo ahí**, que es lo que hay que saber antes de copiar el
+    /// patrón: la base queda sin predeterminada, y entonces el `SingleAsync(m => m.EsPredeterminada)`
+    /// del alta revienta para **todos** los tests siguientes de esa base — con un rojo que no
+    /// señala a este helper. La ventana es de microsegundos y el `finally` la cierra en el camino
+    /// normal, así que se acepta acá; en producción, mover la predeterminada necesita una
+    /// transacción o un `SET` que apague y prenda en el mismo statement sin violar el índice.
     /// </summary>
     [Fact]
     public async Task Un_Movimiento_Se_Registra_En_La_Moneda_Agregada_Como_Dato_AC02()
@@ -213,9 +219,10 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal(10_000m, ars.TotalGastado);
         Assert.Equal(50m, usd.TotalGastado);
 
-        // La comprobación que atrapa la mezcla: 10.050 sería el número plausible y equivocado.
-        Assert.NotEqual(10_050m, ars.TotalGastado);
-        Assert.NotEqual(10_050m, usd.TotalGastado);
+        // Los cuatro `Assert.Equal` de arriba ya atrapan la mezcla: si los universos se cruzaran,
+        // los dos totales darían 10.050 y ninguno de ellos pasaría. Un `NotEqual(10_050m)` extra
+        // no puede fallar después de un `Equal(10_000m)` que pasó, así que sólo daría la impresión
+        // de cubrir algo. El número plausible y equivocado se nombra acá, que es donde sirve.
     }
 
     /// <summary>
