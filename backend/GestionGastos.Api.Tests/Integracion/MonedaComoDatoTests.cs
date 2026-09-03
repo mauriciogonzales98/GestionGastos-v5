@@ -343,7 +343,16 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
 
         var monedas = await MonedasDelResumenAsync(cuenta);
 
-        Assert.Equal(2, monedas.Count);
+        // **Se compara contra el catálogo y no contra un 2 escrito a mano.** El AC dice "una entrada
+        // por CADA moneda del catálogo", así que el catálogo es la fuente. Y además: con el número
+        // fijo, este caso se ponía en rojo apenas hubiera una moneda de más — que es exactamente lo
+        // que `verificar-monedas.sh` agrega a propósito para correr estos mismos tests. La barrera
+        // se rompía por su propio montaje, y lo encontró el quickstart.
+        await using (var contexto = _baseDeDatos.CrearContexto())
+        {
+            Assert.Equal(await contexto.Monedas.CountAsync(), monedas.Count);
+        }
+
         Assert.All(monedas, m =>
         {
             Assert.Equal(0m, m.TotalIngresado);

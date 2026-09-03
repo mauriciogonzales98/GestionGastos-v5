@@ -35,12 +35,17 @@ son dos mecanismos distintos por el motivo que ahí se explica.
 
 ---
 
-## 3 · Agregar el euro, sólo como dato
+## 3 · Agregar una moneda, sólo como dato
+
+`XTS` es el código que ISO 4217 reserva para pruebas, así que no colisiona con ninguna moneda real
+— y es el mismo que usa `verificar-monedas.sh`, del que este recorrido es la versión a mano. **No
+uses `EUR`**: es el que usan `MonedaComoDatoTests` para crear la suya, y dejarlo puesto los rompe
+con un choque contra `IX_moneda_codigo`.
 
 ```bash
 mysql -h 127.0.0.1 -u gestiongastos -p"$CLAVE" gestiongastos_test -e \
   "INSERT INTO moneda (codigo, nombre, simbolo, decimales, es_predeterminada)
-   VALUES ('EUR', 'Euro', '€', 2, 0);"
+   VALUES ('XTS', 'Moneda de prueba', '¤', 2, 0);"
 ```
 
 Una fila. Ningún archivo abierto, ningún proyecto recompilado.
@@ -55,7 +60,7 @@ dotnet test backend/GestionGastos.slnx --no-build \
 ```
 
 **Esperado**: verde, y el resumen devuelve **tres** entradas — `ARS` con sus números, `USD` en cero y
-`EUR` en cero. Es AC-01 y FR-002.
+`XTS` en cero. Es AC-01 y FR-002.
 
 **`--no-build` no es una optimización**: es la mitad de la afirmación. Si hiciera falta recompilar
 para que el euro aparezca, este comando fallaría en vez de disimularlo.
@@ -75,7 +80,7 @@ mysql -h 127.0.0.1 -u gestiongastos -p"$CLAVE" gestiongastos_test -e \
 ```
 
 Ahora registrá un gasto por la API, como lo haría cualquiera. **Esperado**: se acepta, y su monto
-suma en los totales de `EUR` y en los de ninguna otra. Es AC-02, y es la prueba de que RF-032 se
+suma en los totales de `XTS` y en los de ninguna otra. Es AC-02, y es la prueba de que RF-032 se
 cumple de punta a punta.
 
 ---
@@ -109,7 +114,7 @@ mysql -h 127.0.0.1 -u gestiongastos -p"$CLAVE" gestiongastos_test -e \
    DELETE FROM moneda WHERE codigo = 'EUR';"
 ```
 
-El `DELETE` falla si algún movimiento quedó apuntando al euro — la clave foránea es `RESTRICT`.
+El `DELETE` falla si algún movimiento quedó apuntando a `XTS` — la clave foránea es `RESTRICT`.
 Borrá esos movimientos primero. Que falle es correcto: es la base impidiendo que el catálogo quede
 inconsistente.
 
