@@ -252,15 +252,23 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
         return resumen.Monedas;
     }
 
-    private sealed record ResumenVisto(IReadOnlyList<MonedaDelResumen> Monedas);
-
-    private sealed record MonedaDelResumen(
-        short MonedaId,
-        string MonedaCodigo,
-        decimal TotalIngresado,
-        decimal TotalGastado,
-        decimal Balance,
-        IReadOnlyList<CategoriaDelDesglose> GastosPorCategoria);
-
-    private sealed record CategoriaDelDesglose(int CategoriaId, string CategoriaNombre, decimal Total);
 }
+
+/// <summary>
+/// El resumen como lo ve el cliente, para deserializarlo en los tests.
+///
+/// **Públicos y fuera de la clase**, igual que `CategoriaVista`: los instancia el deserializador de
+/// JSON y no el código, así que CA1812 los da por muertos si son privados y `-warnaserror` rompe el
+/// build. La forma la fija <c>Resumenes/ResumenDtos.cs</c>.
+/// </summary>
+public sealed record ResumenVisto(IReadOnlyList<MonedaDelResumen> Monedas);
+
+public sealed record MonedaDelResumen(
+    short MonedaId,
+    string MonedaCodigo,
+    decimal TotalIngresado,
+    decimal TotalGastado,
+    decimal Balance,
+    IReadOnlyList<CategoriaDelDesglose> GastosPorCategoria);
+
+public sealed record CategoriaDelDesglose(int CategoriaId, string CategoriaNombre, decimal Total);
