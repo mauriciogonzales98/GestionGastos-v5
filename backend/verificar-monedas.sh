@@ -115,7 +115,20 @@ if ! sql "SELECT 1;" > /dev/null; then
   exit 1
 fi
 
-limpiar() { sql "DELETE FROM moneda WHERE codigo = '$CODIGO';" || true; }
+# **Los movimientos primero, por la clave foránea RESTRICT.**
+#
+# Si algo dejó un movimiento apuntando a la moneda de prueba, el DELETE falla —comprobado: `Cannot
+# delete or update a parent row`— y el `|| true` se lo traga. La moneda sobrevive, y la corrida
+# siguiente muere en el INSERT por clave duplicada sin que el mensaje explique nada. Es el mismo
+# orden que `LimpiarCuentasAsync` documenta, y que `ConLaMonedaAsync` ya aplica del lado de los
+# tests.
+#
+# El `|| true` se queda **sólo** en el borrado final: si la limpieza no puede completarse, el script
+# ya está saliendo y no hay a quién avisarle — pero al menos deja el catálogo utilizable.
+limpiar() {
+  sql "DELETE m FROM movimiento m JOIN moneda mo ON mo.id = m.moneda_id WHERE mo.codigo = '$CODIGO';" || true
+  sql "DELETE FROM moneda WHERE codigo = '$CODIGO';" || true
+}
 trap limpiar EXIT
 
 echo "== 1/4 · compilar UNA vez y tomar la línea de base"
