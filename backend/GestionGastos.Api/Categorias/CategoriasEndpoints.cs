@@ -1,6 +1,7 @@
 using GestionGastos.Api.Dominio;
 using GestionGastos.Api.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 
 namespace GestionGastos.Api.Categorias;
 
@@ -61,7 +62,29 @@ public static class CategoriasEndpoints
             };
 
             contexto.Categorias.Add(categoria);
-            await contexto.SaveChangesAsync();
+
+            try
+            {
+                await contexto.SaveChangesAsync();
+            }
+            catch (DbUpdateException excepcion) when (EsNombreRepetido(excepcion))
+            {
+                // **La ventana entre la comprobación y el INSERT.** La unicidad se valida arriba y
+                // el índice la sostiene abajo (D-01, D-02), y entre las dos cosas no hay una
+                // transacción que las abarque: dos altas simultáneas del mismo nombre pasan las dos
+                // la validación y la segunda choca contra `ux_categoria_ambito_nombre_tipo`. El
+                // `disabled` del botón sólo cubre la misma pestaña.
+                //
+                // La integridad nunca estuvo en juego —para eso está el índice—, pero la respuesta
+                // sí: sin esto el `DbUpdateException` salía sin manejar y se convertía en un 500 sin
+                // campo, cuando el contrato dice 400 con la clave `nombre`. Es el mismo rechazo por
+                // el mismo motivo; sólo cambia cuál de las dos comprobaciones lo atrapó.
+                //
+                // El `when` es lo que impide que esto sea un catch que se traga cualquier fallo de
+                // escritura: cualquier otro `DbUpdateException` sigue de largo y termina en el 500
+                // que le corresponde.
+                return Results.ValidationProblem(ValidacionDeLaCategoria.ErroresDeNombreRepetido());
+            }
 
             return Results.Created($"/api/categorias/{categoria.Id}", AlDto(categoria));
         });
@@ -207,6 +230,17 @@ public static class CategoriasEndpoints
 
         return (categoria, null);
     }
+
+    /// <summary>
+    /// Si lo que rechazó el motor fue el índice de unicidad del nombre y no otra cosa.
+    ///
+    /// `1062` es `ER_DUP_ENTRY` de MySQL, y el nombre del índice se comprueba además del código:
+    /// la tabla no tiene otro índice único hoy, pero el día que tenga uno, un choque contra ése no
+    /// es un nombre repetido y no puede responderse como si lo fuera.
+    /// </summary>
+    private static bool EsNombreRepetido(DbUpdateException excepcion) =>
+        excepcion.InnerException is MySqlException { Number: 1062 } mysql
+        && mysql.Message.Contains("ux_categoria_ambito_nombre_tipo", StringComparison.Ordinal);
 
     /// <summary>
     /// La respuesta única de "esa categoría no está a tu alcance".

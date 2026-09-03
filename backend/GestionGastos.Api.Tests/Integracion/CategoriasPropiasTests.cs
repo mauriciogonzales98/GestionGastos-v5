@@ -613,6 +613,53 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal("Gimnasio", enLaBase!.Nombre);
     }
 
+    /// <summary>
+    /// **Cuando el índice rechaza un alta que la validación dejó pasar, la respuesta es el `400`
+    /// del contrato y no un `500`.**
+    ///
+    /// La unicidad se comprueba en dos lugares y con distinto alcance a propósito (D-01, D-02): la
+    /// aplicación la valida contra las homónimas activas del ámbito —lo único que puede ver el
+    /// choque ENTRE predefinidas y propias— y el índice la sostiene en la base. Entre la
+    /// comprobación y el `INSERT` no hay transacción que las abarque, así que hay una ventana: dos
+    /// altas simultáneas del mismo nombre pasan las dos la validación y la segunda choca contra
+    /// `ux_categoria_ambito_nombre_tipo`. El `disabled` del botón sólo cubre la misma pestaña.
+    ///
+    /// La integridad nunca estuvo en juego —para eso está el índice— pero la respuesta sí: el
+    /// `DbUpdateException` salía sin manejar y `UseExceptionHandler` lo convertía en un `500` sin
+    /// campo, cuando el contrato dice `400` con la clave `nombre`.
+    ///
+    /// **La carrera se reproduce sembrando su resultado en vez de corriéndola**: una fila apagada
+    /// con el discriminador todavía en `0`, que es exactamente el estado intermedio contra el que
+    /// advierte el comentario del `DELETE`. La validación no la ve —sólo mira activas— y el índice
+    /// sí. Correr dos peticiones de verdad y esperar que se pisen daría un test que falla una vez
+    /// cada tanto, que es peor que el error que busca.
+    /// </summary>
+    [Fact]
+    public async Task El_Choque_Contra_El_Indice_Responde_400_Y_No_500()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        await using (var contexto = _baseDeDatos.CrearContexto())
+        {
+            contexto.Categorias.Add(new Categoria
+            {
+                UsuarioId = cuenta.Id,
+                Nombre = "Gimnasio",
+                Tipo = TipoMovimiento.Gasto,
+                Activa = false,
+                Discriminador = 0,
+            });
+            await contexto.SaveChangesAsync();
+        }
+
+        using var respuesta = await CrearAsync(cuenta, "Gimnasio", "gasto");
+
+        await AssertRechazadoAsync(respuesta, "nombre", "el choque contra el índice");
+    }
+
     /// <summary>AC-03 en el `DELETE`: una predefinida responde `403` y sigue en el catálogo.</summary>
     [Fact]
     public async Task Dar_De_Baja_Una_Predefinida_Responde_403_AC03()

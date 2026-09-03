@@ -32,6 +32,17 @@ public static class ValidacionDeLaCategoria
     private const string ErrorDeNombreRepetido = "Ya tenés una categoría de ese tipo con ese nombre.";
 
     /// <summary>
+    /// El rechazo del nombre repetido, listo para responder.
+    ///
+    /// Lo necesita el alta para el caso en que **el índice** atrapa el choque que la comprobación
+    /// previa no llegó a ver (D-01): la respuesta tiene que ser la misma en las dos vías, o el
+    /// cliente vería dos formas distintas del mismo rechazo según cuál de las dos lo atrapó. Está
+    /// acá y no allá para que el mensaje siga escrito una sola vez.
+    /// </summary>
+    public static Dictionary<string, string[]> ErroresDeNombreRepetido() =>
+        new(StringComparer.Ordinal) { ["nombre"] = [ErrorDeNombreRepetido] };
+
+    /// <summary>
     /// Valida el alta: el tipo tiene que ser una de las dos cadenas, y el nombre tiene que pasar
     /// las mismas reglas que en el renombre.
     /// </summary>
