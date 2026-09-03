@@ -80,7 +80,8 @@ public static class CategoriasEndpoints
             GestionGastosDbContext contexto,
             IUsuarioActual usuarioActual) =>
         {
-            var (categoria, rechazo) = await BuscarPropiaAsync(contexto, usuarioActual.Id, id);
+            var (categoria, rechazo) = await BuscarPropiaAsync(
+                contexto, usuarioActual.Id, id, debeEstarActiva: true);
             if (rechazo is not null)
             {
                 return rechazo;
@@ -112,7 +113,10 @@ public static class CategoriasEndpoints
             GestionGastosDbContext contexto,
             IUsuarioActual usuarioActual) =>
         {
-            var (categoria, rechazo) = await BuscarPropiaAsync(contexto, usuarioActual.Id, id);
+            // `debeEstarActiva: false`, al revés que el renombre: la baja es idempotente y tiene
+            // que ENCONTRAR la fila ya apagada para responder 204 en vez de 404.
+            var (categoria, rechazo) = await BuscarPropiaAsync(
+                contexto, usuarioActual.Id, id, debeEstarActiva: false);
             if (rechazo is not null)
             {
                 return rechazo;
@@ -160,13 +164,24 @@ public static class CategoriasEndpoints
     /// comprobar el dueño en memoria daría el mismo 404 visible y dejaría el `WHERE` sin
     /// `usuario_id` — o sea, `BarreraDeAislamientoTests` en rojo. Es a propósito.
     ///
-    /// **No filtra por `activa`**: la baja es idempotente, así que darle de baja a algo ya dado de
-    /// baja tiene que encontrarlo para poder responder `204` en vez de `404`.
+    /// **El `activa` lo decide quien llama, y los dos verbos deciden distinto.** El canal no filtra
+    /// por `activa` porque la baja es idempotente: darle de baja a algo ya dado de baja tiene que
+    /// encontrarlo para responder `204` en vez de `404`. El renombre necesita lo contrario: una
+    /// categoría apagada ya no es renombrable, porque su nombre es el que los movimientos viejos
+    /// siguen mostrando y cambiarlo reescribe la historia que la baja lógica existe para preservar
+    /// (FR-004, FR-011). Por eso el parámetro no tiene valor por omisión: elegir mal es exactamente
+    /// el error que se acaba de arreglar, y un `= false` lo dejaría volver en silencio.
     /// </summary>
+    /// <param name="debeEstarActiva">
+    /// <c>true</c> para el renombre: una categoría dada de baja responde el mismo `404` que una
+    /// inexistente, porque para el catálogo de esa cuenta ya no está (FR-013). <c>false</c> para la
+    /// baja, que tiene que encontrarla para ser idempotente.
+    /// </param>
     private static async Task<(Categoria? Categoria, IResult? Rechazo)> BuscarPropiaAsync(
         GestionGastosDbContext contexto,
         long usuarioId,
-        int id)
+        int id,
+        bool debeEstarActiva)
     {
         var categoria = await CategoriasConsulta
             .DelAmbitoPorId(contexto, usuarioId, id)
@@ -183,6 +198,11 @@ public static class CategoriasEndpoints
                 statusCode: StatusCodes.Status403Forbidden,
                 title: "Categoría del sistema",
                 detail: "Las categorías predefinidas no se pueden modificar ni dar de baja."));
+        }
+
+        if (debeEstarActiva && !categoria.Activa)
+        {
+            return (null, NoExiste());
         }
 
         return (categoria, null);

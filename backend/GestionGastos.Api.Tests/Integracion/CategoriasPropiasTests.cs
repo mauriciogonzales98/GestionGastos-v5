@@ -571,6 +571,48 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
         Assert.DoesNotContain(await CatalogoAsync(cuenta), c => c.Id == categoria.Id);
     }
 
+    /// <summary>
+    /// **Una categoría dada de baja ya no se renombra** (FR-004, FR-011).
+    ///
+    /// `BuscarPropiaAsync` no filtra por `activa`, y con razón: el `DELETE` es idempotente y
+    /// necesita encontrar la fila apagada para responder `204` en vez de `404`. Pero el `PUT` usa
+    /// la misma búsqueda, así que se colaba por la misma puerta: `PUT` sobre una categoría apagada
+    /// respondía `200` y le cambiaba el nombre.
+    ///
+    /// La pantalla no lo ofrece —el catálogo ya no la trae— pero la API sí, y el efecto contradice
+    /// el propósito entero de la baja lógica: los movimientos históricos que la usan pasan a
+    /// mostrar un nombre distinto del que tenían cuando se registraron. La baja conserva la fila
+    /// **y su nombre**; esto último es lo que se estaba perdiendo.
+    ///
+    /// Responde `404` y no `403`: está fuera del catálogo de esa cuenta, que es exactamente lo que
+    /// el `404` dice en esta feature (FR-013). El `403` es para lo que la cuenta VE y no puede
+    /// tocar.
+    /// </summary>
+    [Fact]
+    public async Task Renombrar_Una_Dada_De_Baja_Responde_404_Y_Le_Deja_El_Nombre()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        var categoria = await CrearYLeerAsync(cuenta, "Gimnasio", "gasto");
+
+        using (var baja = await BajaAsync(cuenta, categoria.Id))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, baja.StatusCode);
+        }
+
+        using var respuesta = await RenombrarAsync(cuenta, categoria.Id, "Gimnasio y pileta");
+        Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
+
+        // El nombre sigue siendo el que la historia guarda, no el que el renombre quiso ponerle.
+        await using var contexto = _baseDeDatos.CrearContexto();
+        var enLaBase = await contexto.Categorias.FindAsync(categoria.Id);
+        Assert.NotNull(enLaBase);
+        Assert.Equal("Gimnasio", enLaBase!.Nombre);
+    }
+
     /// <summary>AC-03 en el `DELETE`: una predefinida responde `403` y sigue en el catálogo.</summary>
     [Fact]
     public async Task Dar_De_Baja_Una_Predefinida_Responde_403_AC03()
