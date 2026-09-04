@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PantallaMovimientos } from '../src/movimientos/PantallaMovimientos';
 import { ErrorDeRed, ErrorDelServidor } from '../src/api/cliente';
 import { CATEGORIAS } from './categorias.fixture';
+import { MONEDAS } from './monedas.fixture';
 
 vi.mock('../src/api/cliente', async () => {
   const real = await vi.importActual<typeof import('../src/api/cliente')>('../src/api/cliente');
@@ -41,6 +42,7 @@ describe('carga inicial que falla', () => {
         hoy="2026-08-23"
         email="ana@ejemplo.com"
         categorias={[]}
+        monedas={MONEDAS}
         errorDelCatalogo={ERROR_DEL_CATALOGO}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
@@ -73,6 +75,7 @@ describe('carga inicial que falla', () => {
         hoy="2026-08-23"
         email="ana@ejemplo.com"
         categorias={CATEGORIAS}
+        monedas={MONEDAS}
         errorDelCatalogo={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
@@ -97,6 +100,7 @@ describe('carga inicial que falla', () => {
         hoy="2026-08-23"
         email="ana@ejemplo.com"
         categorias={[]}
+        monedas={MONEDAS}
         errorDelCatalogo={ERROR_DEL_CATALOGO}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}

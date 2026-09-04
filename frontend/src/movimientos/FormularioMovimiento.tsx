@@ -1,10 +1,18 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { ErrorDeValidacion } from '../api/cliente';
-import type { Categoria, NuevoMovimiento, TipoMovimiento } from '../api/tipos';
+import type { Categoria, Moneda, NuevoMovimiento, TipoMovimiento } from '../api/tipos';
 import { CampoConError } from '../ui/CampoConError';
 
 export interface PropsFormularioMovimiento {
   categorias: Categoria[];
+  /**
+   * El catálogo de monedas que alimenta el selector (FR-005).
+   *
+   * **Baja por props y no se pide acá**, igual que el de categorías y por la misma razón: vive en
+   * la raíz para que esta pantalla y el acotado del listado miren la misma lista, y para que se
+   * pida una sola vez (`PRD:NFR-02`, AC-12).
+   */
+  monedas: Moneda[];
   /** El día de hoy en formato `YYYY-MM-DD`. Entra por prop para que el test sea determinista. */
   hoy: string;
   onGuardar: (movimiento: NuevoMovimiento) => void | Promise<void>;
@@ -16,7 +24,7 @@ type Errores = Record<string, string[]>;
  * Los campos que tienen un lugar donde mostrar su error. Cualquier clave de `errors` fuera de esta
  * lista no tiene dónde ir, así que cae en la región general en vez de perderse.
  */
-const CAMPOS_CON_LUGAR = ['tipo', 'monto', 'categoriaId', 'fecha'];
+const CAMPOS_CON_LUGAR = ['tipo', 'monto', 'categoriaId', 'monedaId', 'fecha'];
 
 /** El techo de FR-004b. Igual que en el servidor: la validación de cliente no lo relaja. */
 const MONTO_MAXIMO = 999_999_999.99;
@@ -51,10 +59,16 @@ function validar(monto: string, categoriaId: string): Errores {
  * hace el navegador solo, y reimplementarlo con handlers de tecla sería romper algo que ya
  * funciona. Es también la mitad de lo que AC-55 verifica.
  */
-export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormularioMovimiento) {
+export function FormularioMovimiento({
+  categorias,
+  monedas,
+  hoy,
+  onGuardar,
+}: PropsFormularioMovimiento) {
   const [tipo, setTipo] = useState<TipoMovimiento>('gasto');
   const [monto, setMonto] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
+  const [monedaId, setMonedaId] = useState('');
   const [fecha, setFecha] = useState(hoy);
   const [errores, setErrores] = useState<Errores>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
@@ -83,6 +97,23 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
   const seleccionVigente = delTipoElegido.some((c) => String(c.id) === categoriaId)
     ? categoriaId
     : '';
+
+  /**
+   * La moneda efectiva: la elegida, o la predeterminada del catálogo si no se eligió ninguna
+   * (FR-006, AC-02).
+   *
+   * **El estado arranca vacío y no con la predeterminada puesta**, y eso es deliberado: el catálogo
+   * baja por props y puede llegar después del primer render, así que sembrar el estado con él
+   * exigiría un `useEffect` que lo corrija — un render de más y una ventana en la que el valor
+   * mostrado y el que se enviaría difieren. Derivarlo no tiene ninguna de las dos cosas. Es el
+   * mismo criterio con el que se resuelve la categoría que dejó de estar en el catálogo.
+   *
+   * Si el catálogo todavía no llegó, esto queda vacío y el alta sale **sin** `monedaId`, que el
+   * servidor interpreta como la predeterminada: exactamente lo mismo, decidido del otro lado.
+   */
+  const monedaVigente = monedas.some((m) => String(m.id) === monedaId)
+    ? monedaId
+    : (monedas.find((m) => m.esPredeterminada)?.id.toString() ?? '');
 
   function cambiarTipo(nuevo: TipoMovimiento) {
     setTipo(nuevo);
@@ -141,6 +172,9 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
         tipo,
         monto: Number(monto),
         categoriaId: Number(seleccionVigente),
+        // Sin catálogo todavía no se manda nada: el servidor pone la predeterminada, que es el
+        // mismo resultado (FR-002).
+        monedaId: monedaVigente === '' ? null : Number(monedaVigente),
         fecha,
       });
     } catch (error) {
@@ -160,6 +194,10 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
     setTipo('gasto');
     setMonto('');
     setCategoriaId('');
+    // Vuelve a vacío, o sea a la predeterminada derivada. Encadenar cargas en la misma moneda es
+    // más común que cambiarla, pero recordarla sería un historial, y `RF-25` dice que el valor por
+    // defecto es el del catálogo.
+    setMonedaId('');
     setFecha(hoy);
 
     // El foco vuelve por código al primer campo (FR-014). Es lo que permite encadenar cargas sin
@@ -224,6 +262,21 @@ export function FormularioMovimiento({ categorias, hoy, onGuardar }: PropsFormul
             {delTipoElegido.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nombre}
+              </option>
+            ))}
+          </select>
+        )}
+      </CampoConError>
+
+      <CampoConError campo="monedaId" etiqueta="Moneda" error={errores.monedaId?.[0]}>
+        {(props) => (
+          // Sin opción vacía, a diferencia de categoría: la moneda SIEMPRE tiene un valor. Un
+          // "elegí una moneda" obligaría a tocar el control, y `PRD:NFR-01` exige poder guardar sin
+          // tocarlo — cero interacciones adicionales para quien usa una sola moneda.
+          <select {...props} value={monedaVigente} onChange={(e) => setMonedaId(e.target.value)}>
+            {monedas.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nombre}
               </option>
             ))}
           </select>

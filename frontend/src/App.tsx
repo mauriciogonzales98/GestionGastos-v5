@@ -7,10 +7,11 @@ import {
   crearCategoria,
   darDeBajaCategoria,
   obtenerCategorias,
+  obtenerMonedas,
   renombrarCategoria,
 } from './api/cliente';
 import { PantallaCategorias } from './categorias/PantallaCategorias';
-import type { Categoria, NuevaCategoria, SesionActual } from './api/tipos';
+import type { Categoria, Moneda, NuevaCategoria, SesionActual } from './api/tipos';
 import { PantallaMovimientos } from './movimientos/PantallaMovimientos';
 
 export interface PropsApp {
@@ -102,6 +103,19 @@ export function App({ hoy }: PropsApp) {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [errorDelCatalogo, setErrorDelCatalogo] = useState<string | null>(null);
 
+  /**
+   * El catálogo de monedas, con el mismo tratamiento que el de categorías y por la misma razón
+   * (`PRD:NFR-02`, AC-12): lo necesitan el selector del formulario y el acotado del listado, y la
+   * salida fácil —que cada uno lo pida— son dos peticiones al arrancar y dos listas que pueden
+   * discrepar.
+   *
+   * **No lleva su propio `errorDelCatalogo`.** Si las monedas no cargan, el selector queda vacío y
+   * el alta sale sin `monedaId`, que el servidor resuelve con la predeterminada: se puede seguir
+   * registrando. Un cartel de error para algo que no impide trabajar sería ruido; el de categorías
+   * existe porque sin categorías no se puede guardar nada.
+   */
+  const [monedas, setMonedas] = useState<Moneda[]>([]);
+
   useEffect(() => {
     void consultarSesion()
       .then((actual) => {
@@ -132,6 +146,7 @@ export function App({ hoy }: PropsApp) {
     setEstado('sin-sesion');
     setAviso(motivo);
     setCategorias([]);
+    setMonedas([]);
     setErrorDelCatalogo(null);
     setVista(VISTA_INICIAL);
   }, []);
@@ -146,6 +161,16 @@ export function App({ hoy }: PropsApp) {
     if (estado !== 'con-sesion') {
       return;
     }
+
+    // Las monedas, en paralelo con las categorías y con el mismo disparador. Su fallo no vuelve al
+    // acceso salvo que sea un 401: sin monedas se puede seguir registrando en la predeterminada.
+    void obtenerMonedas()
+      .then(setMonedas)
+      .catch((error: unknown) => {
+        if (error instanceof ErrorDeSesion) {
+          alVencerLaSesion(SESION_VENCIDA);
+        }
+      });
 
     void obtenerCategorias()
       .then(setCategorias)
@@ -226,6 +251,7 @@ export function App({ hoy }: PropsApp) {
     // quien acaba de apretar el botón.
     setAviso(null);
     setCategorias([]);
+    setMonedas([]);
     setErrorDelCatalogo(null);
     setVista(VISTA_INICIAL);
   }
@@ -256,6 +282,7 @@ export function App({ hoy }: PropsApp) {
         hoy={hoy}
         email={sesion.email}
         categorias={categorias}
+        monedas={monedas}
         errorDelCatalogo={errorDelCatalogo}
         onCerrarSesion={() => void salir()}
         onSesionVencida={alVencerLaSesion}

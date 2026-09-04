@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PantallaMovimientos } from '../src/movimientos/PantallaMovimientos';
 import { CATEGORIAS } from './categorias.fixture';
+import { MONEDAS } from './monedas.fixture';
 
 vi.mock('../src/api/cliente', () => ({
   obtenerMovimientos: vi.fn(),
@@ -38,6 +39,7 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
         hoy="2026-08-23"
         email="ana@ejemplo.com"
         categorias={CATEGORIAS}
+        monedas={MONEDAS}
         errorDelCatalogo={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
@@ -68,6 +70,13 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
     await usuario.tab();
     expect(document.activeElement).toBe(screen.getByLabelText('Categoría'));
     await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
+
+    // La moneda entra acá con la feature 009, entre la categoría y la fecha. AC-55 no cambió de
+    // exigencia —el formulario se recorre entero con Tab— y ahora tiene un control más que
+    // recorrer: un campo nuevo que quedara fuera del orden de tabulación sería inalcanzable para
+    // quien no usa mouse, y eso es justo lo que este test existe para impedir.
+    await usuario.tab();
+    expect(document.activeElement).toBe(screen.getByLabelText('Moneda'));
 
     await usuario.tab();
     expect(document.activeElement).toBe(screen.getByLabelText('Fecha'));

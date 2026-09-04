@@ -4,11 +4,19 @@ import { describe, expect, it, vi } from 'vitest';
 import { FormularioMovimiento } from '../src/movimientos/FormularioMovimiento';
 import { ErrorDelServidor, ErrorDeValidacion } from '../src/api/cliente';
 import { CATEGORIAS } from './categorias.fixture';
+import { MONEDAS } from './monedas.fixture';
 
 const HOY = '2026-08-23';
 
 function renderizar(onGuardar = vi.fn()) {
-  render(<FormularioMovimiento categorias={CATEGORIAS} hoy={HOY} onGuardar={onGuardar} />);
+  render(
+    <FormularioMovimiento
+      categorias={CATEGORIAS}
+      monedas={MONEDAS}
+      hoy={HOY}
+      onGuardar={onGuardar}
+    />,
+  );
   return onGuardar;
 }
 

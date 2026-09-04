@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PantallaMovimientos } from '../src/movimientos/PantallaMovimientos';
 import type { Movimiento } from '../src/api/tipos';
 import { CATEGORIAS } from './categorias.fixture';
+import { MONEDAS } from './monedas.fixture';
 
 vi.mock('../src/api/cliente', () => ({
   obtenerMovimientos: vi.fn(),
@@ -47,6 +48,7 @@ async function renderizar() {
       hoy={HOY}
       email="ana@ejemplo.com"
       categorias={CATEGORIAS}
+      monedas={MONEDAS}
       errorDelCatalogo={null}
       onCerrarSesion={() => {}}
       onGestionarCategorias={() => {}}

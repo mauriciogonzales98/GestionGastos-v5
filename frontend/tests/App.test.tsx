@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import type { Categoria } from '../src/api/tipos';
 import { CATEGORIAS } from './categorias.fixture';
+import { MONEDAS } from './monedas.fixture';
 
 vi.mock('../src/api/cliente', async () => {
   const real = await vi.importActual<typeof import('../src/api/cliente')>('../src/api/cliente');
@@ -14,6 +15,7 @@ vi.mock('../src/api/cliente', async () => {
     crearCuenta: vi.fn(),
     iniciarSesion: vi.fn(),
     obtenerCategorias: vi.fn(),
+    obtenerMonedas: vi.fn(),
     obtenerMovimientos: vi.fn(),
     crearMovimiento: vi.fn(),
     crearCategoria: vi.fn(),
@@ -41,6 +43,7 @@ beforeEach(() => {
   vi.mocked(cliente.consultarSesion).mockResolvedValue({ email: 'ana@ejemplo.com' });
   vi.mocked(cliente.cerrarSesion).mockResolvedValue(undefined);
   vi.mocked(cliente.obtenerCategorias).mockResolvedValue(CATEGORIAS);
+  vi.mocked(cliente.obtenerMonedas).mockResolvedValue(MONEDAS);
   vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([]);
   vi.mocked(cliente.darDeBajaCategoria).mockResolvedValue(undefined);
 });
@@ -217,6 +220,23 @@ describe('App — el catálogo de categorías', () => {
     await screen.findByRole('heading', { name: 'Mis movimientos' });
 
     expect(vi.mocked(cliente.obtenerCategorias)).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * AC-12 y FR-013 para monedas: el catálogo de monedas también se pide **exactamente una vez**, y
+   * por la misma razón que el de categorías.
+   *
+   * `PRD:NFR-02` lo dice explícitamente y anota el riesgo: el selector del formulario y el control
+   * de acotado del listado pidiendo cada uno su lista, y pudiendo discrepar. Con una sola lectura
+   * en la raíz, discrepar es imposible por construcción y no por disciplina — que es exactamente lo
+   * que la feature 007 resolvió para categorías y este ticket hereda.
+   */
+  it('pide el catálogo de monedas exactamente una vez al cargar AC-12', async () => {
+    render(<App hoy="2026-08-24" />);
+
+    await screen.findByRole('heading', { name: 'Mis movimientos' });
+
+    expect(vi.mocked(cliente.obtenerMonedas)).toHaveBeenCalledTimes(1);
   });
 
   /**

@@ -2,6 +2,7 @@ import type {
   Categoria,
   CategoriaEditada,
   Credenciales,
+  Moneda,
   Movimiento,
   NuevaCategoria,
   NuevaCuenta,
@@ -157,6 +158,16 @@ const JSON_ENVIADO = { 'Content-Type': 'application/json' };
 
 export function obtenerCategorias(): Promise<Categoria[]> {
   return pedir<Categoria[]>('/api/categorias');
+}
+
+/**
+ * El catálogo de monedas (FR-004). Alimenta el selector del formulario y el acotado del listado.
+ *
+ * Se pide **una sola vez por carga**, desde la raíz, y baja por props a las dos cosas
+ * (`PRD:NFR-02`). Que las dos salgan de la misma lectura es lo que hace imposible que discrepen.
+ */
+export function obtenerMonedas(): Promise<Moneda[]> {
+  return pedir<Moneda[]>('/api/monedas');
 }
 
 /**

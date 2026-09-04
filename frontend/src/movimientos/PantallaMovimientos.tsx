@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ErrorDeSesion, crearMovimiento, obtenerMovimientos } from '../api/cliente';
-import type { Categoria, Movimiento, NuevoMovimiento } from '../api/tipos';
+import type { Categoria, Moneda, Movimiento, NuevoMovimiento } from '../api/tipos';
 import { FormularioMovimiento } from './FormularioMovimiento';
 import { ListadoMovimientos } from './ListadoMovimientos';
 
@@ -15,6 +15,8 @@ export interface PropsPantallaMovimientos {
    * vez (AC-12).
    */
   categorias: Categoria[];
+  /** El catálogo de monedas, también desde la raíz y por el mismo motivo (AC-12). */
+  monedas: Moneda[];
   /** El aviso de que el catálogo no se pudo cargar, si pasó. Lo produce la raíz, que es quien pide. */
   errorDelCatalogo: string | null;
   onCerrarSesion: () => void;
@@ -62,6 +64,7 @@ export function PantallaMovimientos({
   hoy,
   email,
   categorias,
+  monedas,
   errorDelCatalogo,
   onCerrarSesion,
   onGestionarCategorias,
@@ -142,7 +145,12 @@ export function PantallaMovimientos({
         </button>
       </div>
 
-      <FormularioMovimiento categorias={categorias} hoy={hoy} onGuardar={guardar} />
+      <FormularioMovimiento
+        categorias={categorias}
+        monedas={monedas}
+        hoy={hoy}
+        onGuardar={guardar}
+      />
 
       {/* role="status" y no "alert": es una confirmación, no un error, y se anuncia sin
           interrumpir lo que la persona esté haciendo. */}
