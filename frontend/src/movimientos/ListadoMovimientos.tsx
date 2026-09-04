@@ -2,6 +2,8 @@ import type { Movimiento } from '../api/tipos';
 
 export interface PropsListadoMovimientos {
   movimientos: Movimiento[];
+  /** Abre la ventana de edición sobre ese movimiento (FR-011). */
+  onEditar: (movimiento: Movimiento) => void;
 }
 
 /** El monto con el símbolo de su moneda. `Intl` sabe el símbolo de cada código ISO 4217. */
@@ -18,7 +20,7 @@ function formatearMonto(monto: number, monedaCodigo: string) {
  * Es una `<table>` y no una grilla de `<div>`: son datos tabulares, y la tabla es lo que los
  * lectores de pantalla saben recorrer.
  */
-export function ListadoMovimientos({ movimientos }: PropsListadoMovimientos) {
+export function ListadoMovimientos({ movimientos, onEditar }: PropsListadoMovimientos) {
   if (movimientos.length === 0) {
     return (
       <section className="l-pila c-listado-movimientos">
@@ -43,6 +45,11 @@ export function ListadoMovimientos({ movimientos }: PropsListadoMovimientos) {
                 el catálogo abierto a monedas agregadas como dato, apoyar la distinción en él es
                 apoyarla en algo que nadie controla. El código viene en el movimiento. */}
             <th scope="col">Moneda</th>
+            {/* Sin texto visible: la columna de acciones no nombra nada, y el botón de cada fila ya
+                se anuncia solo. `scope="col"` igual, para que la tabla siga siendo regular. */}
+            <th scope="col">
+              <span className="u-solo-lectores">Acciones</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -54,6 +61,11 @@ export function ListadoMovimientos({ movimientos }: PropsListadoMovimientos) {
               <td>{m.categoriaNombre}</td>
               <td>{formatearMonto(m.monto, m.monedaCodigo)}</td>
               <td>{m.monedaCodigo}</td>
+              <td>
+                <button type="button" onClick={() => onEditar(m)}>
+                  Editar
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

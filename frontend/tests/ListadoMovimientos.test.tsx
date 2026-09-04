@@ -52,24 +52,28 @@ const MISMO_MONTO_DOS_MONEDAS: Movimiento[] = [
 
 describe('ListadoMovimientos', () => {
   it('es una tabla con encabezados de columna, no una grilla de divs', () => {
-    render(<ListadoMovimientos movimientos={MOVIMIENTOS} />);
+    render(<ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} />);
 
     const tabla = screen.getByRole('table');
     const encabezados = within(tabla).getAllByRole('columnheader');
 
+    // La última columna no nombra nada visible: aloja el botón de editar de cada fila, que ya se
+    // anuncia solo. Su encabezado existe igual —y con `scope`— para que la tabla siga siendo
+    // regular para un lector de pantalla.
     expect(encabezados.map((e) => e.textContent)).toEqual([
       'Fecha',
       'Tipo',
       'Categoría',
       'Monto',
       'Moneda',
+      'Acciones',
     ]);
     // scope="col" es lo que permite a un lector de pantalla anunciar la columna de cada celda.
     encabezados.forEach((e) => expect(e).toHaveAttribute('scope', 'col'));
   });
 
   it('muestra el tipo como texto y no sólo por color', () => {
-    render(<ListadoMovimientos movimientos={MOVIMIENTOS} />);
+    render(<ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} />);
 
     const filas = screen.getAllByRole('row').slice(1);
     expect(within(filas[0]).getByText('Ingreso')).toBeInTheDocument();
@@ -77,7 +81,7 @@ describe('ListadoMovimientos', () => {
   });
 
   it('muestra categoría y monto de cada movimiento', () => {
-    render(<ListadoMovimientos movimientos={MOVIMIENTOS} />);
+    render(<ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} />);
 
     const filas = screen.getAllByRole('row').slice(1);
     expect(within(filas[1]).getByText('Comida')).toBeInTheDocument();
@@ -85,7 +89,7 @@ describe('ListadoMovimientos', () => {
   });
 
   it('sin movimientos muestra un mensaje explícito y ninguna tabla FR-012', () => {
-    render(<ListadoMovimientos movimientos={[]} />);
+    render(<ListadoMovimientos movimientos={[]} onEditar={() => {}} />);
 
     // Un mes sin movimientos no es un error: es un listado vacío con su mensaje.
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
@@ -105,7 +109,7 @@ describe('ListadoMovimientos', () => {
    * columna existiera, que es exactamente el test que no sirve.
    */
   it('muestra el código de la moneda de cada fila AC-05', () => {
-    render(<ListadoMovimientos movimientos={MISMO_MONTO_DOS_MONEDAS} />);
+    render(<ListadoMovimientos movimientos={MISMO_MONTO_DOS_MONEDAS} onEditar={() => {}} />);
 
     const filas = screen.getAllByRole('row').slice(1);
     const codigos = filas.map((f) => within(f).getAllByRole('cell')[4].textContent);
@@ -124,7 +128,7 @@ describe('ListadoMovimientos', () => {
   it('muestra el código de una moneda que ninguna constante conoce AC-04', () => {
     const enUnaMonedaNueva: Movimiento[] = [{ ...MISMO_MONTO_DOS_MONEDAS[0], monedaCodigo: 'XCT' }];
 
-    render(<ListadoMovimientos movimientos={enUnaMonedaNueva} />);
+    render(<ListadoMovimientos movimientos={enUnaMonedaNueva} onEditar={() => {}} />);
 
     expect(screen.getByRole('cell', { name: 'XCT' })).toBeInTheDocument();
   });

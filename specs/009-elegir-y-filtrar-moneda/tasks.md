@@ -172,11 +172,11 @@ quedan intactos.
 - [X] T041 [ROJO] [US4] Correr T038, T039 y T040 y exigir **ROJO**, verificando el motivo de cada uno. Mostrar la salida
 - [X] T042 [US4] `monedaId` en `MovimientoEditadoDto`, la búsqueda de la moneda en el `PUT` y su paso por la **misma** `ValidacionDelMovimiento` que el alta (D-04). Ausente conserva `movimiento.MonedaId`. Verde de T037 a T040
 - [X] T043 [VERIFY] [US4] Puerta del backend completa más `./backend/verificar-contrato.sh`, con su salida
-- [ ] T044 [TEST] [US4] En un `frontend/tests/VentanaDeEdicion.test.tsx` nuevo: la ventana se abre con el monto, la categoría, la fecha y la moneda del movimiento **ya cargados**; `Escape` la cierra; guardar llama a la edición y la fila del listado queda actualizada. El entorno de tests es happy-dom y **soporta `<dialog>.showModal()`** — se verificó antes de elegirlo ([D-07](./research.md))
-- [ ] T045 [ROJO] [US4] Correr y exigir **ROJO**. Mostrar la salida
-- [ ] T046 [US4] Extraer los campos y las reglas de validación de `FormularioMovimiento.tsx` a un `CamposDelMovimiento.tsx` compartido, parametrizado por los valores iniciales, la etiqueta del botón y si la fecha es obligatoria ([D-08](./research.md)). **Los tests del alta tienen que seguir verdes sin ser modificados**: es una extracción, y si hay que tocarlos es que cambió el comportamiento
-- [ ] T047 [US4] `VentanaDeEdicion.tsx` con `<dialog>` nativo y `showModal()`, `editarMovimiento()` en `cliente.ts`, y el control que la abre desde cada fila del listado. Verde de T044
-- [ ] T048 [VERIFY] [US4] Puerta de las dos pilas, con su salida
+- [X] T044 [TEST] [US4] En un `frontend/tests/VentanaDeEdicion.test.tsx` nuevo: la ventana se abre con el monto, la categoría, la fecha y la moneda del movimiento **ya cargados**; `Escape` la cierra; guardar llama a la edición y la fila del listado queda actualizada. El entorno de tests es happy-dom y **soporta `<dialog>.showModal()`** — se verificó antes de elegirlo ([D-07](./research.md))
+- [X] T045 [ROJO] [US4] Correr y exigir **ROJO**. Mostrar la salida
+- [X] T046 [US4] Extraer los campos y las reglas de validación de `FormularioMovimiento.tsx` a un `CamposDelMovimiento.tsx` compartido, parametrizado por los valores iniciales, la etiqueta del botón y si la fecha es obligatoria ([D-08](./research.md)). **Los tests del alta tienen que seguir verdes sin ser modificados**: es una extracción, y si hay que tocarlos es que cambió el comportamiento
+- [X] T047 [US4] `VentanaDeEdicion.tsx` con `<dialog>` nativo y `showModal()`, `editarMovimiento()` en `cliente.ts`, y el control que la abre desde cada fila del listado. Verde de T044
+- [X] T048 [VERIFY] [US4] Puerta de las dos pilas, con su salida
 
 ---
 

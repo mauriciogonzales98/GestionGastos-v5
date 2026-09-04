@@ -1,8 +1,20 @@
 import { useEffect, useId, useState } from 'react';
-import { ErrorDeSesion, crearMovimiento, obtenerMovimientos } from '../api/cliente';
-import type { Categoria, Moneda, Movimiento, NuevoMovimiento } from '../api/tipos';
+import {
+  ErrorDeSesion,
+  crearMovimiento,
+  editarMovimiento,
+  obtenerMovimientos,
+} from '../api/cliente';
+import type {
+  Categoria,
+  Moneda,
+  Movimiento,
+  MovimientoEditado,
+  NuevoMovimiento,
+} from '../api/tipos';
 import { FormularioMovimiento } from './FormularioMovimiento';
 import { ListadoMovimientos } from './ListadoMovimientos';
+import { VentanaDeEdicion } from './VentanaDeEdicion';
 
 export interface PropsPantallaMovimientos {
   /** El día de hoy en `YYYY-MM-DD`. Entra por prop para que los tests sean deterministas. */
@@ -79,6 +91,15 @@ export function PantallaMovimientos({
    * en cada render abre la posibilidad de que el control muestre una cosa y el estado guarde otra.
    */
   const [monedaAcotada, setMonedaAcotada] = useState('');
+
+  /**
+   * El movimiento que se está corrigiendo, o `null` si la ventana está cerrada (FR-011).
+   *
+   * Se guarda el movimiento entero y no su id: la ventana necesita todos sus valores para abrir con
+   * los campos cargados, y buscarlo por id en la lista sería el mismo dato con un paso de más que
+   * puede fallar si la lista cambió abajo.
+   */
+  const [enEdicion, setEnEdicion] = useState<Movimiento | null>(null);
   const [cargandoListado, setCargandoListado] = useState(true);
   const idAcotado = useId();
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
@@ -140,6 +161,37 @@ export function PantallaMovimientos({
     );
   }
 
+  /**
+   * Guarda la corrección y **reemplaza la fila con lo que devolvió el servidor**, sin volver a
+   * pedir el listado (FR-011).
+   *
+   * No se reordena: la edición puede cambiar la fecha, y con ella el lugar que le toca. Reordenar
+   * acá duplicaría la regla que `insertarEnOrden` ya tiene; recargar la traería del servidor. Se
+   * elige reemplazar en el lugar y dejar el reordenamiento para la próxima carga — que es lo que la
+   * lista ya hace hoy con cualquier otro cambio.
+   */
+  async function guardarEdicion(id: number, cambio: MovimientoEditado) {
+    let editado: Movimiento;
+
+    try {
+      editado = await editarMovimiento(id, cambio);
+    } catch (error) {
+      if (!(error instanceof ErrorDeSesion)) {
+        // Los demás errores los muestra la ventana, que además conserva lo cargado.
+        throw error;
+      }
+
+      onSesionVencida(
+        'Tu sesión venció y el cambio no se guardó. Volvé a entrar e intentá de nuevo.',
+      );
+      return;
+    }
+
+    setMovimientos((previos) => previos.map((m) => (m.id === editado.id ? editado : m)));
+    setEnEdicion(null);
+    setConfirmacion('Movimiento actualizado.');
+  }
+
   return (
     <main className="l-pila">
       <div className="l-fila l-cabecera">
@@ -199,8 +251,22 @@ export function PantallaMovimientos({
       {cargandoListado ? (
         <p>Cargando movimientos…</p>
       ) : (
-        <ListadoMovimientos movimientos={movimientos} />
+        <ListadoMovimientos movimientos={movimientos} onEditar={setEnEdicion} />
       )}
+
+      {/* La ventana se monta sólo cuando hay algo que editar, y se desmonta al cerrarse. Montarla
+          siempre y esconderla dejaría sus campos con los valores del movimiento anterior la próxima
+          vez que se abriera. */}
+      {enEdicion ? (
+        <VentanaDeEdicion
+          movimiento={enEdicion}
+          categorias={categorias}
+          monedas={monedas}
+          hoy={hoy}
+          onGuardar={(cambio) => guardarEdicion(enEdicion.id, cambio)}
+          onCerrar={() => setEnEdicion(null)}
+        />
+      ) : null}
     </main>
   );
 }

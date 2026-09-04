@@ -4,6 +4,7 @@ import type {
   Credenciales,
   Moneda,
   Movimiento,
+  MovimientoEditado,
   NuevaCategoria,
   NuevaCuenta,
   NuevoMovimiento,
@@ -234,6 +235,21 @@ export function crearMovimiento(nuevo: NuevoMovimiento): Promise<Movimiento> {
     method: 'POST',
     headers: JSON_ENVIADO,
     body: JSON.stringify(nuevo),
+  });
+}
+
+/**
+ * Modifica un movimiento propio (RF-14, FR-011). Devuelve el movimiento ya modificado, en la misma
+ * forma que el listado.
+ *
+ * Que devuelva el movimiento y no `void` es lo que permite actualizar la fila que la pantalla ya
+ * tiene, sin volver a pedir el listado entero.
+ */
+export function editarMovimiento(id: number, cambio: MovimientoEditado): Promise<Movimiento> {
+  return pedir<Movimiento>(`/api/movimientos/${id}`, {
+    method: 'PUT',
+    headers: JSON_ENVIADO,
+    body: JSON.stringify(cambio),
   });
 }
 
