@@ -182,16 +182,16 @@ quedan intactos.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T049 [TEST] Agregar a `backend/GestionGastos.Api.Tests/Rendimiento/RendimientoAltaTests.cs` un caso que mida el p95 del guardado **mandando la moneda explícita**, sobre las mismas 100 ejecuciones y con el mismo criterio de < 1 s (SC-008, `PRD:NFR-03`). **El caso existente se deja intacto**: es la referencia que permite atribuir un rojo al `SELECT` de la moneda y no a la máquina ([D-09](./research.md)). Correr los dos y **anotar los dos números**
-- [ ] T050 Extender `backend/verificar-monedas.sh` para que su comprobación de árbol limpio cubra también **`frontend/src/`**, no sólo `backend/GestionGastos.Api/` ([D-11](./research.md)). Hasta hoy la promesa de "sumar una moneda cuesta 0 líneas" sólo estaba protegida de un lado, y desde esta feature el frontend también puede romperla
-- [ ] T051 [ROJO] Ver fallar esa extensión por su propia vía: dejar sucio un archivo de `frontend/src/` —alcanza un comentario— y exigir que el script **lo detecte y salga en rojo**. Restaurar y exigir el verde. Es el Principio V: una barrera que creció y no se vio fallar en su parte nueva no protege esa parte. Mostrar las dos salidas
-- [ ] T052 [P] Actualizar la fila de la *Barrera de monedas* en la tabla de *Stack* de `AGENTS.md`: ahora exige limpio el árbol de las dos pilas, y por qué. `ci.yml` **no** cambia — no hay barrera nueva, la sexta creció
-- [ ] T053 Recorrer el [quickstart](./quickstart.md) entero —los ocho pasos más la medición— y anotar cualquier línea que no haya salido como dice. En la 008 fue el quickstart, y no la suite, el que encontró el número escrito a mano
-- [ ] T054 [VERIFY] Las **seis** barreras, con su salida: `verificar-contrato.sh`, `verificar-autorizacion.sh`, `verificar-desglose.sh`, `verificar-monedas.sh`, `verificar-aislamiento.sh` (~7 min) y `verificar-linter.sh`
-- [ ] T055 Cobertura del backend con `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings`, con su salida
-- [ ] T056 [P] Actualizar `plan-de-implementacion/README.md`: el ticket 13 (4b) pasa a la tabla de implementados, con lo que esta feature construyó y lo que dejó anotado como deuda
-- [ ] T057 [P] Anotar en la *Deuda registrada* de [spec.md](./spec.md) lo que aparezca durante la implementación. D9-01 a D9-06 ya están; esto es para lo nuevo
-- [ ] T058 [VERIFY] Puerta completa de las dos pilas más el build de producción del frontend (`pnpm --dir frontend build`), con su salida
+- [X] T049 [TEST] Agregar a `backend/GestionGastos.Api.Tests/Rendimiento/RendimientoAltaTests.cs` un caso que mida el p95 del guardado **mandando la moneda explícita**, sobre las mismas 100 ejecuciones y con el mismo criterio de < 1 s (SC-008, `PRD:NFR-03`). **El caso existente se deja intacto**: es la referencia que permite atribuir un rojo al `SELECT` de la moneda y no a la máquina ([D-09](./research.md)). Correr los dos y **anotar los dos números**
+- [X] T050 Extender `backend/verificar-monedas.sh` para que su comprobación de árbol limpio cubra también **`frontend/src/`**, no sólo `backend/GestionGastos.Api/` ([D-11](./research.md)). Hasta hoy la promesa de "sumar una moneda cuesta 0 líneas" sólo estaba protegida de un lado, y desde esta feature el frontend también puede romperla
+- [X] T051 [ROJO] Ver fallar esa extensión por su propia vía: dejar sucio un archivo de `frontend/src/` —alcanza un comentario— y exigir que el script **lo detecte y salga en rojo**. Restaurar y exigir el verde. Es el Principio V: una barrera que creció y no se vio fallar en su parte nueva no protege esa parte. Mostrar las dos salidas
+- [X] T052 [P] Actualizar la fila de la *Barrera de monedas* en la tabla de *Stack* de `AGENTS.md`: ahora exige limpio el árbol de las dos pilas, y por qué. `ci.yml` **no** cambia — no hay barrera nueva, la sexta creció
+- [X] T053 Recorrer el [quickstart](./quickstart.md) entero —los ocho pasos más la medición— y anotar cualquier línea que no haya salido como dice. En la 008 fue el quickstart, y no la suite, el que encontró el número escrito a mano
+- [X] T054 [VERIFY] Las **seis** barreras, con su salida: `verificar-contrato.sh`, `verificar-autorizacion.sh`, `verificar-desglose.sh`, `verificar-monedas.sh`, `verificar-aislamiento.sh` (~7 min) y `verificar-linter.sh`
+- [X] T055 Cobertura del backend con `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings`, con su salida
+- [X] T056 [P] Actualizar `plan-de-implementacion/README.md`: el ticket 13 (4b) pasa a la tabla de implementados, con lo que esta feature construyó y lo que dejó anotado como deuda
+- [X] T057 [P] Anotar en la *Deuda registrada* de [spec.md](./spec.md) lo que aparezca durante la implementación. D9-01 a D9-06 ya están; esto es para lo nuevo
+- [X] T058 [VERIFY] Puerta completa de las dos pilas más el build de producción del frontend (`pnpm --dir frontend build`), con su salida
 
 ---
 
