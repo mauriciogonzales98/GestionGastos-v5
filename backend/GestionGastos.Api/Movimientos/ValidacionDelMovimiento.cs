@@ -25,21 +25,27 @@ public static class ValidacionDelMovimiento
     public static Dictionary<string, string[]> Validar(
         NuevoMovimientoDto peticion,
         Categoria? categoria,
+        Moneda? moneda,
         out TipoMovimiento tipo) =>
-        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, out tipo);
+        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, peticion.MonedaId, moneda, out tipo);
 
     /// <summary>Valida la edición. Mismas reglas y mismas claves de error que el alta (FR-003).</summary>
     public static Dictionary<string, string[]> Validar(
         MovimientoEditadoDto peticion,
         Categoria? categoria,
+        Moneda? moneda,
         out TipoMovimiento tipo) =>
-        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, out tipo);
+        // `monedaId: null` mientras la edición no la lleve en el cuerpo: significa "no se pidió
+        // ninguna", que es lo que hace que el movimiento conserve la que ya tenía.
+        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, monedaId: null, moneda, out tipo);
 
     private static Dictionary<string, string[]> Validar(
         string? tipoTexto,
         decimal? monto,
         int? categoriaId,
         Categoria? categoria,
+        int? monedaId,
+        Moneda? moneda,
         out TipoMovimiento tipo)
     {
         var errores = new Dictionary<string, string[]>(StringComparer.Ordinal);
@@ -52,8 +58,33 @@ public static class ValidacionDelMovimiento
 
         ValidarMonto(monto, errores);
         ValidarCategoria(categoriaId, categoria, tipoValido, tipo, errores);
+        ValidarMoneda(monedaId, moneda, errores);
 
         return errores;
+    }
+
+    /// <summary>
+    /// La moneda, con la forma de la categoría y **una diferencia deliberada**: no hay regla de
+    /// ámbito (FR-003, feature 009).
+    ///
+    /// Una categoría vale si es predefinida del sistema **o** propia de esta cuenta, y activa. Una
+    /// moneda vale si está en el catálogo, punto: son del sistema, no tienen dueño, no hay bajas
+    /// lógicas y no hay monedas "no elegibles". Escribirle un filtro de ámbito sería copiar una
+    /// condición que no protege nada.
+    ///
+    /// **Ausente no es un error**: significa la predeterminada al dar de alta y "la que ya tenía"
+    /// al editar. Quien llama resuelve cuál de las dos cosas es; lo único que se valida acá es que,
+    /// si se pidió una, exista.
+    /// </summary>
+    private static void ValidarMoneda(
+        int? monedaId,
+        Moneda? moneda,
+        Dictionary<string, string[]> errores)
+    {
+        if (monedaId is not null && moneda is null)
+        {
+            errores["monedaId"] = ["La moneda elegida no existe."];
+        }
     }
 
     private static void ValidarMonto(decimal? monto, Dictionary<string, string[]> errores)

@@ -4,14 +4,31 @@ namespace GestionGastos.Api.Movimientos;
 /// Lo que llega en el alta. `fecha` es opcional: ausente o null significa "hoy", y ese valor lo
 /// pone el servidor y no el cliente (AC-17) — es la única forma de que el test sea determinista.
 ///
-/// No hay campo de moneda: se registra en la predeterminada del catálogo (FR-009). El selector
-/// llega en el ticket 4b.
+/// **`monedaId` también es opcional, y ausente significa "la predeterminada del catálogo"**
+/// (FR-002, feature 009). Hasta el ticket 4b este campo no existía y la moneda la decidía siempre
+/// el servidor; que siga siendo opcional es `PRD:NFR-01` —quien opera en una sola moneda no agrega
+/// ni un paso— y es la compatibilidad hacia atrás del contrato: todo cliente que ya andaba sin
+/// mandarlo sigue andando.
 /// </summary>
 /// <param name="Tipo">"gasto" o "ingreso".</param>
 /// <param name="Monto">Número con hasta dos decimales.</param>
 /// <param name="CategoriaId">Categoría elegida, del mismo tipo que el movimiento (FR-011).</param>
+/// <param name="MonedaId">
+/// Moneda del catálogo. Ausente o null = la predeterminada.
+///
+/// Es <c>int?</c> y no <c>short?</c> aunque <see cref="Dominio.Moneda.Id"/> sea <c>short</c>: con
+/// <c>short?</c>, un número fuera de rango falla al deserializar y responde un 400 genérico del
+/// framework, sin decir qué campo está mal. Con <c>int?</c> llega hasta la validación y se rechaza
+/// con la clave <c>monedaId</c>, que es lo que le permite al frontend poner el mensaje al lado del
+/// selector. Es el mismo motivo por el que todos los campos de este DTO son anulables.
+/// </param>
 /// <param name="Fecha">Día del movimiento. Ausente o null = hoy.</param>
-public record NuevoMovimientoDto(string? Tipo, decimal? Monto, int? CategoriaId, DateOnly? Fecha);
+public record NuevoMovimientoDto(
+    string? Tipo,
+    decimal? Monto,
+    int? CategoriaId,
+    int? MonedaId,
+    DateOnly? Fecha);
 
 /// <summary>
 /// Un movimiento como lo ve el cliente. Es la misma forma en el alta y en el listado: devolver el

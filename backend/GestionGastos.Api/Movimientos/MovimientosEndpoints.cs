@@ -38,23 +38,31 @@ public static class MovimientosEndpoints
                     && c.Activa)
                 : null;
 
-            // Se valida TODO antes de tocar la base: la respuesta junta los errores de los cuatro
+            // La moneda: la elegida, o la predeterminada del catálogo si no se eligió ninguna
+            // (FR-001, FR-002). Hasta el ticket 4b esto era siempre la predeterminada, porque el
+            // cliente no tenía cómo decir otra cosa.
+            //
+            // SingleAsync para la predeterminada y no FirstAsync: RF-25 dice que hay exactamente
+            // una, y la migración UnicaMonedaPredeterminada lo hace cumplir en la base. Si igual
+            // hubiera dos, First elegiría una sin criterio y en silencio; Single falla
+            // ruidosamente, que es lo que corresponde ante una invariante rota.
+            //
+            // La búsqueda de la elegida es FirstOrDefault y no Single: un id que no existe NO es
+            // una invariante rota, es una petición inválida, y tiene que terminar en un 400 con su
+            // campo y no en una excepción.
+            var moneda = peticion.MonedaId is { } monedaElegida
+                ? await contexto.Monedas.FirstOrDefaultAsync(m => (int)m.Id == monedaElegida)
+                : await contexto.Monedas.SingleAsync(m => m.EsPredeterminada);
+
+            // Se valida TODO antes de tocar la base: la respuesta junta los errores de los cinco
             // campos en una sola pasada, en vez de hacer corregir de a uno.
-            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, out var tipo);
+            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, moneda, out var tipo);
             if (errores.Count > 0)
             {
                 return Results.ValidationProblem(errores);
             }
 
             var monto = peticion.Monto!.Value;
-
-            // FR-009: la moneda sale de la predeterminada del catálogo, no de una constante.
-            //
-            // SingleAsync y no FirstAsync: RF-25 dice que hay exactamente una, y la migración
-            // UnicaMonedaPredeterminada lo hace cumplir en la base. Si igual hubiera dos, First
-            // elegiría una sin criterio y en silencio; Single falla ruidosamente, que es lo que
-            // corresponde ante una invariante rota.
-            var moneda = await contexto.Monedas.SingleAsync(m => m.EsPredeterminada);
 
             // El "hoy" sale del reloj inyectado y no de DateTime.Now: es lo que vuelve verificable
             // AC-17 con una fecha fija (D-03).
@@ -67,7 +75,7 @@ public static class MovimientosEndpoints
                 UsuarioId = usuarioActual.Id,
                 Tipo = tipo,
                 Monto = monto,
-                MonedaId = moneda.Id,
+                MonedaId = moneda!.Id,
                 CategoriaId = categoria!.Id,
                 Fecha = fecha,
             };
@@ -197,7 +205,10 @@ public static class MovimientosEndpoints
                     && (c.Activa || c.Id == movimiento.CategoriaId))
                 : null;
 
-            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, out var tipo);
+            // La moneda todavía no se elige al editar: llega en US4. Pasar `null` acá significa
+            // "no se pidió ninguna", que es lo que la validación interpreta como "conservá la que
+            // tenía".
+            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, moneda: null, out var tipo);
 
             if (peticion.Fecha is null)
             {

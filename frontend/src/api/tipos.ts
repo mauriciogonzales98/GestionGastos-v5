@@ -59,6 +59,32 @@ export interface CategoriaEditada {
   nombre: string;
 }
 
+/**
+ * Una moneda del catálogo, tal como la devuelve `GET /api/monedas` (FR-004).
+ *
+ * **El catálogo es del sistema y se administra como dato**: nadie lo crea, edita ni borra desde la
+ * aplicación. Agregarle una fila tiene que alcanzar para que aparezca en el selector del formulario
+ * y en el acotado del listado, sin tocar una línea de código — es `RF-32`, y lo que lo sostiene es
+ * que esta lista salga siempre de acá y nunca de una constante escrita en el frontend.
+ *
+ * `esPredeterminada` viaja porque responde la única pregunta que el formulario se hace sobre el
+ * catálogo —cuál propongo—, y viaja como la respuesta ya calculada y no como el dato con el que
+ * calcularla. Es el mismo criterio que `esPropia` en `Categoria`.
+ *
+ * `decimales` NO viaja, aunque la columna existe: hoy no lo consume nadie. El formato regional del
+ * monto es el ticket 6, y un campo que nadie usa es un dato que salió a la red sin que nadie lo
+ * decidiera.
+ */
+export interface Moneda {
+  id: number;
+  /** ISO 4217: `ARS`, `USD`. */
+  codigo: string;
+  nombre: string;
+  simbolo: string;
+  /** Exactamente una del catálogo la tiene en `true` (RF-25). */
+  esPredeterminada: boolean;
+}
+
 /** Un movimiento tal como lo devuelven el alta y el listado: la misma forma en los dos. */
 export interface Movimiento {
   id: number;
@@ -76,12 +102,18 @@ export interface Movimiento {
  * Lo que se manda al registrar. `fecha` es opcional: ausente o null significa hoy, y ese valor lo
  * pone el servidor (AC-17).
  *
- * No lleva moneda: se registra en la predeterminada del catálogo (FR-009).
+ * `monedaId` también es opcional, y **ausente o null significa la moneda predeterminada del
+ * catálogo** (FR-002). No es una comodidad: es `PRD:NFR-01` —quien opera en una sola moneda no
+ * agrega ni un paso respecto de antes— y es la compatibilidad hacia atrás del contrato, porque
+ * hasta la feature 009 este campo no existía y todo cliente que ya andaba sigue andando sin
+ * mandarlo.
  */
 export interface NuevoMovimiento {
   tipo: TipoMovimiento;
   monto: number;
   categoriaId: number;
+  /** Del catálogo de `Moneda`. Ausente o null = la predeterminada. */
+  monedaId?: number | null;
   fecha?: string | null;
 }
 

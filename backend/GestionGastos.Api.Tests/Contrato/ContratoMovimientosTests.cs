@@ -49,50 +49,69 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         CompararEnLasDosDirecciones(delContrato, delListado, "Movimiento (listado)");
     }
 
+    /// <summary>
+    /// El movimiento se ejercita con una moneda que **este test agrega al catálogo**, no con un
+    /// identificador escrito a mano (D-10 de la feature 009).
+    ///
+    /// Un `monedaId = 2` a mano funciona hoy y se rompe el día que el catálogo cambie de orden — y,
+    /// peor, se rompe dentro de `verificar-monedas.sh`, que corre la suite con una moneda de más
+    /// puesta. Agregar la propia hace al test independiente de qué contiene el catálogo, que es la
+    /// única forma de que la afirmación sea sobre el contrato y no sobre la semilla.
+    /// </summary>
     [Fact]
     public async Task Los_Campos_De_NuevoMovimiento_Son_Los_Que_La_Api_Acepta_De_Verdad()
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
-        var delContrato = TiposDelFrontend.CamposDeInterfaz("NuevoMovimiento");
-
-        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
-        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
-        var cliente = cuenta.Cliente;
-
-        // Se manda un cuerpo armado con los nombres QUE DECLARA EL CONTRATO, no con los del DTO.
-        // Si la API dejara de aceptar alguno —un cambio de política de nombres, un rename— este
-        // POST deja de llegar completo y el 201 no aparece o llega con valores por defecto.
-        var cuerpo = new Dictionary<string, object?>(StringComparer.Ordinal);
-        foreach (var campo in delContrato)
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XCA", async moneda =>
         {
-            cuerpo[campo] = campo switch
+            var delContrato = TiposDelFrontend.CamposDeInterfaz("NuevoMovimiento");
+
+            using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
+            using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cliente = cuenta.Cliente;
+
+            // Se manda un cuerpo armado con los nombres QUE DECLARA EL CONTRATO, no con los del DTO.
+            // Si la API dejara de aceptar alguno —un cambio de política de nombres, un rename— este
+            // POST deja de llegar completo y el 201 no aparece o llega con valores por defecto.
+            var cuerpo = new Dictionary<string, object?>(StringComparer.Ordinal);
+            foreach (var campo in delContrato)
             {
-                "tipo" => "gasto",
-                "monto" => 77.77m,
-                "categoriaId" => 1,
-                "fecha" => "2026-08-23",
-                _ => throw new InvalidOperationException(
-                    $"El contrato declara el campo `{campo}` de NuevoMovimiento y este test no sabe " +
-                    "con qué valor ejercitarlo. Agregalo acá: un campo del contrato sin ejercitar " +
-                    "es un campo sin barrera."),
-            };
-        }
+                cuerpo[campo] = campo switch
+                {
+                    "tipo" => "gasto",
+                    "monto" => 77.77m,
+                    "categoriaId" => 1,
+                    "monedaId" => moneda.Id,
+                    "fecha" => "2026-08-23",
+                    _ => throw new InvalidOperationException(
+                        $"El contrato declara el campo `{campo}` de NuevoMovimiento y este test no sabe " +
+                        "con qué valor ejercitarlo. Agregalo acá: un campo del contrato sin ejercitar " +
+                        "es un campo sin barrera."),
+                };
+            }
 
-        using var respuesta = await cliente.PostAsJsonAsync(
-            new Uri("/api/movimientos", UriKind.Relative), cuerpo);
+            using var respuesta = await cliente.PostAsJsonAsync(
+                new Uri("/api/movimientos", UriKind.Relative), cuerpo);
 
-        Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+            Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
 
-        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+            using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
 
-        // Cada valor mandado tiene que haber llegado. Un campo que la API ignora se guardaría con
-        // su valor por defecto y el 201 saldría igual: verificar sólo el código de estado dejaría
-        // pasar exactamente el error que esta barrera existe para atrapar.
-        Assert.Equal("gasto", json.RootElement.GetProperty("tipo").GetString());
-        Assert.Equal(77.77m, json.RootElement.GetProperty("monto").GetDecimal());
-        Assert.Equal(1, json.RootElement.GetProperty("categoriaId").GetInt32());
-        Assert.Equal("2026-08-23", json.RootElement.GetProperty("fecha").GetString());
+            // Cada valor mandado tiene que haber llegado. Un campo que la API ignora se guardaría con
+            // su valor por defecto y el 201 saldría igual: verificar sólo el código de estado dejaría
+            // pasar exactamente el error que esta barrera existe para atrapar.
+            Assert.Equal("gasto", json.RootElement.GetProperty("tipo").GetString());
+            Assert.Equal(77.77m, json.RootElement.GetProperty("monto").GetDecimal());
+            Assert.Equal(1, json.RootElement.GetProperty("categoriaId").GetInt32());
+            Assert.Equal("2026-08-23", json.RootElement.GetProperty("fecha").GetString());
+
+            // La moneda se comprueba por su CÓDIGO, que es lo que la respuesta devuelve. Es la
+            // mitad que convierte "la API aceptó el campo" en "la API lo usó": sin esto, un
+            // servidor que ignora `monedaId` y guarda la predeterminada devuelve el mismo 201 con
+            // los otros cuatro valores correctos.
+            Assert.Equal(moneda.Codigo, json.RootElement.GetProperty("monedaCodigo").GetString());
+        });
     }
 
     [Fact]
