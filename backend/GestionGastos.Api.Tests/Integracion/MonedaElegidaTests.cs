@@ -202,4 +202,204 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
             Assert.Single(entradas, e => e.GetProperty("esPredeterminada").GetBoolean());
         });
     }
+
+    /// <summary>
+    /// AC-10 y FR-012: cambiar **sólo** la moneda deja el monto, la categoría y la fecha intactos.
+    ///
+    /// Es la mitad conservadora de `PRD:FR-07`: corregir la moneda no puede ser una forma
+    /// encubierta de reescribir el movimiento. El `PUT` lleva el cuerpo entero —así es el contrato
+    /// desde FEAT-001b—, así que lo que se verifica es que mandar los mismos valores los deje
+    /// iguales, y no que la API adivine qué cambió.
+    /// </summary>
+    [Fact]
+    public async Task Cambiar_Solo_La_Moneda_Conserva_Monto_Categoria_Y_Fecha_AC10()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XED", async moneda =>
+        {
+            using var factoria = new FactoriaConReloj(Hoy);
+            using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cliente = cuenta.Cliente;
+
+            using var creacion = await cliente.PostAsJsonAsync(
+                new Uri("/api/movimientos", UriKind.Relative),
+                new { tipo = "gasto", monto = 321.99m, categoriaId = 3, fecha = "2026-09-02" });
+
+            using var creado = JsonDocument.Parse(await creacion.Content.ReadAsStringAsync());
+            var id = creado.RootElement.GetProperty("id").GetInt64();
+
+            using var edicion = await cliente.PutAsJsonAsync(
+                new Uri($"/api/movimientos/{id}", UriKind.Relative),
+                new { tipo = "gasto", monto = 321.99m, categoriaId = 3, monedaId = moneda.Id, fecha = "2026-09-02" });
+
+            Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
+
+            using var editado = JsonDocument.Parse(await edicion.Content.ReadAsStringAsync());
+
+            Assert.Equal(moneda.Codigo, editado.RootElement.GetProperty("monedaCodigo").GetString());
+            Assert.Equal(321.99m, editado.RootElement.GetProperty("monto").GetDecimal());
+            Assert.Equal(3, editado.RootElement.GetProperty("categoriaId").GetInt32());
+            Assert.Equal("2026-09-02", editado.RootElement.GetProperty("fecha").GetString());
+        });
+    }
+
+    /// <summary>
+    /// AC-09 y FR-012b — **las dos direcciones, y por eso van en el mismo test**.
+    ///
+    /// Cambiada la moneda de un movimiento, su monto tiene que **dejar de sumar donde estaba** y
+    /// **pasar a sumar donde quedó**. Un caso que sólo mirara el destino pasa en verde con una
+    /// implementación que sume en las dos monedas a la vez, que es el defecto más probable de esta
+    /// historia — y el que el riesgo de `PRD-001` nombra: "es fácil que se sume en los dos o en
+    /// ninguno".
+    ///
+    /// **La pantalla que muestra estos totales no existe todavía** y es del ticket 5 (D9-06). Que
+    /// el recálculo sea correcto se verifica acá, contra la lectura que ya lo hace bien desde
+    /// FEAT-001c.
+    /// </summary>
+    [Fact]
+    public async Task Cambiar_La_Moneda_Mueve_El_Monto_Entre_Los_Dos_Totales_AC09()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XMV", async moneda =>
+        {
+            string predeterminada;
+            await using (var contexto = _baseDeDatos.CrearContexto())
+            {
+                predeterminada = await contexto.Monedas
+                    .Where(m => m.EsPredeterminada)
+                    .Select(m => m.Codigo)
+                    .SingleAsync();
+            }
+
+            using var factoria = new FactoriaConReloj(Hoy);
+            using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cliente = cuenta.Cliente;
+
+            using var creacion = await cliente.PostAsJsonAsync(
+                new Uri("/api/movimientos", UriKind.Relative),
+                new { tipo = "gasto", monto = 100m, categoriaId = 1, fecha = "2026-09-04" });
+
+            using var creado = JsonDocument.Parse(await creacion.Content.ReadAsStringAsync());
+            var id = creado.RootElement.GetProperty("id").GetInt64();
+
+            // Antes: los 100 están en la predeterminada.
+            Assert.Equal(100m, await TotalGastadoAsync(cliente, predeterminada));
+            Assert.Equal(0m, await TotalGastadoAsync(cliente, moneda.Codigo));
+
+            using var edicion = await cliente.PutAsJsonAsync(
+                new Uri($"/api/movimientos/{id}", UriKind.Relative),
+                new { tipo = "gasto", monto = 100m, categoriaId = 1, monedaId = moneda.Id, fecha = "2026-09-04" });
+
+            Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
+
+            // Después: se fueron de una y llegaron a la otra. Las dos mitades.
+            Assert.Equal(0m, await TotalGastadoAsync(cliente, predeterminada));
+            Assert.Equal(100m, await TotalGastadoAsync(cliente, moneda.Codigo));
+        });
+    }
+
+    /// <summary>
+    /// FR-011 y D-02: la edición **sin** `monedaId` conserva la moneda que el movimiento ya tenía.
+    ///
+    /// **No la predeterminada**, que es el error natural de copiar el alta: allá ausente significa
+    /// "poné la predeterminada" y acá significa "no la cambies". Las dos son la misma regla —
+    /// ausente nunca produce un cambio que nadie pidió— y la única forma de que se note que se
+    /// entendió es este test, porque las dos implementaciones dan `200` y difieren sólo en una
+    /// moneda que nadie miró.
+    /// </summary>
+    [Fact]
+    public async Task La_Edicion_Sin_MonedaId_Conserva_La_Que_Tenia_FR011()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XSC", async moneda =>
+        {
+            using var factoria = new FactoriaConReloj(Hoy);
+            using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cliente = cuenta.Cliente;
+
+            // Nace en la moneda NO predeterminada: si naciera en la predeterminada, una edición que
+            // la reponga se vería igual que una que la conserva.
+            using var creacion = await cliente.PostAsJsonAsync(
+                new Uri("/api/movimientos", UriKind.Relative),
+                new { tipo = "gasto", monto = 10m, categoriaId = 1, monedaId = moneda.Id, fecha = "2026-09-04" });
+
+            using var creado = JsonDocument.Parse(await creacion.Content.ReadAsStringAsync());
+            var id = creado.RootElement.GetProperty("id").GetInt64();
+
+            using var edicion = await cliente.PutAsJsonAsync(
+                new Uri($"/api/movimientos/{id}", UriKind.Relative),
+                new { tipo = "gasto", monto = 20m, categoriaId = 1, fecha = "2026-09-04" });
+
+            Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
+
+            using var editado = JsonDocument.Parse(await edicion.Content.ReadAsStringAsync());
+
+            Assert.Equal(moneda.Codigo, editado.RootElement.GetProperty("monedaCodigo").GetString());
+            Assert.Equal(20m, editado.RootElement.GetProperty("monto").GetDecimal());
+        });
+    }
+
+    /// <summary>
+    /// FR-011: una edición con un `monedaId` fuera del catálogo se rechaza **y el movimiento queda
+    /// como estaba**.
+    ///
+    /// La segunda mitad es la que importa: un servidor que valida después de escribir devuelve el
+    /// mismo `400` y deja el movimiento modificado a medias.
+    /// </summary>
+    [Fact]
+    public async Task Una_Edicion_Con_MonedaId_Fuera_Del_Catalogo_Deja_Todo_Como_Estaba_FR011()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        short inexistente;
+        await using (var contexto = _baseDeDatos.CrearContexto())
+        {
+            inexistente = (short)(await contexto.Monedas.MaxAsync(m => m.Id) + 1);
+        }
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
+
+        using var creacion = await cliente.PostAsJsonAsync(
+            new Uri("/api/movimientos", UriKind.Relative),
+            new { tipo = "gasto", monto = 10m, categoriaId = 1, fecha = "2026-09-04" });
+
+        using var creado = JsonDocument.Parse(await creacion.Content.ReadAsStringAsync());
+        var id = creado.RootElement.GetProperty("id").GetInt64();
+        var monedaOriginal = creado.RootElement.GetProperty("monedaCodigo").GetString();
+
+        using var edicion = await cliente.PutAsJsonAsync(
+            new Uri($"/api/movimientos/{id}", UriKind.Relative),
+            new { tipo = "gasto", monto = 999m, categoriaId = 2, monedaId = inexistente, fecha = "2026-09-05" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, edicion.StatusCode);
+
+        using var error = JsonDocument.Parse(await edicion.Content.ReadAsStringAsync());
+        Assert.True(error.RootElement.GetProperty("errors").TryGetProperty("monedaId", out _));
+
+        using var lectura = await cliente.GetAsync(new Uri($"/api/movimientos/{id}", UriKind.Relative));
+        using var actual = JsonDocument.Parse(await lectura.Content.ReadAsStringAsync());
+
+        Assert.Equal(monedaOriginal, actual.RootElement.GetProperty("monedaCodigo").GetString());
+        Assert.Equal(10m, actual.RootElement.GetProperty("monto").GetDecimal());
+        Assert.Equal(1, actual.RootElement.GetProperty("categoriaId").GetInt32());
+        Assert.Equal("2026-09-04", actual.RootElement.GetProperty("fecha").GetString());
+    }
+
+    /// <summary>El total gastado de una moneda en el resumen del período en curso.</summary>
+    private static async Task<decimal> TotalGastadoAsync(HttpClient cliente, string codigo)
+    {
+        using var respuesta = await cliente.GetAsync(new Uri("/api/resumen", UriKind.Relative));
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+
+        return json.RootElement.GetProperty("monedas")
+            .EnumerateArray()
+            .Single(e => e.GetProperty("monedaCodigo").GetString() == codigo)
+            .GetProperty("totalGastado")
+            .GetDecimal();
+    }
 }

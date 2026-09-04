@@ -35,9 +35,7 @@ public static class ValidacionDelMovimiento
         Categoria? categoria,
         Moneda? moneda,
         out TipoMovimiento tipo) =>
-        // `monedaId: null` mientras la edición no la lleve en el cuerpo: significa "no se pidió
-        // ninguna", que es lo que hace que el movimiento conserve la que ya tenía.
-        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, monedaId: null, moneda, out tipo);
+        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, peticion.MonedaId, moneda, out tipo);
 
     private static Dictionary<string, string[]> Validar(
         string? tipoTexto,

@@ -128,13 +128,20 @@ export interface NuevoMovimiento {
  * correcto; en una edición sería una trampa —el movimiento saltaría a hoy en silencio—, así que se
  * exige.
  *
- * No lleva moneda: no se elige al registrar y tampoco al editar. Tampoco lleva propietario: lo
- * decide la sesión, nunca el cuerpo.
+ * `monedaId` es opcional, y **acá ausente significa "la que el movimiento ya tenía"** — no "la
+ * predeterminada", que es lo que significa en el alta. Las dos ausencias parecen distintas y son la
+ * misma regla: **ausente nunca produce un cambio que nadie pidió**. Es también por qué `fecha` es
+ * obligatoria acá: ahí ausente SÍ significaría un valor nuevo —hoy—, y el movimiento saltaría de
+ * fecha en silencio.
+ *
+ * No lleva propietario: lo decide la sesión, nunca el cuerpo.
  */
 export interface MovimientoEditado {
   tipo: TipoMovimiento;
   monto: number;
   categoriaId: number;
+  /** Del catálogo de `Moneda`. Ausente o null = la que ya tenía. */
+  monedaId?: number | null;
   /** `YYYY-MM-DD`. Sin hora ni zona horaria. */
   fecha: string;
 }

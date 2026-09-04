@@ -56,8 +56,13 @@ public record MovimientoDto(
 /// una modificación sin fecha vería su movimiento saltar a hoy en silencio. Un movimiento editado
 /// conserva su fecha salvo que se pida cambiarla, y exigirla es la forma más simple de garantizarlo.
 ///
-/// Tampoco lleva moneda: no se elige al registrar y tampoco al editar. La mitad faltante de RF-14
-/// está en la Deuda registrada de la spec, esperando el catálogo de monedas del ticket 4a.
+/// **`MonedaId` es opcional, y acá ausente significa "la que ya tenía"** — no "la predeterminada",
+/// que es lo que significa en el alta. Parecen dos reglas y son una sola: **ausente nunca produce
+/// un cambio que nadie pidió**. Es la misma regla que hace obligatoria a `Fecha`, porque ahí
+/// ausente sí significaría un valor nuevo.
+///
+/// Con esto RF-14 queda entero: hasta la feature 009 se podía corregir todo de un movimiento menos
+/// su moneda, y esa mitad faltante estaba anotada como deuda esperando el catálogo del ticket 4a.
 ///
 /// No lleva propietario, y si llegara igual en el JSON se descarta al deserializar: el dueño lo
 /// decide la sesión (INV-01).
@@ -65,5 +70,11 @@ public record MovimientoDto(
 /// <param name="Tipo">"gasto" o "ingreso". Se valida contra el tipo de la categoría elegida.</param>
 /// <param name="Monto">Número con hasta dos decimales.</param>
 /// <param name="CategoriaId">Categoría elegida, del mismo tipo que el movimiento.</param>
+/// <param name="MonedaId">Moneda del catálogo. Ausente o null = la que el movimiento ya tenía.</param>
 /// <param name="Fecha">Día del movimiento. Obligatoria.</param>
-public record MovimientoEditadoDto(string? Tipo, decimal? Monto, int? CategoriaId, DateOnly? Fecha);
+public record MovimientoEditadoDto(
+    string? Tipo,
+    decimal? Monto,
+    int? CategoriaId,
+    int? MonedaId,
+    DateOnly? Fecha);

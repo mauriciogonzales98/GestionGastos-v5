@@ -210,10 +210,16 @@ public static class MovimientosEndpoints
                     && (c.Activa || c.Id == movimiento.CategoriaId))
                 : null;
 
-            // La moneda todavía no se elige al editar: llega en US4. Pasar `null` acá significa
-            // "no se pidió ninguna", que es lo que la validación interpreta como "conservá la que
-            // tenía".
-            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, moneda: null, out var tipo);
+            // La moneda pedida, si se pidió alguna. **Ausente NO es la predeterminada acá**: es
+            // "la que ya tenía" (FR-011). Copiar el criterio del alta dejaría que una edición que
+            // no menciona la moneda se la cambiara en silencio a quien la había elegido — un
+            // cambio que nadie pidió, que es lo único que la asimetría con el alta existe para
+            // evitar.
+            var moneda = peticion.MonedaId is { } monedaElegida
+                ? await contexto.Monedas.FirstOrDefaultAsync(m => (int)m.Id == monedaElegida)
+                : null;
+
+            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, moneda, out var tipo);
 
             if (peticion.Fecha is null)
             {
@@ -234,9 +240,17 @@ public static class MovimientosEndpoints
             movimiento.CategoriaId = categoria!.Id;
             movimiento.Fecha = peticion.Fecha!.Value;
 
+            // Sólo si se pidió una. Sin esto, `moneda` en null pisaría la que tenía.
+            if (moneda is not null)
+            {
+                movimiento.MonedaId = moneda.Id;
+            }
+
             await contexto.SaveChangesAsync();
 
-            var moneda = await contexto.Monedas.SingleAsync(m => m.Id == movimiento.MonedaId);
+            // La que quedó: la nueva si se cambió, la de siempre si no. Se relee del catálogo
+            // porque la respuesta lleva el CÓDIGO y el movimiento sólo guarda el identificador.
+            var monedaFinal = moneda ?? await contexto.Monedas.SingleAsync(m => m.Id == movimiento.MonedaId);
 
             return Results.Ok(new MovimientoDto(
                 movimiento.Id,
@@ -244,7 +258,7 @@ public static class MovimientosEndpoints
                 movimiento.Monto,
                 categoria.Id,
                 categoria.Nombre,
-                moneda.Codigo,
+                monedaFinal.Codigo,
                 movimiento.Fecha));
         });
 

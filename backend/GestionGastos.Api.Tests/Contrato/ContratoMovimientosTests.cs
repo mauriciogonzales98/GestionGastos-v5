@@ -170,46 +170,57 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
-        var delContrato = TiposDelFrontend.CamposDeInterfaz("MovimientoEditado");
-
-        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
-        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
-        var cliente = cuenta.Cliente;
-
-        using var creado = await cliente.PostAsJsonAsync(
-            new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 10m, categoriaId = 1, fecha = "2026-08-23" });
-        Assert.Equal(HttpStatusCode.Created, creado.StatusCode);
-
-        using var creadoJson = JsonDocument.Parse(await creado.Content.ReadAsStringAsync());
-        var id = creadoJson.RootElement.GetProperty("id").GetInt64();
-
-        var cuerpo = new Dictionary<string, object?>(StringComparer.Ordinal);
-        foreach (var campo in delContrato)
+        // La moneda con la que se ejercita se agrega al catálogo, igual que en el caso del alta y
+        // por la misma razón (D-10): un identificador a mano ata el test a la semilla y se rompe
+        // dentro de `verificar-monedas.sh`.
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XCE", async moneda =>
         {
-            cuerpo[campo] = campo switch
+            var delContrato = TiposDelFrontend.CamposDeInterfaz("MovimientoEditado");
+
+            using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
+            using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cliente = cuenta.Cliente;
+
+            using var creado = await cliente.PostAsJsonAsync(
+                new Uri("/api/movimientos", UriKind.Relative),
+                new { tipo = "gasto", monto = 10m, categoriaId = 1, fecha = "2026-08-23" });
+            Assert.Equal(HttpStatusCode.Created, creado.StatusCode);
+
+            using var creadoJson = JsonDocument.Parse(await creado.Content.ReadAsStringAsync());
+            var id = creadoJson.RootElement.GetProperty("id").GetInt64();
+
+            var cuerpo = new Dictionary<string, object?>(StringComparer.Ordinal);
+            foreach (var campo in delContrato)
             {
-                "tipo" => "gasto",
-                "monto" => 88.88m,
-                "categoriaId" => 2,
-                "fecha" => "2026-08-11",
-                _ => throw new InvalidOperationException(
-                    $"El contrato declara el campo `{campo}` de MovimientoEditado y este test no " +
-                    "sabe con qué valor ejercitarlo. Agregalo acá: un campo del contrato sin " +
-                    "ejercitar es un campo sin barrera."),
-            };
-        }
+                cuerpo[campo] = campo switch
+                {
+                    "tipo" => "gasto",
+                    "monto" => 88.88m,
+                    "categoriaId" => 2,
+                    "monedaId" => moneda.Id,
+                    "fecha" => "2026-08-11",
+                    _ => throw new InvalidOperationException(
+                        $"El contrato declara el campo `{campo}` de MovimientoEditado y este test no " +
+                        "sabe con qué valor ejercitarlo. Agregalo acá: un campo del contrato sin " +
+                        "ejercitar es un campo sin barrera."),
+                };
+            }
 
-        using var respuesta = await cliente.PutAsJsonAsync(
-            new Uri($"/api/movimientos/{id}", UriKind.Relative), cuerpo);
+            using var respuesta = await cliente.PutAsJsonAsync(
+                new Uri($"/api/movimientos/{id}", UriKind.Relative), cuerpo);
 
-        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
 
-        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+            using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
 
-        Assert.Equal("gasto", json.RootElement.GetProperty("tipo").GetString());
-        Assert.Equal(88.88m, json.RootElement.GetProperty("monto").GetDecimal());
-        Assert.Equal(2, json.RootElement.GetProperty("categoriaId").GetInt32());
-        Assert.Equal("2026-08-11", json.RootElement.GetProperty("fecha").GetString());
+            Assert.Equal("gasto", json.RootElement.GetProperty("tipo").GetString());
+            Assert.Equal(88.88m, json.RootElement.GetProperty("monto").GetDecimal());
+            Assert.Equal(2, json.RootElement.GetProperty("categoriaId").GetInt32());
+            Assert.Equal("2026-08-11", json.RootElement.GetProperty("fecha").GetString());
+
+            // El movimiento nació en la predeterminada y la edición pidió otra: si la API ignorara
+            // el campo, todo lo demás daría igual y el 200 saldría lo mismo.
+            Assert.Equal(moneda.Codigo, json.RootElement.GetProperty("monedaCodigo").GetString());
+        });
     }
 }
