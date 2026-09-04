@@ -57,7 +57,7 @@ se entendió mal: ver [data-model.md](./data-model.md).
 
 **Purpose**: saber de qué verde se parte, para que cualquier rojo posterior sea atribuible.
 
-- [ ] T001 Correr la puerta completa de las **dos** pilas sobre la rama recién sacada —`pnpm --dir frontend lint`, `pnpm --dir frontend exec tsc --noEmit`, `pnpm --dir frontend test`, `dotnet format backend/GestionGastos.slnx --verify-no-changes`, `dotnet build backend/GestionGastos.slnx -warnaserror`, `dotnet test backend/`— y anotar el conteo de tests de cada una. Es la línea de base: sin ella, un rojo del primer día se confunde con uno heredado. Las dos pilas y no sólo el backend, porque ésta es la primera feature desde la 007 que toca las dos
+- [X] T001 Correr la puerta completa de las **dos** pilas sobre la rama recién sacada —`pnpm --dir frontend lint`, `pnpm --dir frontend exec tsc --noEmit`, `pnpm --dir frontend test`, `dotnet format backend/GestionGastos.slnx --verify-no-changes`, `dotnet build backend/GestionGastos.slnx -warnaserror`, `dotnet test backend/`— y anotar el conteo de tests de cada una. Es la línea de base: sin ella, un rojo del primer día se confunde con uno heredado. Las dos pilas y no sólo el backend, porque ésta es la primera feature desde la 007 que toca las dos
 
 ---
 
@@ -70,9 +70,9 @@ la feature 008](../008-monedas-como-dato/research.md)). La primera moneda que un
 borre se le queda al siguiente. La 008 ya resolvió eso con `ConLaMonedaAsync`, pero lo dejó privado
 dentro de `MonedaComoDatoTests`; esta feature necesita el mismo helper desde tres archivos más.
 
-- [ ] T002 Extraer `ConLaMonedaAsync` de `backend/GestionGastos.Api.Tests/Integracion/MonedaComoDatoTests.cs` a un `Integracion/CatalogoDeMonedas.cs` compartido, **sin cambiar su comportamiento**: el `try`/`finally` que borra la moneda pase lo que pase, y el orden de limpieza —los movimientos antes que la moneda— que la 008 tuvo que arreglar sobre la marcha. Dejar escrita en el archivo la regla [D-10](./research.md): nada de números fijos sobre el tamaño del catálogo
-- [ ] T003 Correr `dotnet test backend/ --filter "FullyQualifiedName~MonedaComoDato"` y exigir que los seis casos de la 008 sigan **verdes** sin haber sido modificados en lo que hacen. Es una extracción, no un cambio: si algo se pone rojo, se movió más de lo que había que mover
-- [ ] T004 [VERIFY] Puerta del backend completa, con su salida
+- [X] T002 Extraer `ConLaMonedaAsync` de `backend/GestionGastos.Api.Tests/Integracion/MonedaComoDatoTests.cs` a un `Integracion/CatalogoDeMonedas.cs` compartido, **sin cambiar su comportamiento**: el `try`/`finally` que borra la moneda pase lo que pase, y el orden de limpieza —los movimientos antes que la moneda— que la 008 tuvo que arreglar sobre la marcha. Dejar escrita en el archivo la regla [D-10](./research.md): nada de números fijos sobre el tamaño del catálogo
+- [X] T003 Correr `dotnet test backend/ --filter "FullyQualifiedName~MonedaComoDato"` y exigir que los nueve casos de la 008 sigan **verdes** sin haber sido modificados en lo que hacen. Es una extracción, no un cambio: si algo se pone rojo, se movió más de lo que había que mover
+- [X] T004 [VERIFY] Puerta del backend completa, con su salida
 
 ---
 
