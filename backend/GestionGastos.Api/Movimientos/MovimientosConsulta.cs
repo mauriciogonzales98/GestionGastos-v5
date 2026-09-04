@@ -32,14 +32,14 @@ namespace GestionGastos.Api.Movimientos;
 public static class MovimientosConsulta
 {
     /// <summary>
-    /// El listado de una cuenta, acotado por período y —si se pide— por categoría.
+    /// El listado de una cuenta, acotado por período y —si se piden— por categoría y por moneda.
     ///
     /// Se llamaba `DelMes` hasta FEAT-001b, cuando sólo sabía de meses calendario. Ahora recibe un
     /// rango cualquiera y el nombre habría quedado mintiendo.
     ///
-    /// La categoría es opcional y se combina con **y**: un movimiento sale si cumple todo lo que se
-    /// pidió. Una categoría que no existe no es un error — simplemente no deja pasar nada, y eso es
-    /// deliberado: rechazarla confirmaría cuáles existen.
+    /// La categoría y la moneda son opcionales y se combinan con **y**: un movimiento sale si
+    /// cumple todo lo que se pidió. Ninguna de las dos es un error cuando no existe — simplemente
+    /// no deja pasar nada, y eso es deliberado: rechazarlas confirmaría cuáles existen.
     ///
     /// El orden se pide explícitamente aunque el índice `(usuario_id, fecha DESC, id DESC)` ya lo
     /// devuelva así. Es la D-04 de la feature 001 y sigue vigente: heredarlo del índice deja el
@@ -49,8 +49,9 @@ public static class MovimientosConsulta
         GestionGastosDbContext contexto,
         long usuarioId,
         RangoDeFechas rango,
-        int? categoriaId = null) =>
-        DeLaCuenta(contexto, usuarioId, rango, categoriaId)
+        int? categoriaId = null,
+        int? monedaId = null) =>
+        DeLaCuenta(contexto, usuarioId, rango, categoriaId, monedaId)
             .OrderByDescending(m => m.Fecha)
             .ThenByDescending(m => m.Id);
 
@@ -85,7 +86,19 @@ public static class MovimientosConsulta
         GestionGastosDbContext contexto,
         long usuarioId,
         RangoDeFechas rango) =>
-        DeLaCuenta(contexto, usuarioId, rango, categoriaId: null)
+        // **`monedaId: null` explícito, y no por omisión** (D-05 de la feature 009).
+        //
+        // El acotado por moneda es del LISTADO. Si se colara hasta acá, los totales de un período
+        // ya cerrado darían otro número sin que nadie tocara un movimiento — el mismo daño
+        // silencioso, y por el mismo mecanismo, que `verificar-desglose.sh` vigila para
+        // `categoria.activa`. El resumen informa sobre TODAS las monedas del catálogo, siempre
+        // (`006:AC-31`).
+        //
+        // Va escrito aunque el valor por omisión ya sea `null`: quien lea esta llamada tiene que
+        // ver que la decisión se tomó, no deducir que nadie se acordó del parámetro.
+        // `ResumenDelPeriodoTests.El_Resumen_No_Hereda_El_Acotado_Por_Moneda_Del_Listado` es lo que
+        // lo sostiene.
+        DeLaCuenta(contexto, usuarioId, rango, categoriaId: null, monedaId: null)
             .GroupBy(m => new
             {
                 m.MonedaId,
@@ -114,10 +127,12 @@ public static class MovimientosConsulta
         GestionGastosDbContext contexto,
         long usuarioId,
         RangoDeFechas rango,
-        int? categoriaId) =>
+        int? categoriaId,
+        int? monedaId) =>
         contexto.Movimientos
             .Where(m => m.UsuarioId == usuarioId && m.Fecha >= rango.Desde && m.Fecha <= rango.Hasta)
-            .Where(m => categoriaId == null || m.CategoriaId == categoriaId);
+            .Where(m => categoriaId == null || m.CategoriaId == categoriaId)
+            .Where(m => monedaId == null || (int)m.MonedaId == monedaId);
 
     /// <summary>
     /// Un movimiento propio, por identificador. Lo usan la consulta individual, la edición y la

@@ -204,8 +204,29 @@ export function darDeBajaCategoria(id: number): Promise<void> {
   return pedirSinCuerpo(`/api/categorias/${id}`, { method: 'DELETE' });
 }
 
-export function obtenerMovimientos(): Promise<Movimiento[]> {
-  return pedir<Movimiento[]>('/api/movimientos');
+/**
+ * Lo que se puede acotar del listado desde esta pantalla.
+ *
+ * **Sólo la moneda.** El servidor acota también por categoría y por rango de fechas desde
+ * FEAT-001b, y esos dos no tienen control en la interfaz: la barra de filtros nunca se construyó.
+ * Es la deuda D9-01 de esta feature, y este tipo es donde va a crecer cuando se salde.
+ */
+export interface AcotadoDelListado {
+  /** `null` o ausente = todas las monedas. */
+  monedaId?: number | null;
+}
+
+export function obtenerMovimientos(acotado: AcotadoDelListado = {}): Promise<Movimiento[]> {
+  // Se arma con URLSearchParams y no concatenando: un id que llegue como texto raro se escapa
+  // solo. Y lo que vale `null` no se manda — el servidor entiende "ausente" como "todas", y
+  // mandar `monedaId=` vacío lo obligaría a interpretar una cadena vacía.
+  const parametros = new URLSearchParams();
+  if (acotado.monedaId != null) {
+    parametros.set('monedaId', String(acotado.monedaId));
+  }
+
+  const consulta = parametros.size === 0 ? '' : `?${parametros}`;
+  return pedir<Movimiento[]>(`/api/movimientos${consulta}`);
 }
 
 export function crearMovimiento(nuevo: NuevoMovimiento): Promise<Movimiento> {

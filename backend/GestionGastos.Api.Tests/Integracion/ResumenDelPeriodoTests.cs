@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestionGastos.Api.Tests.Integracion;
 
@@ -394,6 +395,58 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         resumen.RootElement.GetProperty("monedas").EnumerateArray()
             .Single(m => m.GetProperty("monedaCodigo").GetString() == codigo);
 
+    /// <summary>
+    /// **El guardarraíl de D-05: el resumen NO hereda el acotado por moneda del listado.**
+    ///
+    /// La feature 009 le agrega un `monedaId` opcional a `MovimientosConsulta.Filtrado`, y esa
+    /// consulta comparte con el resumen el método privado que acota por cuenta. `Agrupado` le pasa
+    /// `null` explícito, y este test es lo que hace que ese `null` sea una afirmación verificada en
+    /// vez de un comentario.
+    ///
+    /// **El daño que evita es silencioso**, y es el mismo que `verificar-desglose.sh` vigila para
+    /// `categoria.activa`: si el resumen empezara a filtrar por moneda, los totales de un período
+    /// ya cerrado darían otro número sin que nadie tocara un movimiento. El resumen informa sobre
+    /// **todas** las monedas del catálogo, siempre (`006:AC-31`, FR-009 de la 006).
+    ///
+    /// Por eso el caso exige que **las dos** monedas traigan su total, y no sólo que la lista tenga
+    /// dos entradas: un resumen filtrado devolvería igual las dos entradas —una de ellas en cero—,
+    /// porque la lista sale del catálogo y no de los movimientos.
+    /// </summary>
+    [Fact]
+    public async Task El_Resumen_No_Hereda_El_Acotado_Por_Moneda_Del_Listado()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XR1", async moneda =>
+        {
+            using var factoria = new FactoriaConReloj(Hoy);
+            using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+            await RegistrarAsync(cuenta, "gasto", 100m, Comida, Hoy, moneda.Id);
+            await RegistrarAsync(cuenta, "gasto", 250m, Comida, Hoy);
+
+            string predeterminada;
+            await using (var contexto = _baseDeDatos.CrearContexto())
+            {
+                predeterminada = await contexto.Monedas
+                    .Where(m => m.EsPredeterminada)
+                    .Select(m => m.Codigo)
+                    .SingleAsync();
+            }
+
+            using var resumen = await ResumenAsync(cuenta);
+
+            var totales = resumen.RootElement.GetProperty("monedas")
+                .EnumerateArray()
+                .ToDictionary(
+                    e => e.GetProperty("monedaCodigo").GetString()!,
+                    e => e.GetProperty("totalGastado").GetDecimal());
+
+            Assert.Equal(100m, totales[moneda.Codigo]);
+            Assert.Equal(250m, totales[predeterminada]);
+        });
+    }
+
     private static async Task<JsonDocument> ResumenAsync(
         CuentaDePrueba cuenta, DateOnly? desde = null, DateOnly? hasta = null)
     {
@@ -440,7 +493,12 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
     }
 
     private static async Task RegistrarAsync(
-        CuentaDePrueba cuenta, string tipo, decimal monto, int categoriaId, DateOnly fecha)
+        CuentaDePrueba cuenta,
+        string tipo,
+        decimal monto,
+        int categoriaId,
+        DateOnly fecha,
+        int? monedaId = null)
     {
         using var respuesta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
@@ -449,6 +507,7 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
                 tipo,
                 monto,
                 categoriaId,
+                monedaId,
                 fecha = fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             });
 

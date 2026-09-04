@@ -105,7 +105,8 @@ public static class MovimientosEndpoints
             TimeZoneInfo zona,
             DateOnly? desde,
             DateOnly? hasta,
-            int? categoriaId) =>
+            int? categoriaId,
+            int? monedaId) =>
         {
             // Las tres reglas del período —los dos extremos juntos o ninguno, el rango invertido
             // rechazado, y el mes en curso del SERVIDOR por omisión— viven en `PeriodoPedido` desde
@@ -119,11 +120,15 @@ public static class MovimientosEndpoints
                 return Results.ValidationProblem(errores);
             }
 
-            // La categoría NO se valida contra el catálogo: una que no existe simplemente no deja
-            // pasar nada. Rechazarla con un 400 confirmaría cuáles existen, que es la misma fuga
-            // que el 404 uniforme cierra en las rutas por identificador.
+            // Ni la categoría ni la moneda se validan contra su catálogo: una que no existe
+            // simplemente no deja pasar nada. Rechazarlas con un 400 confirmaría cuáles existen,
+            // que es la misma fuga que el 404 uniforme cierra en las rutas por identificador.
+            //
+            // Que el ALTA sí rechace una moneda inexistente y esto no, no es una incoherencia: una
+            // escribe y la otra sólo mira. Lo que se escribe tiene que quedar íntegro; lo que se
+            // mira puede no encontrar nada.
             var movimientos = await MovimientosConsulta
-                .Filtrado(contexto, usuarioActual.Id, rango, categoriaId)
+                .Filtrado(contexto, usuarioActual.Id, rango, categoriaId, monedaId)
                 .Select(m => new MovimientoDto(
                     m.Id,
                     m.Tipo == TipoMovimiento.Gasto ? TipoMovimientoTexto.Gasto : TipoMovimientoTexto.Ingreso,

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PantallaMovimientos } from '../src/movimientos/PantallaMovimientos';
 import type { Movimiento } from '../src/api/tipos';
 import { CATEGORIAS } from './categorias.fixture';
-import { MONEDAS } from './monedas.fixture';
+import { LA_INESPERADA, MONEDAS } from './monedas.fixture';
 
 vi.mock('../src/api/cliente', () => ({
   obtenerMovimientos: vi.fn(),
@@ -42,13 +42,13 @@ beforeEach(() => {
   vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([DEL_20, DEL_10]);
 });
 
-async function renderizar() {
+async function renderizar(monedas = MONEDAS) {
   render(
     <PantallaMovimientos
       hoy={HOY}
       email="ana@ejemplo.com"
       categorias={CATEGORIAS}
-      monedas={MONEDAS}
+      monedas={monedas}
       errorDelCatalogo={null}
       onCerrarSesion={() => {}}
       onGestionarCategorias={() => {}}
@@ -152,5 +152,73 @@ describe('PantallaMovimientos', () => {
 
     // Y efectivamente no está en el listado del mes.
     expect(fechasDelListado()).toEqual(['2026-08-20', '2026-08-10']);
+  });
+
+  /**
+   * FR-010 y AC-12: el control de acotado ofrece **las monedas del catálogo más la opción de no
+   * acotar**, y sale de la misma lectura que alimenta el selector del formulario.
+   *
+   * Que salgan de la misma lectura es lo que hace imposible que discrepen (`PRD:NFR-02`). Este test
+   * lo comprueba de la única forma en que se puede desde acá: el mismo array de props alimenta los
+   * dos, así que se verifica que el acotado ofrezca exactamente lo mismo que el selector, más
+   * "Todas".
+   */
+  it('ofrece las monedas del catálogo más "todas" para acotar FR-010', async () => {
+    await renderizar();
+
+    const acotado = screen.getByLabelText('Ver sólo la moneda');
+    const opciones = within(acotado).getAllByRole('option');
+
+    expect(opciones.map((o) => o.textContent)).toEqual([
+      'Todas las monedas',
+      'Peso argentino',
+      'Dólar',
+    ]);
+    expect(acotado).toHaveValue('');
+  });
+
+  /** AC-04 del lado del acotado: una moneda agregada sólo como dato también se puede acotar. */
+  it('ofrece para acotar una moneda agregada al catálogo sólo como dato AC-04', async () => {
+    await renderizar([...MONEDAS, LA_INESPERADA]);
+
+    const acotado = screen.getByLabelText('Ver sólo la moneda');
+
+    expect(
+      within(acotado)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toContain(LA_INESPERADA.nombre);
+  });
+
+  /**
+   * AC-06: elegir una moneda vuelve a pedir el listado **acotado a esa moneda**.
+   *
+   * Se comprueba lo que se le pide a la API, no lo que queda en la tabla: el acotado lo hace el
+   * servidor, y un filtrado del lado del cliente sobre la lista que ya tenía se vería idéntico y
+   * estaría mal — mostraría sólo lo que ya se había traído del mes en curso.
+   */
+  it('acota el listado pidiéndoselo al servidor AC-06', async () => {
+    const usuario = userEvent.setup();
+    await renderizar();
+
+    await usuario.selectOptions(screen.getByLabelText('Ver sólo la moneda'), '2');
+
+    await waitFor(() =>
+      expect(vi.mocked(cliente.obtenerMovimientos)).toHaveBeenLastCalledWith({ monedaId: 2 }),
+    );
+  });
+
+  /** AC-07: volver a "todas" pide el listado sin acotar. */
+  it('vuelve a pedir todas las monedas al quitar el acotado AC-07', async () => {
+    const usuario = userEvent.setup();
+    await renderizar();
+
+    const acotado = screen.getByLabelText('Ver sólo la moneda');
+    await usuario.selectOptions(acotado, '2');
+    await usuario.selectOptions(acotado, '');
+
+    await waitFor(() =>
+      expect(vi.mocked(cliente.obtenerMovimientos)).toHaveBeenLastCalledWith({ monedaId: null }),
+    );
   });
 });

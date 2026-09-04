@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { ErrorDeSesion, crearMovimiento, obtenerMovimientos } from '../api/cliente';
 import type { Categoria, Moneda, Movimiento, NuevoMovimiento } from '../api/tipos';
 import { FormularioMovimiento } from './FormularioMovimiento';
@@ -71,7 +71,16 @@ export function PantallaMovimientos({
   onSesionVencida,
 }: PropsPantallaMovimientos) {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+
+  /**
+   * La moneda a la que está acotado el listado. `''` es "todas" (FR-008).
+   *
+   * Cadena y no `number | null` porque es el valor de un `<select>`, y convertirlo de ida y vuelta
+   * en cada render abre la posibilidad de que el control muestre una cosa y el estado guarde otra.
+   */
+  const [monedaAcotada, setMonedaAcotada] = useState('');
   const [cargandoListado, setCargandoListado] = useState(true);
+  const idAcotado = useId();
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
   const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null);
 
@@ -80,7 +89,7 @@ export function PantallaMovimientos({
     // Queda el listado, con su propio `catch`: sin él, un backend caído dejaba el indicador de
     // carga encendido para siempre y la única señal era un unhandled rejection en la consola, que
     // nadie mira.
-    void obtenerMovimientos()
+    void obtenerMovimientos({ monedaId: monedaAcotada === '' ? null : Number(monedaAcotada) })
       .then(setMovimientos)
       .catch((error: unknown) => {
         if (error instanceof ErrorDeSesion) {
@@ -93,7 +102,10 @@ export function PantallaMovimientos({
       // El indicador se apaga pase lo que pase. Dejarlo encendido tras un fallo es decirle a la
       // persona que espere algo que no va a llegar.
       .finally(() => setCargandoListado(false));
-  }, [onSesionVencida]);
+    // `monedaAcotada` en las dependencias: el acotado lo hace el SERVIDOR, así que cambiarlo tiene
+    // que volver a pedir. Filtrar del lado del cliente la lista que ya se tenía se vería igual y
+    // estaría mal — mostraría sólo lo que ya se había traído.
+  }, [onSesionVencida, monedaAcotada]);
 
   async function guardar(nuevo: NuevoMovimiento) {
     let creado: Movimiento;
@@ -164,6 +176,25 @@ export function PantallaMovimientos({
           acá: es esta pantalla la que queda inservible sin él —sin categorías no se puede
           registrar nada— y es donde la persona lo va a notar. */}
       {errorDelCatalogo ? <p role="alert">{errorDelCatalogo}</p> : null}
+
+      {/* El acotado por moneda (FR-008, FR-010). Es el ÚNICO control de acotado de esta pantalla:
+          el servidor también acota por categoría y por rango de fechas desde FEAT-001b, y esos dos
+          nunca tuvieron interfaz. Es la deuda D9-01, y acá es donde la barra va a crecer. */}
+      <div className="l-fila">
+        <label htmlFor={idAcotado}>Ver sólo la moneda</label>
+        <select
+          id={idAcotado}
+          value={monedaAcotada}
+          onChange={(e) => setMonedaAcotada(e.target.value)}
+        >
+          <option value="">Todas las monedas</option>
+          {monedas.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.nombre}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {cargandoListado ? (
         <p>Cargando movimientos…</p>
