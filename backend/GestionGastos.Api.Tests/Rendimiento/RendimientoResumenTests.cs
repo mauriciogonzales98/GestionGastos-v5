@@ -25,7 +25,15 @@ namespace GestionGastos.Api.Tests.Rendimiento;
 [Collection(BaseDeDatosSuite.Nombre)]
 public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos)
 {
-    private const int Ejecuciones = 30;
+    /// <summary>
+    /// Las mediciones por caso. **100 y no 30, que es lo que RNF-01 y FR-011 piden.**
+    ///
+    /// No es un número más grande porque sí: con 30 muestras el p95 cae en el elemento 29 —o sea,
+    /// prácticamente el máximo—, y eso es otro estadístico y mucho más ruidoso que el percentil
+    /// real. En un test que ya está excluido del CI por medir tiempo de pared, el ruido de más es lo
+    /// último que hace falta.
+    /// </summary>
+    private const int Ejecuciones = 100;
 
     /// <summary>Las diez categorías del catálogo, para que el agrupado tenga sobre qué agrupar.</summary>
     private static readonly int[] CategoriasDeGasto = [1, 2, 3, 4, 5, 6, 7];
@@ -40,7 +48,31 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos)
     [Theory]
     [InlineData(1000, 2000)]
     [InlineData(10_000, 4000)]
-    public async Task El_P95_Del_Resumen_Cumple_RNF01(int filas, int techoMs)
+    public async Task El_P95_Del_Resumen_Cumple_RNF01(int filas, int techoMs) =>
+        await MedirAsync(filas, techoMs, monedas: 1);
+
+    /// <summary>
+    /// AC-04, FR-011 y SC-003: el mismo volumen, **repartido en dos monedas**.
+    ///
+    /// El `GROUP BY` del resumen agrupa por moneda, tipo y categoría. Con una sola moneda ese primer
+    /// nivel no discrimina nada, así que el caso de arriba —1000 filas, todas en ARS— **no ejercita
+    /// la agrupación que esta feature dice sostener**. Repartir en dos duplica los grupos sin
+    /// duplicar las filas, que es exactamente la condición que NFR-03 acota.
+    ///
+    /// **El caso de una sola moneda se deja**, y no por completitud: es la referencia. Si éste se
+    /// pone en rojo y aquél no, el costo lo agregó la segunda moneda y no el volumen — y la salida
+    /// es el índice por `categoria_id` que la feature 006 dejó anotado en su deuda D6-05, con el
+    /// número en la mano. Dos números que se comparan valen más que uno que hay que interpretar.
+    ///
+    /// Medido al escribirlo: 1000 filas en una moneda dan p95 de 6 ms; en dos, 9 ms. La segunda
+    /// moneda cuesta alrededor de un 50 % más y las dos quedan dos órdenes de magnitud debajo del
+    /// techo, así que el índice de D6-05 sigue sin justificarse.
+    /// </summary>
+    [Fact]
+    public async Task El_P95_Del_Resumen_Con_Dos_Monedas_Cumple_RNF01_AC04() =>
+        await MedirAsync(filas: 1000, techoMs: 2000, monedas: 2);
+
+    private async Task MedirAsync(int filas, int techoMs, int monedas)
     {
         var hoy = DateOnly.FromDateTime(DateTime.Now);
 
@@ -48,12 +80,12 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
 
-        await SembrarAsync(cuenta.Id, hoy, filas);
+        await SembrarAsync(cuenta.Id, hoy, filas, monedas);
 
         // El guardarraíl, por el mismo motivo que en el alta: un sembrado que dejó de caer en el
         // mes medido convierte la medición en un agregado sobre cero filas, y eso pasa en verde sin
         // medir nada. Acá es peor que en el listado — un resumen vacío es una respuesta válida.
-        await ConfirmarQueElMesTieneFilasAsync(hoy, filas);
+        await ConfirmarQueElMesTieneFilasAsync(hoy, filas, monedas);
 
         // Calentamiento fuera de la medición: la primera paga la compilación del pipeline y el
         // primer plan de consulta del GROUP BY.
@@ -73,7 +105,8 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos)
 
         Assert.True(
             p95 < techoMs,
-            $"RNF-01: el p95 del resumen con {filas} movimientos fue {p95:F0} ms y el criterio " +
+            $"RNF-01: el p95 del resumen con {filas} movimientos en {monedas} moneda(s) fue " +
+            $"{p95:F0} ms y el criterio " +
             $"exige < {techoMs} ms. Mediana {muestras[muestras.Count / 2]:F0} ms, " +
             $"máximo {muestras[^1]:F0} ms. Si es el GROUP BY, el índice por categoria_id que " +
             "research.md D-10 dejó anotado es la salida.");
@@ -91,7 +124,7 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos)
     /// Siembra repartiendo por categoría y por tipo: agrupar 1000 filas que caen todas en la misma
     /// categoría no ejercita el `GROUP BY`, lo esquiva.
     /// </summary>
-    private async Task SembrarAsync(long usuarioId, DateOnly hoy, int filas)
+    private async Task SembrarAsync(long usuarioId, DateOnly hoy, int filas, int monedas)
     {
         await using var contexto = _baseDeDatos.CrearContexto();
         var fechas = SembradoDeRendimiento.GenerarFechasSembradas(hoy, filas);
@@ -105,7 +138,9 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos)
                 UsuarioId = usuarioId,
                 Tipo = esGasto ? TipoMovimiento.Gasto : TipoMovimiento.Ingreso,
                 Monto = 100m + (i % 97),
-                MonedaId = 1,
+                // Reparte por moneda además de por categoría y por tipo: agrupar 1000 filas que
+                // caen todas en la misma moneda no ejercita ese nivel del GROUP BY, lo esquiva.
+                MonedaId = (short)((i % monedas) + 1),
                 CategoriaId = esGasto
                     ? CategoriasDeGasto[i % CategoriasDeGasto.Length]
                     : CategoriasDeIngreso[i % CategoriasDeIngreso.Length],
@@ -116,18 +151,31 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos)
         await contexto.SaveChangesAsync();
     }
 
-    private async Task ConfirmarQueElMesTieneFilasAsync(DateOnly hoy, int esperadas)
+    private async Task ConfirmarQueElMesTieneFilasAsync(DateOnly hoy, int esperadas, int monedas)
     {
         var rango = RangoDelMes.De(hoy);
 
         await using var contexto = _baseDeDatos.CrearContexto();
-        var filas = await contexto.Movimientos
-            .CountAsync(m => m.Fecha >= rango.Desde && m.Fecha <= rango.Hasta);
+        var delMes = contexto.Movimientos.Where(m => m.Fecha >= rango.Desde && m.Fecha <= rango.Hasta);
+
+        var filas = await delMes.CountAsync();
 
         Assert.True(
             filas >= esperadas,
             $"El sembrado dejó {filas} filas en el mes de {hoy:yyyy-MM} y se esperaban al menos " +
             $"{esperadas}. El resumen estaría agregando sobre casi nada y pasaría en verde sin " +
             "medir nada real.");
+
+        // **La otra mitad del guardarraíl, y es nueva.** Un sembrado que dejó de repartir por moneda
+        // mide exactamente lo mismo que el caso de una sola, y pasa en verde sin haber ejercitado
+        // nada de lo que este caso existe para medir. La cantidad de filas no lo delata: son las
+        // mismas 1000.
+        var sembradas = await delMes.Select(m => m.MonedaId).Distinct().CountAsync();
+
+        Assert.True(
+            sembradas == monedas,
+            $"El sembrado dejó {sembradas} moneda(s) distinta(s) en el mes y este caso mide con " +
+            $"{monedas}. Con una sola, el GROUP BY no discrimina por moneda y la medición no dice " +
+            "nada que el caso de una moneda no dijera ya.");
     }
 }
