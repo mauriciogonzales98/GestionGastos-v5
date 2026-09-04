@@ -23,8 +23,8 @@ catálogo**. Nunca vacío: la migración siembra al menos una.
 
 ```json
 [
-  { "id": 1, "codigo": "ARS", "nombre": "Peso argentino", "simbolo": "$",   "esPredeterminada": true  },
-  { "id": 2, "codigo": "USD", "nombre": "Dólar",          "simbolo": "US$", "esPredeterminada": false }
+  { "id": 1, "codigo": "ARS", "nombre": "Peso argentino",       "simbolo": "$",   "esPredeterminada": true  },
+  { "id": 2, "codigo": "USD", "nombre": "Dólar estadounidense", "simbolo": "US$", "esPredeterminada": false }
 ]
 ```
 

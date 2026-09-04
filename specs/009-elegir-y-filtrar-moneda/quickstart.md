@@ -7,12 +7,20 @@ API, los tres últimos en la pantalla. Un quickstart que nadie ejecutó es docum
 sin avisar, así que la tarea de cierre es recorrerlo entero y anotar cualquier línea que no haya
 salido como dice.
 
+> **Recorrido el 2026-09-04.** Los pasos 1 a 5 y la mitad de API del 8 se ejecutaron y salieron
+> como dice acá; lo que no coincidió está anotado al final, en *Lo que se encontró al recorrerlo*.
+> Los pasos 6, 7 y la parte de pantalla del 8 son de navegador y quedaron **sin ejecutar a mano**:
+> lo que verifican está cubierto por los tests del frontend que cada uno cita.
+
 **Prerrequisitos**: MySQL 8.4.10 en `127.0.0.1:3306` con `gestiongastos` migrado,
 `ConnectionStrings__Default` apuntando ahí, el backend levantado con
 `dotnet run --project backend/GestionGastos.Api`, y el frontend con `pnpm --dir frontend dev`.
 
+**El puerto es el 5125**, que es el que `launchSettings.json` fija: `ASPNETCORE_URLS` no lo pisa
+cuando se arranca con `dotnet run`.
+
 Las llamadas usan una cookie de sesión: entrá primero con
-`curl -c /tmp/sesion.txt -X POST localhost:5000/api/sesion -H 'content-type: application/json' -d '{"email":"...","contrasena":"..."}'`
+`curl -c /tmp/sesion.txt -X POST localhost:5125/api/sesion -H 'content-type: application/json' -d '{"email":"...","contrasena":"..."}'`
 y pasá `-b /tmp/sesion.txt` en todo lo que sigue.
 
 ---
@@ -20,7 +28,7 @@ y pasá `-b /tmp/sesion.txt` en todo lo que sigue.
 ## 1 · El catálogo existe y se puede pedir
 
 ```bash
-curl -b /tmp/sesion.txt -s localhost:5000/api/monedas | jq
+curl -b /tmp/sesion.txt -s localhost:5125/api/monedas | jq
 ```
 
 **Esperado**: una entrada por fila de `moneda`, con `codigo`, `nombre`, `simbolo` y exactamente una
@@ -35,7 +43,7 @@ catálogo no es un secreto, pero todo endpoint del proyecto exige sesión y
 ## 2 · Registrar sin elegir moneda sigue funcionando igual
 
 ```bash
-curl -b /tmp/sesion.txt -s -X POST localhost:5000/api/movimientos \
+curl -b /tmp/sesion.txt -s -X POST localhost:5125/api/movimientos \
   -H 'content-type: application/json' \
   -d '{"tipo":"gasto","monto":100,"categoriaId":1}' | jq '.monedaCodigo'
 ```
@@ -50,7 +58,7 @@ a todo cliente que ya existía.
 ## 3 · Registrar eligiendo otra moneda
 
 ```bash
-curl -b /tmp/sesion.txt -s -X POST localhost:5000/api/movimientos \
+curl -b /tmp/sesion.txt -s -X POST localhost:5125/api/movimientos \
   -H 'content-type: application/json' \
   -d '{"tipo":"gasto","monto":100,"categoriaId":1,"monedaId":2}' | jq '.monedaCodigo'
 ```
@@ -63,7 +71,7 @@ paso empieza a ejercitar con datos de verdad en las dos monedas.
 
 ```bash
 curl -b /tmp/sesion.txt -s -o /dev/stderr -w '%{http_code}\n' \
-  -X POST localhost:5000/api/movimientos -H 'content-type: application/json' \
+  -X POST localhost:5125/api/movimientos -H 'content-type: application/json' \
   -d '{"tipo":"gasto","monto":100,"categoriaId":1,"monedaId":9999}'
 ```
 
@@ -74,10 +82,10 @@ saldándose**: es la primera vez que hay una entrada de moneda que validar.
 ## 5 · Acotar el listado, y combinarlo
 
 ```bash
-curl -b /tmp/sesion.txt -s "localhost:5000/api/movimientos?monedaId=2"            | jq 'map(.monedaCodigo) | unique'
-curl -b /tmp/sesion.txt -s "localhost:5000/api/movimientos"                        | jq 'map(.monedaCodigo) | unique'
-curl -b /tmp/sesion.txt -s "localhost:5000/api/movimientos?monedaId=2&categoriaId=1&desde=2026-09-01&hasta=2026-09-30" | jq 'length'
-curl -b /tmp/sesion.txt -s "localhost:5000/api/movimientos?monedaId=9999"          | jq 'length'
+curl -b /tmp/sesion.txt -s "localhost:5125/api/movimientos?monedaId=2"            | jq 'map(.monedaCodigo) | unique'
+curl -b /tmp/sesion.txt -s "localhost:5125/api/movimientos"                        | jq 'map(.monedaCodigo) | unique'
+curl -b /tmp/sesion.txt -s "localhost:5125/api/movimientos?monedaId=2&categoriaId=1&desde=2026-09-01&hasta=2026-09-30" | jq 'length'
+curl -b /tmp/sesion.txt -s "localhost:5125/api/movimientos?monedaId=9999"          | jq 'length'
 ```
 
 **Esperado**, en orden: `["USD"]` · las dos monedas · sólo los que cumplen las tres condiciones ·
@@ -113,7 +121,7 @@ muestra en la moneda nueva.
 **Y ahora el paso que no se ve en la pantalla**, porque la vista de totales es del ticket 5 (D9-06):
 
 ```bash
-curl -b /tmp/sesion.txt -s localhost:5000/api/resumen | jq '.monedas[] | {monedaCodigo, totalGastado}'
+curl -b /tmp/sesion.txt -s localhost:5125/api/resumen | jq '.monedas[] | {monedaCodigo, totalGastado}'
 ```
 
 **Esperado**: los 100 **dejaron** de sumar en el total de pesos y **pasaron** a sumar en el de
@@ -148,3 +156,25 @@ Corre en local y no en CI: mide tiempo de pared, y el CI lo excluye con
 ./backend/verificar-aislamiento.sh   # ~7 min
 ./backend/verificar-linter.sh
 ```
+
+---
+
+## Lo que se encontró al recorrerlo
+
+Un quickstart que nadie ejecutó es documentación que envejece sin avisar. Esto es lo que el
+recorrido del 2026-09-04 encontró:
+
+1. **El puerto no era el 5000.** Estaba escrito de memoria; la API escucha en **5125**, que es lo
+   que fija `launchSettings.json`, y `ASPNETCORE_URLS` no lo pisa con `dotnet run`. Corregido
+   arriba. Es el tipo de línea que sólo se descubre ejecutando: leyendo el documento es correcta.
+2. **El nombre del dólar en el catálogo es "Dólar estadounidense", no "Dólar".**
+   [`contracts/api.md`](./contracts/api.md) lo abreviaba en su ejemplo. No afecta a nada —ningún
+   test compara ese nombre, justamente por D-10— pero un ejemplo que no coincide con el dato real
+   es un ejemplo que confunde a quien lo copia.
+3. **Los pasos 6, 7 y la parte de pantalla del 8 no se ejecutaron**, porque piden un navegador. Lo
+   que verifican está cubierto por tests automatizados: el selector con la predeterminada y la
+   moneda inesperada por `FormularioMovimiento.test.tsx`, el código en cada fila por
+   `ListadoMovimientos.test.tsx`, y la ventana emergente por `VentanaDeEdicion.test.tsx`. **La
+   única afirmación del paso 8 que ningún test cubre es que `Escape` cierre la ventana**: es
+   conducta del navegador y happy-dom no la simula (D9-07). Esa línea sigue necesitando a alguien
+   con un teclado.
