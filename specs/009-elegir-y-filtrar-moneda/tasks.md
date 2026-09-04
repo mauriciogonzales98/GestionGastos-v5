@@ -129,10 +129,10 @@ cambió nada de lo que hacía.
 **Independent Test**: dos movimientos del mismo monto en dos monedas distintas; cada fila muestra un
 código distinto.
 
-- [ ] T023 [TEST] [P] [US2] En `frontend/tests/ListadoMovimientos.test.tsx`: AC-05 y FR-007 — un gasto de 100 en pesos y otro de 100 en dólares muestran **códigos distintos** en sus filas, además del monto formateado. Y un tercer caso con un código que ninguna constante conoce, que tiene que mostrarse igual: el código sale del dato del movimiento, no de una tabla de equivalencias
-- [ ] T024 [ROJO] [US2] Correr y exigir **ROJO**. Mostrar la salida. El rojo importa acá más que en otras tareas: el listado **ya distingue** las dos monedas por el símbolo que produce `Intl`, así que un test mal escrito —uno que busque "US$" en vez del código— pasaría en verde sin que exista la columna
-- [ ] T025 [US2] La columna del código en `frontend/src/movimientos/ListadoMovimientos.tsx`, con su `<th scope="col">`. Verde
-- [ ] T026 [VERIFY] [US2] Puerta del frontend completa, con su salida
+- [X] T023 [TEST] [P] [US2] En `frontend/tests/ListadoMovimientos.test.tsx`: AC-05 y FR-007 — un gasto de 100 en pesos y otro de 100 en dólares muestran **códigos distintos** en sus filas, además del monto formateado. Y un tercer caso con un código que ninguna constante conoce, que tiene que mostrarse igual: el código sale del dato del movimiento, no de una tabla de equivalencias
+- [X] T024 [ROJO] [US2] Correr y exigir **ROJO**. Mostrar la salida. El rojo importa acá más que en otras tareas: el listado **ya distingue** las dos monedas por el símbolo que produce `Intl`, así que un test mal escrito —uno que busque "US$" en vez del código— pasaría en verde sin que exista la columna
+- [X] T025 [US2] La columna del código en `frontend/src/movimientos/ListadoMovimientos.tsx`, con su `<th scope="col">`. Verde
+- [X] T026 [VERIFY] [US2] Puerta del frontend completa, con su salida
 
 ---
 

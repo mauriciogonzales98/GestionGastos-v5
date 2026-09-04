@@ -24,6 +24,32 @@ const MOVIMIENTOS: Movimiento[] = [
   },
 ];
 
+/**
+ * Dos gastos del MISMO monto en dos monedas distintas. Es el caso que AC-05 nombra, y el único que
+ * distingue "el listado muestra la moneda" de "el listado muestra el monto": con montos distintos,
+ * un listado que ignorara la moneda igual se vería bien.
+ */
+const MISMO_MONTO_DOS_MONEDAS: Movimiento[] = [
+  {
+    id: 4,
+    tipo: 'gasto',
+    monto: 100,
+    categoriaId: 1,
+    categoriaNombre: 'Comida',
+    monedaCodigo: 'USD',
+    fecha: '2026-09-04',
+  },
+  {
+    id: 3,
+    tipo: 'gasto',
+    monto: 100,
+    categoriaId: 1,
+    categoriaNombre: 'Comida',
+    monedaCodigo: 'ARS',
+    fecha: '2026-09-04',
+  },
+];
+
 describe('ListadoMovimientos', () => {
   it('es una tabla con encabezados de columna, no una grilla de divs', () => {
     render(<ListadoMovimientos movimientos={MOVIMIENTOS} />);
@@ -31,7 +57,13 @@ describe('ListadoMovimientos', () => {
     const tabla = screen.getByRole('table');
     const encabezados = within(tabla).getAllByRole('columnheader');
 
-    expect(encabezados.map((e) => e.textContent)).toEqual(['Fecha', 'Tipo', 'Categoría', 'Monto']);
+    expect(encabezados.map((e) => e.textContent)).toEqual([
+      'Fecha',
+      'Tipo',
+      'Categoría',
+      'Monto',
+      'Moneda',
+    ]);
     // scope="col" es lo que permite a un lector de pantalla anunciar la columna de cada celda.
     encabezados.forEach((e) => expect(e).toHaveAttribute('scope', 'col'));
   });
@@ -58,5 +90,42 @@ describe('ListadoMovimientos', () => {
     // Un mes sin movimientos no es un error: es un listado vacío con su mensaje.
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.getByText(/no hay movimientos/i)).toBeInTheDocument();
+  });
+
+  /**
+   * AC-05 y FR-007: cada fila muestra el **código** de su moneda, y dos monedas distintas se ven
+   * distintas.
+   *
+   * **El código va explícito aunque el monto ya se formatee con el símbolo de su moneda**, que es
+   * lo que el listado hace desde FEAT-001a. El símbolo lo elige `Intl` a partir del locale, y para
+   * dos monedas cualesquiera puede repetirse: con el catálogo abierto a monedas agregadas como
+   * dato, apoyar la distinción en el símbolo es apoyarla en algo que nadie controla.
+   *
+   * Por eso el test busca el CÓDIGO y no el símbolo. Uno que buscara "US$" pasaría hoy sin que la
+   * columna existiera, que es exactamente el test que no sirve.
+   */
+  it('muestra el código de la moneda de cada fila AC-05', () => {
+    render(<ListadoMovimientos movimientos={MISMO_MONTO_DOS_MONEDAS} />);
+
+    const filas = screen.getAllByRole('row').slice(1);
+    const codigos = filas.map((f) => within(f).getAllByRole('cell')[4].textContent);
+
+    expect(codigos).toEqual(['USD', 'ARS']);
+  });
+
+  /**
+   * AC-04 del lado del listado: el código sale del dato del movimiento, no de una tabla de
+   * equivalencias escrita en el código.
+   *
+   * Una moneda agregada al catálogo sólo como dato tiene que verse igual de bien. Es la misma
+   * promesa que el selector sostiene en el formulario y que `verificar-monedas.sh` protege en el
+   * backend.
+   */
+  it('muestra el código de una moneda que ninguna constante conoce AC-04', () => {
+    const enUnaMonedaNueva: Movimiento[] = [{ ...MISMO_MONTO_DOS_MONEDAS[0], monedaCodigo: 'XCT' }];
+
+    render(<ListadoMovimientos movimientos={enUnaMonedaNueva} />);
+
+    expect(screen.getByRole('cell', { name: 'XCT' })).toBeInTheDocument();
   });
 });

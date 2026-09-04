@@ -38,6 +38,11 @@ export function ListadoMovimientos({ movimientos }: PropsListadoMovimientos) {
             <th scope="col">Tipo</th>
             <th scope="col">Categoría</th>
             <th scope="col">Monto</th>
+            {/* El CÓDIGO, además del símbolo que ya lleva el monto (FR-007).
+                El símbolo lo elige `Intl` según el locale y puede repetirse entre dos monedas; con
+                el catálogo abierto a monedas agregadas como dato, apoyar la distinción en él es
+                apoyarla en algo que nadie controla. El código viene en el movimiento. */}
+            <th scope="col">Moneda</th>
           </tr>
         </thead>
         <tbody>
@@ -48,6 +53,7 @@ export function ListadoMovimientos({ movimientos }: PropsListadoMovimientos) {
               <td>{m.tipo === 'gasto' ? 'Gasto' : 'Ingreso'}</td>
               <td>{m.categoriaNombre}</td>
               <td>{formatearMonto(m.monto, m.monedaCodigo)}</td>
+              <td>{m.monedaCodigo}</td>
             </tr>
           ))}
         </tbody>
