@@ -60,7 +60,55 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
             $"máximo {muestras[^1]:F0} ms.");
     }
 
-    private static async Task GuardarAsync(HttpClient cliente, DateOnly hoy)
+    /// <summary>
+    /// SC-008 y `PRD:NFR-03` de la feature 009: el mismo criterio, **con la moneda elegida**.
+    ///
+    /// Elegir la moneda le agrega al alta un `SELECT` por clave primaria que antes no existía: sin
+    /// `monedaId`, el servidor busca la predeterminada con un `WHERE es_predeterminada`; con él,
+    /// busca por `id`. La pregunta que este caso responde es si ese cambio cuesta algo.
+    ///
+    /// **El caso de arriba se deja intacto a propósito** (D-09, heredado de la feature 008). Es la
+    /// referencia: si este p95 sale feo, tener el otro medido en la misma corrida y en la misma
+    /// máquina es lo único que permite atribuirlo al `SELECT` y no a que el runner estaba ocupado.
+    /// Sin él, un rojo acá no dice nada.
+    /// </summary>
+    [Fact]
+    public async Task El_P95_Del_Guardado_Con_Moneda_Elegida_Es_Menor_A_Un_Segundo_SC008()
+    {
+        var hoy = DateOnly.FromDateTime(DateTime.Now);
+
+        await Integracion.CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XPF", async moneda =>
+        {
+            using var factoria = new FactoriaConReloj(hoy);
+            using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cliente = cuenta.Cliente;
+
+            await SembrarAsync(cuenta.Id, hoy);
+            await ConfirmarQueElMesTieneFilasAsync(hoy);
+
+            await GuardarAsync(cliente, hoy, moneda.Id);
+
+            var muestras = new List<double>(Ejecuciones);
+            for (var i = 0; i < Ejecuciones; i++)
+            {
+                var cronometro = Stopwatch.StartNew();
+                await GuardarAsync(cliente, hoy, moneda.Id);
+                cronometro.Stop();
+                muestras.Add(cronometro.Elapsed.TotalMilliseconds);
+            }
+
+            muestras.Sort();
+            var p95 = muestras[(int)Math.Ceiling(0.95 * muestras.Count) - 1];
+
+            Assert.True(
+                p95 < 1000,
+                $"SC-008: el p95 del guardado CON moneda elegida fue {p95:F0} ms sobre " +
+                $"{Ejecuciones} ejecuciones, y el criterio exige < 1000 ms. Mediana " +
+                $"{muestras[muestras.Count / 2]:F0} ms, máximo {muestras[^1]:F0} ms.");
+        });
+    }
+
+    private static async Task GuardarAsync(HttpClient cliente, DateOnly hoy, short? monedaId = null)
     {
         using var respuesta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
@@ -69,6 +117,7 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
                 tipo = "gasto",
                 monto = 123.45m,
                 categoriaId = 1,
+                monedaId,
                 fecha = hoy.ToString("yyyy-MM-dd"),
             });
 
