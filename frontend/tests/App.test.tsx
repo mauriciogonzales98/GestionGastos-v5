@@ -542,3 +542,78 @@ describe('App — el dashboard', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' })).toBeVisible();
   });
 });
+
+/**
+ * **FR-012 y `PRD:AC-08`: el resumen del mes en curso no se mueve cuando cambian los filtros del
+ * dashboard.**
+ *
+ * Es el único requisito de esta feature cuya violación sería invisible en la pantalla donde se
+ * produce: alguien elige un trimestre en el dashboard, vuelve, y los números de la principal ya no
+ * son los del mes — sin ningún error, sin nada en la consola, y con el título diciendo "Resumen del
+ * mes" arriba de un total que no es el del mes.
+ *
+ * Por eso este test **navega** en vez de mirar un componente aislado: el bug vive en dónde está el
+ * estado (D-06), y un test de componente no puede verlo.
+ */
+describe('App — el dashboard no mueve el resumen de la pantalla principal FR-012', () => {
+  const DEL_MES = {
+    desde: '2026-08-01',
+    hasta: '2026-08-31',
+    monedas: [
+      {
+        monedaId: 1,
+        monedaCodigo: 'ARS',
+        totalIngresado: 500,
+        totalGastado: 300,
+        balance: 200,
+        gastosPorCategoria: [{ categoriaId: 1, categoriaNombre: 'Comida', total: 300 }],
+      },
+    ],
+  };
+
+  const DEL_TRIMESTRE = {
+    desde: '2026-06-01',
+    hasta: '2026-08-31',
+    monedas: [
+      {
+        monedaId: 1,
+        monedaCodigo: 'ARS',
+        totalIngresado: 99999,
+        totalGastado: 88888,
+        balance: 11111,
+        gastosPorCategoria: [{ categoriaId: 1, categoriaNombre: 'Comida', total: 88888 }],
+      },
+    ],
+  };
+
+  it('elegir un rango en el dashboard deja la principal con los mismos números', async () => {
+    const usuario = userEvent.setup();
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue(DEL_MES);
+
+    render(<App hoy="2026-08-24" />);
+    await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' });
+    await screen.findByRole('region', { name: /resumen del mes/i });
+    expect(screen.getByText(/2026-08-31/)).toBeVisible();
+
+    await usuario.click(screen.getByRole('button', { name: /dashboard/i }));
+    await screen.findByRole('heading', { level: 1, name: /dashboard/i });
+
+    // El rango del dashboard trae números completamente distintos: si se contagiaran, se verían.
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue(DEL_TRIMESTRE);
+    await usuario.clear(screen.getByLabelText(/desde/i));
+    await usuario.type(screen.getByLabelText(/desde/i), '2026-06-01');
+    await usuario.clear(screen.getByLabelText(/hasta/i));
+    await usuario.type(screen.getByLabelText(/hasta/i), '2026-08-31');
+    await usuario.click(screen.getByRole('button', { name: /aplicar/i }));
+    await screen.findByText(/2026-06-01/);
+
+    // Al volver, la principal vuelve a pedir LO SUYO: sin período, o sea el mes en curso.
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue(DEL_MES);
+    await usuario.click(screen.getByRole('button', { name: /volver/i }));
+    await screen.findByRole('region', { name: /resumen del mes/i });
+
+    expect(screen.getByText(/2026-08-01/)).toBeVisible();
+    // El total del trimestre no aparece por ningún lado de la pantalla principal.
+    expect(screen.queryByText(/88\.888/)).not.toBeInTheDocument();
+  });
+});
