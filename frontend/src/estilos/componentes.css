@@ -32,3 +32,22 @@
   font-weight: bold;
   text-decoration: underline;
 }
+
+/*
+ * El desglose por categoría: la barra es el gráfico (D-03 de la feature 010).
+ *
+ * Los colores NO se declaran acá. Bajan como variables desde `ui/contraste.ts`, que es el archivo
+ * que el test de contraste mide: dos declaraciones darían dos copias, y el día que una cambiara el
+ * test seguiría midiendo la otra.
+ */
+.c-desglose__riel {
+  /* El riel ocupa lo que sobra: la barra se compara con las de las otras filas, así que todas
+     tienen que medirse contra el mismo ancho. */
+  width: 100%;
+  background-color: var(--c-riel);
+}
+
+.c-desglose__barra {
+  height: 1rem;
+  background-color: var(--c-barra);
+}

@@ -386,6 +386,83 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal("2026-08-31", resumen.RootElement.GetProperty("hasta").GetString());
     }
 
+    /// <summary>
+    /// `010:FR-013` y `PRD:AC-09` del ticket 5: **el desglose de la pantalla principal y el del
+    /// dashboard acotado al mes en curso son el mismo.**
+    ///
+    /// Es la igualdad que la feature 010 necesita y que este proyecto decidió no verificar sino
+    /// **hacer imposible de romper**: la pantalla principal pide `GET /api/resumen` sin período y
+    /// el dashboard lo pide con un rango, pero es el mismo endpoint y la misma agregación.
+    /// `ResumenEndpoints` lo dice con todas las letras — *"es un endpoint y no dos"*—, porque dos
+    /// endpoints que tienen que dar lo mismo son dos que algún día no van a darlo, y el día que
+    /// diverjan nadie va a poder decir cuál de los dos números está mal.
+    ///
+    /// **Este test pasa en verde desde el primer intento, y eso es lo correcto.** No verifica algo
+    /// que haya que construir: verifica que no se pueda romper sin avisar. El día que a alguien se
+    /// le ocurra un segundo camino para el dashboard, esto se pone en rojo — que es exactamente
+    /// para lo que existe.
+    ///
+    /// Los movimientos van repartidos en **dos monedas y tres categorías**, con uno del mes
+    /// anterior: si la igualdad se cumpliera sólo porque el conjunto es trivial, no diría nada.
+    /// </summary>
+    [Fact]
+    public async Task El_Desglose_Del_Mes_Es_El_Mismo_Pedido_Con_Rango_Y_Sin_Rango_AC09()
+    {
+        using var factoria = new FactoriaConReloj(Hoy);
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        await RegistrarAsync(cuenta, "gasto", 1000m, Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 2000m, Comida, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 500m, Transporte, Tarde);
+        await RegistrarAsync(cuenta, "ingreso", 8000m, Sueldo, Temprano);
+
+        // Uno del mes anterior: tiene que quedar afuera de LOS DOS, o la igualdad sería la de dos
+        // consultas que traen todo.
+        await RegistrarAsync(cuenta, "gasto", 9999m, Comida, MesAnterior);
+
+        // El primer y el último día del mes en curso, calculados desde el reloj clavado y no
+        // escritos a mano: un rango escrito a mano dejaría de ser "el mes en curso" el día que
+        // alguien cambie `Hoy`.
+        var primero = new DateOnly(Hoy.Year, Hoy.Month, 1);
+        var ultimo = new DateOnly(Hoy.Year, Hoy.Month, DateTime.DaysInMonth(Hoy.Year, Hoy.Month));
+
+        using var comoLaPantallaPrincipal = await ResumenAsync(cuenta);
+        using var comoElDashboard = await ResumenAsync(cuenta, primero, ultimo);
+
+        // Se comparan los DOS documentos enteros, no una categoría elegida: cualquier diferencia
+        // —un total, un orden, una moneda de menos— tiene que aparecer acá.
+        Assert.Equal(
+            comoLaPantallaPrincipal.RootElement.GetRawText(),
+            comoElDashboard.RootElement.GetRawText());
+    }
+
+    /// <summary>
+    /// El complemento del anterior: **un período distinto da un desglose distinto.**
+    ///
+    /// Sin esto, la igualdad de arriba se cumpliría también si el endpoint ignorara el rango por
+    /// completo — que es la forma más aburrida de pasar ese test y la única que lo haría inútil.
+    /// </summary>
+    [Fact]
+    public async Task Un_Periodo_Distinto_Da_Un_Desglose_Distinto_AC09()
+    {
+        using var factoria = new FactoriaConReloj(Hoy);
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        await RegistrarAsync(cuenta, "gasto", 1000m, Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 9999m, Comida, MesAnterior);
+
+        using var esteMes = await ResumenAsync(cuenta);
+        using var elAnterior = await ResumenAsync(
+            cuenta,
+            new DateOnly(MesAnterior.Year, MesAnterior.Month, 1),
+            new DateOnly(MesAnterior.Year, MesAnterior.Month, 28));
+
+        Assert.Equal(1000m, Moneda(esteMes, "ARS").GetProperty("totalGastado").GetDecimal());
+        Assert.Equal(9999m, Moneda(elAnterior, "ARS").GetProperty("totalGastado").GetDecimal());
+    }
+
     // ---------------------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------------------

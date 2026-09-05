@@ -17,6 +17,9 @@ vi.mock('../src/api/cliente', async () => {
     obtenerCategorias: vi.fn(),
     obtenerMonedas: vi.fn(),
     obtenerMovimientos: vi.fn(),
+    obtenerResumen: vi
+      .fn()
+      .mockResolvedValue({ desde: '2026-08-01', hasta: '2026-08-31', monedas: [] }),
     crearMovimiento: vi.fn(),
     crearCategoria: vi.fn(),
     renombrarCategoria: vi.fn(),
@@ -479,5 +482,189 @@ describe('App — la vista también se va con la sesión', () => {
         'No se pudieron cargar las monedas. Se va a registrar en la moneda predeterminada.',
       ),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * FR-011b y D-07: el dashboard es una tercera vista, no una ruta.
+ *
+ * No hay router y esta feature no es motivo para traer uno: nadie navega a `/dashboard`, se llega
+ * apretando un botón. Es la D-09 de la feature 007 sin cambios, ahora con tres valores.
+ */
+describe('App — el dashboard', () => {
+  async function entrar() {
+    render(<App hoy="2026-08-24" />);
+    await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' });
+  }
+
+  it('se llega al dashboard desde la pantalla principal y se vuelve', async () => {
+    const usuario = userEvent.setup();
+    await entrar();
+
+    await usuario.click(screen.getByRole('button', { name: /dashboard/i }));
+    expect(await screen.findByRole('heading', { level: 1, name: /dashboard/i })).toBeVisible();
+
+    await usuario.click(screen.getByRole('button', { name: /volver/i }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' })).toBeVisible();
+  });
+
+  /**
+   * Que la sesión termine estando en el dashboard tiene que devolver la vista a movimientos.
+   *
+   * Es la misma regla que la feature 007 escribió para la pantalla de categorías y la razón es la
+   * misma: si la vista quedara puesta, la próxima cuenta entraría donde salió la anterior.
+   *
+   * El camino es un `401` y no el botón de cerrar sesión: **el dashboard no tiene ese botón**, como
+   * tampoco lo tiene la pantalla de categorías — las pantallas secundarias sólo ofrecen volver. Así
+   * que la forma real de que una sesión termine desde acá es que venza, y ése es el camino que hay
+   * que probar.
+   */
+  it('si la sesión vence en el dashboard, la próxima cuenta entra en movimientos', async () => {
+    const usuario = userEvent.setup();
+    await entrar();
+
+    // El 401 lo produce la carga del dashboard, que es la única petición que esa pantalla hace.
+    vi.mocked(cliente.obtenerResumen).mockRejectedValue(new cliente.ErrorDeSesion());
+    await usuario.click(screen.getByRole('button', { name: /dashboard/i }));
+
+    await screen.findByRole('button', { name: 'Entrar' });
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue({
+      desde: '2026-08-01',
+      hasta: '2026-08-31',
+      monedas: [],
+    });
+
+    vi.mocked(cliente.iniciarSesion).mockResolvedValue({ email: 'otra@ejemplo.com' });
+    await usuario.type(screen.getByLabelText('Email'), 'otra@ejemplo.com');
+    await usuario.type(screen.getByLabelText('Contraseña'), 'Secreta123.');
+    await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' })).toBeVisible();
+  });
+});
+
+/**
+ * **FR-012 y `PRD:AC-08`: el resumen del mes en curso no se mueve cuando cambian los filtros del
+ * dashboard.**
+ *
+ * Es el único requisito de esta feature cuya violación sería invisible en la pantalla donde se
+ * produce: alguien elige un trimestre en el dashboard, vuelve, y los números de la principal ya no
+ * son los del mes — sin ningún error, sin nada en la consola, y con el título diciendo "Resumen del
+ * mes" arriba de un total que no es el del mes.
+ *
+ * Por eso este test **navega** en vez de mirar un componente aislado: el bug vive en dónde está el
+ * estado (D-06), y un test de componente no puede verlo.
+ */
+describe('App — el dashboard no mueve el resumen de la pantalla principal FR-012', () => {
+  const DEL_MES = {
+    desde: '2026-08-01',
+    hasta: '2026-08-31',
+    monedas: [
+      {
+        monedaId: 1,
+        monedaCodigo: 'ARS',
+        totalIngresado: 500,
+        totalGastado: 300,
+        balance: 200,
+        gastosPorCategoria: [{ categoriaId: 1, categoriaNombre: 'Comida', total: 300 }],
+      },
+    ],
+  };
+
+  const DEL_TRIMESTRE = {
+    desde: '2026-06-01',
+    hasta: '2026-08-31',
+    monedas: [
+      {
+        monedaId: 1,
+        monedaCodigo: 'ARS',
+        totalIngresado: 99999,
+        totalGastado: 88888,
+        balance: 11111,
+        gastosPorCategoria: [{ categoriaId: 1, categoriaNombre: 'Comida', total: 88888 }],
+      },
+    ],
+  };
+
+  it('elegir un rango en el dashboard deja la principal con los mismos números', async () => {
+    const usuario = userEvent.setup();
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue(DEL_MES);
+
+    render(<App hoy="2026-08-24" />);
+    await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' });
+    await screen.findByRole('region', { name: /resumen del mes/i });
+    expect(screen.getByText(/2026-08-31/)).toBeVisible();
+
+    await usuario.click(screen.getByRole('button', { name: /dashboard/i }));
+    await screen.findByRole('heading', { level: 1, name: /dashboard/i });
+
+    // El rango del dashboard trae números completamente distintos: si se contagiaran, se verían.
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue(DEL_TRIMESTRE);
+    await usuario.clear(screen.getByLabelText(/desde/i));
+    await usuario.type(screen.getByLabelText(/desde/i), '2026-06-01');
+    await usuario.clear(screen.getByLabelText(/hasta/i));
+    await usuario.type(screen.getByLabelText(/hasta/i), '2026-08-31');
+    await usuario.click(screen.getByRole('button', { name: /aplicar/i }));
+    await screen.findByText(/2026-06-01/);
+
+    // Al volver, la principal vuelve a pedir LO SUYO: sin período, o sea el mes en curso.
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue(DEL_MES);
+    await usuario.click(screen.getByRole('button', { name: /volver/i }));
+    await screen.findByRole('region', { name: /resumen del mes/i });
+
+    expect(screen.getByText(/2026-08-01/)).toBeVisible();
+    // El total del trimestre no aparece por ningún lado de la pantalla principal.
+    expect(screen.queryByText(/88\.888/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * FR-006b: **el filtro de moneda es del dashboard y no se contagia.**
+ *
+ * Es, una capa más arriba, la misma garantía que la feature 009 blindó en el servidor con `monedaId:
+ * null` explícito: *"el resumen informa sobre TODAS las monedas del catálogo, siempre"*.
+ */
+describe('App — el filtro de moneda no se contagia a la pantalla principal FR-006b', () => {
+  const DOS_MONEDAS = {
+    desde: '2026-08-01',
+    hasta: '2026-08-31',
+    monedas: [
+      {
+        monedaId: 1,
+        monedaCodigo: 'ARS',
+        totalIngresado: 500,
+        totalGastado: 300,
+        balance: 200,
+        gastosPorCategoria: [{ categoriaId: 1, categoriaNombre: 'Comida', total: 300 }],
+      },
+      {
+        monedaId: 2,
+        monedaCodigo: 'USD',
+        totalIngresado: 10,
+        totalGastado: 4,
+        balance: 6,
+        gastosPorCategoria: [{ categoriaId: 1, categoriaNombre: 'Comida', total: 4 }],
+      },
+    ],
+  };
+
+  it('con una moneda elegida en el dashboard, la principal sigue mostrando todas', async () => {
+    const usuario = userEvent.setup();
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue(DOS_MONEDAS);
+
+    render(<App hoy="2026-08-24" />);
+    await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' });
+    await screen.findByRole('region', { name: /resumen del mes/i });
+
+    await usuario.click(screen.getByRole('button', { name: /dashboard/i }));
+    await screen.findByRole('heading', { level: 1, name: /dashboard/i });
+    await usuario.selectOptions(screen.getByLabelText(/ver sólo la moneda/i), '1');
+    expect(screen.queryByRole('region', { name: /USD/ })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: /volver/i }));
+    await screen.findByRole('region', { name: /resumen del mes/i });
+
+    expect(screen.getByRole('region', { name: /ARS/ })).toBeVisible();
+    expect(screen.getByRole('region', { name: /USD/ })).toBeVisible();
   });
 });

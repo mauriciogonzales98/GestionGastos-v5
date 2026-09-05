@@ -12,6 +12,9 @@ vi.mock('../src/api/cliente', async () => {
     ...real,
     obtenerMovimientos: vi.fn(),
     crearMovimiento: vi.fn(),
+    obtenerResumen: vi
+      .fn()
+      .mockResolvedValue({ desde: '2026-08-01', hasta: '2026-08-31', monedas: [] }),
   };
 });
 
@@ -51,6 +54,7 @@ describe('carga inicial que falla', () => {
         errorDelCatalogoDeMonedas={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
+        onVerDashboard={() => {}}
         onSesionVencida={() => {}}
       />,
     );
@@ -92,6 +96,7 @@ describe('carga inicial que falla', () => {
         errorDelCatalogoDeMonedas={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
+        onVerDashboard={() => {}}
         onSesionVencida={() => {}}
       />,
     );
@@ -118,6 +123,7 @@ describe('carga inicial que falla', () => {
         errorDelCatalogoDeMonedas={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
+        onVerDashboard={() => {}}
         onSesionVencida={() => {}}
       />,
     );
@@ -157,6 +163,7 @@ describe('carga inicial que falla', () => {
         errorDelCatalogoDeMonedas={null}
         onCerrarSesion={NO_OP}
         onGestionarCategorias={NO_OP}
+        onVerDashboard={NO_OP}
         onSesionVencida={NO_OP}
       />,
     );

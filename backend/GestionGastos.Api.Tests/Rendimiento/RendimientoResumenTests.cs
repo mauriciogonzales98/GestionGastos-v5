@@ -3,12 +3,21 @@ using System.Net;
 using GestionGastos.Api.Dominio;
 using GestionGastos.Api.Tests.Integracion;
 using Microsoft.EntityFrameworkCore;
+using Xunit.Abstractions;
 
 namespace GestionGastos.Api.Tests.Rendimiento;
 
 /// <summary>
 /// RNF-01: el dashboard carga en menos de 2 s p95 con hasta 1000 movimientos, y en menos de 4 s con
 /// hasta 10000.
+///
+/// **También son `PRD:AC-11` y `PRD:AC-12` del ticket 5 (DISC-001-05), y la cita no es un detalle.**
+/// Ese PRD da por sentado que el volumen de 10000 nunca se probó y le pide al plan que lo ataque
+/// temprano; la reconciliación de la feature 010 mostró que este archivo lo mide desde la 006 y que
+/// la 008 le agregó el caso de dos monedas. Lo que faltaba era que un test **los nombrara**, que es
+/// lo que el Principio II de la constitución exige para considerar cubierto un AC. Se agrega la
+/// cita, no la medición: los dos escalones que esos AC piden son exactamente los dos `InlineData`
+/// que ya estaban escritos, y medirlos dos veces sería dos minutos de suite para saber lo mismo.
 ///
 /// **El resumen es el primer endpoint al que este RNF le aplica de lleno**, porque es el dashboard.
 /// Y a diferencia del listado, agrega: el índice `(usuario_id, fecha DESC, id DESC)` acota y ordena,
@@ -23,7 +32,7 @@ namespace GestionGastos.Api.Tests.Rendimiento;
 /// runner compartido da rojos que no dicen nada del código.
 /// </summary>
 [Collection(BaseDeDatosSuite.Nombre)]
-public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos)
+public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos, ITestOutputHelper salida)
 {
     /// <summary>
     /// Las mediciones por caso. **100 y no 30, que es lo que RNF-01 y FR-011 piden.**
@@ -42,13 +51,27 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos)
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
 
     /// <summary>
-    /// Los dos escalones de RNF-01, medidos sobre `GET /api/resumen` sin parámetros — que es como
-    /// lo pide la pantalla principal.
+    /// Por dónde salen los números medidos.
+    ///
+    /// **Existe porque hasta la feature 010 el p95 sólo se podía ver haciendo fallar el test**: el
+    /// número vivía en el mensaje del `Assert`, o sea únicamente en el caso en que no importa. El
+    /// quickstart pide anotar las tres mediciones, y esta suite está excluida del CI justamente
+    /// para que los números salgan de una corrida local — así que tienen que ser legibles cuando
+    /// todo sale bien, que es siempre.
+    /// </summary>
+    private readonly ITestOutputHelper _salida = salida;
+
+    /// <summary>
+    /// Los dos escalones de RNF-01, `PRD:AC-11` y `PRD:AC-12`, medidos sobre `GET /api/resumen` sin
+    /// parámetros — que es como lo pide la pantalla principal desde la feature 010.
+    ///
+    /// `AC-11` es el caso de 1000 y `AC-12` el de 10000. Las 100 ejecuciones y el p95 que esos AC
+    /// piden son los que <see cref="Ejecuciones"/> ya fijaba.
     /// </summary>
     [Theory]
     [InlineData(1000, 2000)]
     [InlineData(10_000, 4000)]
-    public async Task El_P95_Del_Resumen_Cumple_RNF01(int filas, int techoMs) =>
+    public async Task El_P95_Del_Resumen_Cumple_RNF01_AC11_AC12(int filas, int techoMs) =>
         await MedirAsync(filas, techoMs, monedas: 1);
 
     /// <summary>
@@ -102,6 +125,11 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos)
 
         muestras.Sort();
         var p95 = muestras[(int)Math.Ceiling(0.95 * muestras.Count) - 1];
+
+        _salida.WriteLine(
+            $"RNF-01 · {filas} movimientos en {monedas} moneda(s): p95 {p95:F0} ms, " +
+            $"mediana {muestras[muestras.Count / 2]:F0} ms, máximo {muestras[^1]:F0} ms " +
+            $"(techo {techoMs} ms).");
 
         Assert.True(
             p95 < techoMs,

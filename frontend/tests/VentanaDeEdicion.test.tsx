@@ -13,6 +13,9 @@ vi.mock('../src/api/cliente', async () => {
     obtenerMovimientos: vi.fn(),
     crearMovimiento: vi.fn(),
     editarMovimiento: vi.fn(),
+    obtenerResumen: vi
+      .fn()
+      .mockResolvedValue({ desde: '2026-08-01', hasta: '2026-08-31', monedas: [] }),
   };
 });
 
@@ -46,10 +49,11 @@ async function renderizar() {
       errorDelCatalogoDeMonedas={null}
       onCerrarSesion={() => {}}
       onGestionarCategorias={() => {}}
+      onVerDashboard={() => {}}
       onSesionVencida={() => {}}
     />,
   );
-  await screen.findByRole('table');
+  await screen.findByRole('table', { name: /movimientos del mes/i });
 }
 
 /** Abre la ventana desde la fila del listado y devuelve el `userEvent` en uso. */
@@ -57,7 +61,9 @@ async function abrir() {
   const usuario = userEvent.setup();
   await renderizar();
 
-  const fila = screen.getAllByRole('row')[1];
+  const fila = within(screen.getByRole('table', { name: /movimientos del mes/i })).getAllByRole(
+    'row',
+  )[1];
   await usuario.click(within(fila).getByRole('button', { name: 'Editar' }));
 
   return usuario;
@@ -187,7 +193,9 @@ describe('VentanaDeEdicion', () => {
     await usuario.selectOptions(screen.getByLabelText('Ver sólo la moneda'), '2');
     await waitFor(() => expect(screen.getByRole('cell', { name: 'USD' })).toBeInTheDocument());
 
-    const fila = screen.getAllByRole('row')[1];
+    const fila = within(screen.getByRole('table', { name: /movimientos del mes/i })).getAllByRole(
+      'row',
+    )[1];
     await usuario.click(within(fila).getByRole('button', { name: 'Editar' }));
 
     const ventana = screen.getByRole('dialog');

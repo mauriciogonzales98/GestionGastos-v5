@@ -8,6 +8,12 @@ import { MONEDAS } from './monedas.fixture';
 vi.mock('../src/api/cliente', () => ({
   obtenerMovimientos: vi.fn(),
   crearMovimiento: vi.fn(),
+  obtenerResumen: vi.fn().mockResolvedValue({
+    desde: '2026-08-01',
+    hasta: '2026-08-31',
+    monedas: [],
+  }),
+  ErrorDeSesion: class ErrorDeSesion extends Error {},
 }));
 
 const cliente = await import('../src/api/cliente');
@@ -44,6 +50,7 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
         errorDelCatalogoDeMonedas={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
+        onVerDashboard={() => {}}
         onSesionVencida={() => {}}
       />,
     );
@@ -51,10 +58,17 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
 
     // El orden del DOM es el orden de tabulación: no hay tabindex positivo que lo altere.
     //
-    // Los primeros controles de la pantalla son los dos de la cabecera —"Categorías" y "Cerrar
-    // sesión"—, que van antes del formulario. Se verifican en vez de saltearlos: si alguno
-    // apareciera con `tabindex` para sacarlo del camino, quien navega con teclado no podría
-    // alcanzarlo. "Categorías" llega con la feature 007 y es la puerta a la pantalla de gestión.
+    // Los primeros controles de la pantalla son los tres de la cabecera —"Dashboard",
+    // "Categorías" y "Cerrar sesión"—, que van antes del formulario. Se verifican en vez de
+    // saltearlos: si alguno apareciera con `tabindex` para sacarlo del camino, quien navega con
+    // teclado no podría alcanzarlo. "Categorías" llega con la feature 007 y es la puerta a la
+    // pantalla de gestión; "Dashboard" llega con la 010 y es la puerta al análisis del período.
+    //
+    // Que este test se haya puesto en rojo al agregar el botón es la señal de que sirve: un control
+    // nuevo en la cabecera no pasa sin que alguien confirme que se llega a él con el teclado.
+    await usuario.tab();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Dashboard' }));
+
     await usuario.tab();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Categorías' }));
 

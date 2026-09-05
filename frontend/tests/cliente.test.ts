@@ -9,6 +9,7 @@ import {
   ErrorDeValidacion,
   iniciarSesion,
   obtenerCategorias,
+  obtenerResumen,
 } from '../src/api/cliente';
 
 function responderCon(cuerpo: string, init: ResponseInit) {
@@ -124,5 +125,46 @@ describe('cliente HTTP — la sesión', () => {
       '/api/categorias',
       expect.objectContaining({ credentials: 'include' }),
     );
+  });
+});
+
+describe('cliente HTTP — el resumen del período', () => {
+  /**
+   * Devuelve la URL con la que se llamó a `fetch`, para poder afirmar sobre la query string.
+   *
+   * Se mira la URL y no sólo el resultado porque lo que este bloque verifica es **qué se le pidió
+   * al servidor**, que es de donde sale el período: el mes por omisión lo decide él, y lo decide
+   * ante la AUSENCIA de los dos parámetros.
+   */
+  function urlPedida(): string {
+    const llamada = vi.mocked(fetch).mock.calls[0];
+    return String(llamada[0]);
+  }
+
+  const RESPUESTA = JSON.stringify({ desde: '2026-09-01', hasta: '2026-09-30', monedas: [] });
+
+  it('sin argumentos pide /api/resumen sin ninguna query string', async () => {
+    responderCon(RESPUESTA, { status: 200 });
+
+    await obtenerResumen();
+
+    // Sin `?`, y no con `?desde=&hasta=`. La diferencia importa: el servidor entiende la ausencia
+    // de los dos como "el mes en curso, que decido yo", y dos parámetros vacíos lo obligarían a
+    // interpretar una cadena vacía como si fuera una fecha.
+    expect(urlPedida()).toBe('/api/resumen');
+  });
+
+  it('con un rango manda desde y hasta', async () => {
+    responderCon(RESPUESTA, { status: 200 });
+
+    await obtenerResumen('2026-08-01', '2026-08-31');
+
+    expect(urlPedida()).toBe('/api/resumen?desde=2026-08-01&hasta=2026-08-31');
+  });
+
+  it('un 401 sale como ErrorDeSesion, igual que el resto del cliente', async () => {
+    responderCon('', { status: 401 });
+
+    await expect(obtenerResumen()).rejects.toBeInstanceOf(ErrorDeSesion);
   });
 });
