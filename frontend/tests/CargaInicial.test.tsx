@@ -60,11 +60,18 @@ describe('carga inicial que falla', () => {
     // promesa rechace, así que un `findAll` puede leer justo el instante en que hay uno solo.
     await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(2));
 
-    // Se afirma sobre lo que ambos mensajes comparten: afirmar sobre una redacción sola sería un
-    // test que pasa por orden de llegada.
-    for (const aviso of screen.getAllByRole('alert')) {
-      expect(aviso).toHaveTextContent(/recargá la página/i);
-    }
+    // **Cada aviso dice lo suyo, y ya no comparten la salida.** Hasta la feature 009 los dos
+    // pedían recargar la página y el test afirmaba sobre esa frase común. Dejaron de compartirla y
+    // la divergencia es correcta: sin categorías no se puede registrar nada y recargar es el único
+    // recurso; el listado, en cambio, se vuelve a pedir solo al cambiar el acotado, así que pedir
+    // una recarga sugeriría un callejón que no existe.
+    //
+    // Se afirma sobre los dos textos completos y no sobre una frase compartida: una frase común es
+    // una coincidencia de redacción, y afirmar sobre ella hace que arreglar un mensaje rompa un
+    // test que no habla de él.
+    const textos = screen.getAllByRole('alert').map((a) => a.textContent);
+    expect(textos).toContain(ERROR_DEL_CATALOGO);
+    expect(textos).toContain('No se pudo cargar el listado de movimientos. Volvé a intentarlo.');
 
     // Y sobre todo: el indicador de carga se apaga. Quedarse encendido es mentirle a la persona.
     await waitFor(() =>
@@ -154,13 +161,13 @@ describe('carga inicial que falla', () => {
       />,
     );
 
-    await screen.findByText('No se pudo cargar el listado de movimientos. Recargá la página.');
+    await screen.findByText('No se pudo cargar el listado de movimientos. Volvé a intentarlo.');
 
     await usuario.selectOptions(screen.getByLabelText('Ver sólo la moneda'), '2');
 
     await waitFor(() =>
       expect(
-        screen.queryByText('No se pudo cargar el listado de movimientos. Recargá la página.'),
+        screen.queryByText('No se pudo cargar el listado de movimientos. Volvé a intentarlo.'),
       ).not.toBeInTheDocument(),
     );
   });

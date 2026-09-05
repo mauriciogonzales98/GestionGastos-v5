@@ -159,7 +159,9 @@ export function PantallaMovimientos({
         }
 
         if (vigente) {
-          setErrorDeCarga('No se pudo cargar el listado de movimientos. Recargá la página.');
+          // No dice "recargá la página": desde que existe el acotado hay un camino de recuperación
+          // sin recargar —cambiarlo vuelve a pedir— y pedir una recarga sugeriría que no lo hay.
+          setErrorDeCarga('No se pudo cargar el listado de movimientos. Volvé a intentarlo.');
         }
       })
       // El indicador se apaga pase lo que pase. Dejarlo encendido tras un fallo es decirle a la
@@ -334,6 +336,14 @@ export function PantallaMovimientos({
           vez que se abriera. */}
       {enEdicion ? (
         <VentanaDeEdicion
+          // **`key` con el id, para que cambiar de fila remonte la ventana.**
+          // `CamposDelMovimiento` lee sus valores iniciales sólo al montarse; sin `key`, una
+          // ventana que pasara del movimiento A al B mostraría los valores de A y guardaría sobre
+          // el id de B. Hoy no es alcanzable —`showModal()` vuelve inerte el fondo, así que no se
+          // puede clicar "Editar" en otra fila con la ventana abierta—, y eso es exactamente el
+          // motivo de la `key`: que no dependa de una propiedad del `<dialog>` sino de la
+          // estructura.
+          key={enEdicion.id}
           movimiento={enEdicion}
           categorias={categorias}
           monedas={monedas}
