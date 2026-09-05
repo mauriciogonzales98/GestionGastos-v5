@@ -43,6 +43,8 @@ Verificado contra el código el 2026-09-03.
 | 12 | DISC-001-04a | Catálogo de monedas y totales por moneda | `specs/008-monedas-como-dato/`, `verificar-monedas.sh`. **La mayor parte ya venía construida**: la tabla `moneda` y su semilla salieron con FEAT-001a, y el resumen por moneda con FEAT-001c. Esta feature la **verificó** —que sumar una moneda cueste 0 líneas y 0 recompilaciones, y que la separación aguante 1000 movimientos en dos monedas— y documentó requisito por requisito qué ya estaba hecho | `prds/pendientes/prd-DISC-001-04a.md` |
 | 13 | DISC-001-04b | Registrar y filtrar en varias monedas | `specs/009-elegir-y-filtrar-moneda/`, `GET /api/monedas`, `monedaId` en el alta, la edición y el acotado del listado, `Monedas/`, `CamposDelMovimiento.tsx` y `VentanaDeEdicion.tsx`. **Saldó las tres deudas que la 008 le dejó**: D8-01 (rechazar una moneda fuera del catálogo, que hasta acá no se podía ni probar porque no había entrada que validar), D8-02 y D8-03. Extendió `verificar-monedas.sh` a `frontend/src/`: la promesa de que sumar una moneda cuesta 0 líneas sólo estaba protegida del lado del backend | `prds/pendientes/prd-DISC-001-04b.md` |
 
+| 14 | DISC-001-05 | Dashboard con gráficos | `specs/010-dashboard-con-graficos/`, el resumen del mes en la pantalla principal (`frontend/src/resumen/`) y el dashboard con su período y su filtro de moneda (`frontend/src/dashboard/`), más `ui/contraste.ts` y `docs/adr/ADR-002`. **Saldó las dos deudas que la 009 le dejó**: D9-06 (la vista de totales, que no existía en ninguna pantalla) y D9-02 (filtrar por moneda). **No tocó el backend**: `GET /api/resumen` ya devolvía lo que hacía falta desde FEAT-001c, así que los únicos cambios de `backend/` son dos tests. Y **corrigió una premisa del PRD**: decía que el volumen de 10000 movimientos nunca se había medido, y `RendimientoResumenTests` lo medía desde la 006 — da 33 ms contra un techo de 4000 | `prds/pendientes/prd-DISC-001-05.md` |
+
 Los FIX/FEAT de infraestructura (D-1 a D-4) salieron intercalados porque el usuario decidió cerrar
 la deuda de infraestructura antes de seguir con features de producto; el mapa de
 `plan-DISC-001.md` los muestra como prerequisitos de todo lo demás. Empezando de cero, el orden
@@ -52,7 +54,6 @@ la deuda de infraestructura antes de seguir con features de producto; el mapa de
 
 | Orden | # | Título | PRD |
 |-------|---|--------|-----|
-| 14 | 5 | Dashboard con gráficos | `prds/pendientes/prd-DISC-001-05.md` |
 | 15 | 6 | Maquetación y accesibilidad | `prds/pendientes/prd-DISC-001-06.md` |
 | — | 2 | Nota descriptiva del movimiento | `prds/pendientes/prd-DISC-001-02.md` |
 

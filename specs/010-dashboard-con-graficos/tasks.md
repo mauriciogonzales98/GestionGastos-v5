@@ -203,11 +203,11 @@ ver las dos con los mismos números.
 - [X] T044 Correr `dotnet test backend/ --filter "FullyQualifiedName~RendimientoResumen"` y **anotar los tres p95 en la tabla del [quickstart](./quickstart.md)**. Está excluida del CI por medir tiempo de pared, así que el número sale de acá o no sale. La referencia de la feature 006 es 6 ms con 1000 filas en una moneda y 9 ms en dos: tener los números permite decir si algo cambió, en vez de sólo que pasó
 - [X] T045 [P] Revisar los archivos de test que esta feature tocó y confirmar que **ninguno escribe un número fijo sobre el tamaño del catálogo de monedas** (punto 5 de arriba). El resumen devuelve una entrada por moneda, así que es la aserción más natural del mundo y la que rompe la suite el día que `verificar-monedas.sh` corre con una de más
 - [X] T046 Recorrer el [quickstart](./quickstart.md) entero —los trece pasos— y anotar cualquier línea que no haya salido como dice. En la 008 fue el quickstart, y no la suite, el que encontró el número escrito a mano
-- [ ] T047 [VERIFY] Las **seis** barreras, con su salida: `verificar-contrato.sh` (~2,5 min; el contrato no cambia y se corre igual), `verificar-autorizacion.sh`, `verificar-desglose.sh` —que es la que protege `FR-015`—, `verificar-monedas.sh` (~1 min; **exige los dos árboles limpios**, así que commitear antes), `verificar-aislamiento.sh` (~7 min) y `verificar-linter.sh`
-- [ ] T048 Cobertura del backend con `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings`, con su salida
-- [ ] T049 [P] Actualizar `plan-de-implementacion/README.md`: el ticket 14 (DISC-001-05) pasa a la tabla de implementados, con lo que esta feature construyó, las dos deudas que saldó y la corrección de la premisa de rendimiento del PRD
-- [ ] T050 [P] Anotar en la *Deuda registrada* de [spec.md](./spec.md) lo que aparezca durante la implementación. D10-01 a D10-06 ya están; esto es para lo nuevo
-- [ ] T051 [VERIFY] Puerta completa de las dos pilas más el build de producción del frontend (`pnpm --dir frontend build`), con su salida
+- [X] T047 [VERIFY] Las **seis** barreras, con su salida: `verificar-contrato.sh` (~2,5 min; el contrato no cambia y se corre igual), `verificar-autorizacion.sh`, `verificar-desglose.sh` —que es la que protege `FR-015`—, `verificar-monedas.sh` (~1 min; **exige los dos árboles limpios**, así que commitear antes), `verificar-aislamiento.sh` (~7 min) y `verificar-linter.sh`
+- [X] T048 Cobertura del backend con `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings`, con su salida
+- [X] T049 [P] Actualizar `plan-de-implementacion/README.md`: el ticket 14 (DISC-001-05) pasa a la tabla de implementados, con lo que esta feature construyó, las dos deudas que saldó y la corrección de la premisa de rendimiento del PRD
+- [X] T050 [P] Anotar en la *Deuda registrada* de [spec.md](./spec.md) lo que aparezca durante la implementación. D10-01 a D10-06 ya están; esto es para lo nuevo
+- [X] T051 [VERIFY] Puerta completa de las dos pilas más el build de producción del frontend (`pnpm --dir frontend build`), con su salida
 
 ---
 
