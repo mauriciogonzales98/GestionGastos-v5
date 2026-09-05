@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   ErrorDeSesion,
   crearMovimiento,
@@ -136,6 +136,20 @@ export function PantallaMovimientos({
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [errorDelResumen, setErrorDelResumen] = useState<string | null>(null);
 
+  /**
+   * **La guarda contra la respuesta que llega tarde**, para el resumen.
+   *
+   * El listado de esta misma pantalla la tiene desde la feature 009 y el dashboard desde la 010;
+   * acá faltaba. Dos guardados seguidos disparan dos recargas, y si la primera tarda más resuelve
+   * última: el total del mes queda mostrando una suma que **no incluye** el movimiento que sí se ve
+   * en el listado, dos centímetros más abajo. Sin error y sin nada en la consola.
+   *
+   * Es un contador y no la bandera `vigente` del listado porque estas recargas no las lanza un
+   * efecto —las lanzan el alta y la edición—, así que no hay `cleanup` donde apagar nada. Cada
+   * llamada se lleva su número y sólo escribe si sigue siendo la última que salió.
+   */
+  const ultimaRecarga = useRef(0);
+
   useEffect(() => {
     // El catálogo ya no se pide acá: lo carga la raíz una sola vez y baja por props (D-08, AC-12).
     // Queda el listado, con su propio `catch`: sin él, un backend caído dejaba el indicador de
@@ -217,31 +231,43 @@ export function PantallaMovimientos({
    * volvería a disparar la carga en bucle. Es el mismo motivo por el que `alVencerLaSesion` lo es
    * en la raíz.
    */
-  const recargarResumen = useCallback(
-    () =>
-      obtenerResumen()
-        .then((traido) => {
-          setResumen(traido);
+  const recargarResumen = useCallback(() => {
+    const mia = ++ultimaRecarga.current;
 
-          // El error de la carga anterior se va **cuando ésta sale bien**, no cuando empieza. Es la
-          // misma regla que el listado, y por la misma cicatriz: un cartel que sobrevive a una
-          // carga buena dice que no se pudo cargar justo lo que la persona está mirando.
-          setErrorDelResumen(null);
-        })
-        .catch((error: unknown) => {
-          // Un 401 no es "falló la carga": es que ya no hay sesión, y la reacción es volver al
-          // acceso en vez de mostrar un error de carga sobre una pantalla protegida (FR-017).
-          if (error instanceof ErrorDeSesion) {
-            onSesionVencida(SESION_VENCIDA);
-            return;
-          }
+    return obtenerResumen()
+      .then((traido) => {
+        // Salió otra después: lo que ésta trae ya no es lo que hay que mostrar.
+        if (mia !== ultimaRecarga.current) {
+          return;
+        }
 
-          // Se dice, y se dice **como fallo**. Mostrar ceros acá sería la pantalla afirmando que no
-          // hubo movimientos, que es lo contrario de lo que pasó (FR-010).
-          setErrorDelResumen('No se pudo cargar el resumen del mes. Volvé a intentarlo.');
-        }),
-    [onSesionVencida],
-  );
+        setResumen(traido);
+
+        // El error de la carga anterior se va **cuando ésta sale bien**, no cuando empieza. Es la
+        // misma regla que el listado, y por la misma cicatriz: un cartel que sobrevive a una carga
+        // buena dice que no se pudo cargar justo lo que la persona está mirando.
+        setErrorDelResumen(null);
+      })
+      .catch((error: unknown) => {
+        // Un 401 no es "falló la carga": es que ya no hay sesión, y la reacción es volver al acceso
+        // en vez de mostrar un error de carga sobre una pantalla protegida (FR-017).
+        //
+        // Va **antes** de la guarda y no después: que la respuesta haya quedado vieja no cambia que
+        // la sesión se terminó, y callarlo dejaría la pantalla protegida a la vista sin sesión.
+        if (error instanceof ErrorDeSesion) {
+          onSesionVencida(SESION_VENCIDA);
+          return;
+        }
+
+        if (mia !== ultimaRecarga.current) {
+          return;
+        }
+
+        // Se dice, y se dice **como fallo**. Mostrar ceros acá sería la pantalla afirmando que no
+        // hubo movimientos, que es lo contrario de lo que pasó (FR-010).
+        setErrorDelResumen('No se pudo cargar el resumen del mes. Volvé a intentarlo.');
+      });
+  }, [onSesionVencida]);
 
   useEffect(() => {
     void recargarResumen();

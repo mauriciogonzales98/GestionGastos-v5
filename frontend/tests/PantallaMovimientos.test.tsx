@@ -404,3 +404,56 @@ describe('PantallaMovimientos — el resumen del mes en curso', () => {
     expect(screen.queryByText(/no se pudo cargar el resumen/i)).not.toBeInTheDocument();
   });
 });
+
+/**
+ * **La carrera del resumen de la pantalla principal.**
+ *
+ * El listado de esta pantalla tiene guarda contra la respuesta que llega tarde desde la feature 009
+ * (`22e3e96`), y el dashboard la tiene desde la 010. El resumen de acá **no la tenía**: es el
+ * hallazgo 1 de la revisión del PR #25, y es la misma cicatriz por tercera vez.
+ *
+ * Cuesta más provocarla que la del dashboard —hacen falta dos guardados seguidos— y el guardado
+ * siguiente la corrige. Pero mientras dura, el total del mes muestra una suma que no incluye el
+ * movimiento que sí se ve en el listado, dos centímetros más abajo. Sin error y sin nada en la
+ * consola.
+ */
+describe('PantallaMovimientos — la carrera del resumen', () => {
+  /** Una promesa que el test resuelve cuando quiere, para poder ordenar las respuestas a mano. */
+  function promesaControlada<T>() {
+    let cumplir: (valor: T) => void = () => {};
+    const promesa = new Promise<T>((resolver) => {
+      cumplir = resolver;
+    });
+    return { promesa, cumplir };
+  }
+
+  it('la respuesta de una recarga vieja no pisa a la de la vigente', async () => {
+    const usuario = userEvent.setup();
+    const VIEJO = construirResumen({ desde: '2020-01-01', hasta: '2020-01-31' });
+    const NUEVO = construirResumen({ desde: '2030-12-01', hasta: '2030-12-31' });
+
+    vi.mocked(cliente.crearMovimiento).mockResolvedValue({ ...DEL_10, id: 9, fecha: '2026-08-15' });
+    await renderizar();
+    await screen.findByRole('region', { name: /resumen del mes/i });
+
+    // Primer guardado: su recarga queda EN VUELO, sin resolver.
+    const primera = promesaControlada<typeof VIEJO>();
+    vi.mocked(cliente.obtenerResumen).mockReturnValueOnce(primera.promesa);
+    await usuario.type(screen.getByLabelText('Monto'), '500');
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
+    await usuario.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    // Segundo guardado: su recarga resuelve enseguida y es la que vale.
+    vi.mocked(cliente.obtenerResumen).mockResolvedValueOnce(NUEVO);
+    await usuario.type(screen.getByLabelText('Monto'), '700');
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
+    await usuario.click(screen.getByRole('button', { name: 'Registrar' }));
+    await screen.findByText(/2030-12-31/);
+
+    // Y AHORA llega la primera, tarde.
+    primera.cumplir(VIEJO);
+
+    await waitFor(() => expect(screen.getByText(/2030-12-31/)).toBeVisible());
+    expect(screen.queryByText(/2020-01-31/)).not.toBeInTheDocument();
+  });
+});
