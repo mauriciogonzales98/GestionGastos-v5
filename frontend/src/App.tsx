@@ -109,12 +109,14 @@ export function App({ hoy }: PropsApp) {
    * salida fácil —que cada uno lo pida— son dos peticiones al arrancar y dos listas que pueden
    * discrepar.
    *
-   * **No lleva su propio `errorDelCatalogo`.** Si las monedas no cargan, el selector queda vacío y
-   * el alta sale sin `monedaId`, que el servidor resuelve con la predeterminada: se puede seguir
-   * registrando. Un cartel de error para algo que no impide trabajar sería ruido; el de categorías
-   * existe porque sin categorías no se puede guardar nada.
+   * **Su fallo avisa, pero no bloquea, y las dos mitades importan.** Si las monedas no cargan, el
+   * alta sale sin `monedaId` y el servidor pone la predeterminada, así que se puede seguir
+   * registrando — por eso el aviso es distinto del de categorías, que sí describe una pantalla
+   * inservible. Pero el selector se ve **vacío**, y dejar eso sin explicación es el catch
+   * silencioso que `AGENTS.md` prohíbe: no bloquear no es lo mismo que callar.
    */
   const [monedas, setMonedas] = useState<Moneda[]>([]);
+  const [errorDelCatalogoDeMonedas, setErrorDelCatalogoDeMonedas] = useState<string | null>(null);
 
   useEffect(() => {
     void consultarSesion()
@@ -148,6 +150,7 @@ export function App({ hoy }: PropsApp) {
     setCategorias([]);
     setMonedas([]);
     setErrorDelCatalogo(null);
+    setErrorDelCatalogoDeMonedas(null);
     setVista(VISTA_INICIAL);
   }, []);
 
@@ -167,9 +170,18 @@ export function App({ hoy }: PropsApp) {
     void obtenerMonedas()
       .then(setMonedas)
       .catch((error: unknown) => {
+        // Un 401 no es "falló la carga": es que ya no hay sesión. La reacción es volver al acceso.
         if (error instanceof ErrorDeSesion) {
           alVencerLaSesion(SESION_VENCIDA);
+          return;
         }
+
+        // Cualquier otro error SE DICE. El aviso nombra la consecuencia real —se registra en la
+        // predeterminada— en vez de pedir que se recargue: recargar no es necesario para poder
+        // seguir trabajando, y pedirlo sugeriría que sí.
+        setErrorDelCatalogoDeMonedas(
+          'No se pudieron cargar las monedas. Se va a registrar en la moneda predeterminada.',
+        );
       });
 
     void obtenerCategorias()
@@ -253,6 +265,7 @@ export function App({ hoy }: PropsApp) {
     setCategorias([]);
     setMonedas([]);
     setErrorDelCatalogo(null);
+    setErrorDelCatalogoDeMonedas(null);
     setVista(VISTA_INICIAL);
   }
 
@@ -284,6 +297,7 @@ export function App({ hoy }: PropsApp) {
         categorias={categorias}
         monedas={monedas}
         errorDelCatalogo={errorDelCatalogo}
+        errorDelCatalogoDeMonedas={errorDelCatalogoDeMonedas}
         onCerrarSesion={() => void salir()}
         onSesionVencida={alVencerLaSesion}
         onGestionarCategorias={() => setVista('categorias')}

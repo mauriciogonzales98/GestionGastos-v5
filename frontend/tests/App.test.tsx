@@ -455,4 +455,29 @@ describe('App — la vista también se va con la sesión', () => {
 
     expect(await screen.findByRole('heading', { name: 'Mis movimientos' })).toBeInTheDocument();
   });
+
+  /**
+   * **Que el catálogo de monedas no cargue tiene que decirse.**
+   *
+   * `AGENTS.md` es explícito: *"nunca un catch silencioso"*. El `.catch` de `obtenerMonedas`
+   * manejaba el `401` y, para cualquier otro error, no hacía nada: ni estado, ni aviso, ni
+   * re-lanzado.
+   *
+   * Escenario: `/api/monedas` devuelve `500` mientras `/api/categorias` anda bien. La persona ve el
+   * formulario completo con el selector de **Moneda vacío** y ninguna explicación. Puede registrar
+   * igual —el alta sale sin `monedaId` y el servidor pone la predeterminada—, y ese es justamente
+   * el motivo por el que esto no bloquea la pantalla. Pero **no bloquear no es lo mismo que
+   * callar**: el control se ve vacío y nadie le dijo por qué.
+   */
+  it('avisa cuando el catálogo de monedas no se pudo cargar', async () => {
+    vi.mocked(cliente.obtenerMonedas).mockRejectedValue(new cliente.ErrorDelServidor(500, 'boom'));
+
+    render(<App hoy="2026-08-24" />);
+
+    expect(
+      await screen.findByText(
+        'No se pudieron cargar las monedas. Se va a registrar en la moneda predeterminada.',
+      ),
+    ).toBeInTheDocument();
+  });
 });

@@ -41,6 +41,7 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
         categorias={CATEGORIAS}
         monedas={MONEDAS}
         errorDelCatalogo={null}
+        errorDelCatalogoDeMonedas={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
         onSesionVencida={() => {}}

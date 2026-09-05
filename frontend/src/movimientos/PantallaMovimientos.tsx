@@ -31,6 +31,14 @@ export interface PropsPantallaMovimientos {
   monedas: Moneda[];
   /** El aviso de que el catálogo no se pudo cargar, si pasó. Lo produce la raíz, que es quien pide. */
   errorDelCatalogo: string | null;
+  /**
+   * Lo mismo para el catálogo de monedas.
+   *
+   * Es una prop aparte y no el mismo texto porque las consecuencias son distintas: sin categorías
+   * no se puede registrar nada, sin monedas sí — se registra en la predeterminada. Un solo aviso
+   * tendría que mentir en uno de los dos casos.
+   */
+  errorDelCatalogoDeMonedas: string | null;
   onCerrarSesion: () => void;
   /** Lleva a la pantalla de gestión del catálogo (FR-017). */
   onGestionarCategorias: () => void;
@@ -78,6 +86,7 @@ export function PantallaMovimientos({
   categorias,
   monedas,
   errorDelCatalogo,
+  errorDelCatalogoDeMonedas,
   onCerrarSesion,
   onGestionarCategorias,
   onSesionVencida,
@@ -257,6 +266,9 @@ export function PantallaMovimientos({
           acá: es esta pantalla la que queda inservible sin él —sin categorías no se puede
           registrar nada— y es donde la persona lo va a notar. */}
       {errorDelCatalogo ? <p role="alert">{errorDelCatalogo}</p> : null}
+
+      {/* `role="status"` y no `alert`: no impide trabajar, así que se anuncia sin interrumpir. */}
+      {errorDelCatalogoDeMonedas ? <p role="status">{errorDelCatalogoDeMonedas}</p> : null}
 
       {/* El acotado por moneda (FR-008, FR-010). Es el ÚNICO control de acotado de esta pantalla:
           el servidor también acota por categoría y por rango de fechas desde FEAT-001b, y esos dos

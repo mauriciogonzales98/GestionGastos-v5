@@ -43,6 +43,7 @@ async function renderizar() {
       categorias={CATEGORIAS}
       monedas={MONEDAS}
       errorDelCatalogo={null}
+      errorDelCatalogoDeMonedas={null}
       onCerrarSesion={() => {}}
       onGestionarCategorias={() => {}}
       onSesionVencida={() => {}}

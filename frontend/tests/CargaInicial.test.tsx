@@ -44,6 +44,7 @@ describe('carga inicial que falla', () => {
         categorias={[]}
         monedas={MONEDAS}
         errorDelCatalogo={ERROR_DEL_CATALOGO}
+        errorDelCatalogoDeMonedas={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
         onSesionVencida={() => {}}
@@ -77,6 +78,7 @@ describe('carga inicial que falla', () => {
         categorias={CATEGORIAS}
         monedas={MONEDAS}
         errorDelCatalogo={null}
+        errorDelCatalogoDeMonedas={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
         onSesionVencida={() => {}}
@@ -102,6 +104,7 @@ describe('carga inicial que falla', () => {
         categorias={[]}
         monedas={MONEDAS}
         errorDelCatalogo={ERROR_DEL_CATALOGO}
+        errorDelCatalogoDeMonedas={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
         onSesionVencida={() => {}}

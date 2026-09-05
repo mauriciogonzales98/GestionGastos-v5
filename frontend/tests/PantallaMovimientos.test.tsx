@@ -50,6 +50,7 @@ async function renderizar(monedas = MONEDAS) {
       categorias={CATEGORIAS}
       monedas={monedas}
       errorDelCatalogo={null}
+      errorDelCatalogoDeMonedas={null}
       onCerrarSesion={() => {}}
       onGestionarCategorias={() => {}}
       onSesionVencida={() => {}}
