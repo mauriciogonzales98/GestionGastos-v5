@@ -484,3 +484,61 @@ describe('App — la vista también se va con la sesión', () => {
     ).toBeInTheDocument();
   });
 });
+
+/**
+ * FR-011b y D-07: el dashboard es una tercera vista, no una ruta.
+ *
+ * No hay router y esta feature no es motivo para traer uno: nadie navega a `/dashboard`, se llega
+ * apretando un botón. Es la D-09 de la feature 007 sin cambios, ahora con tres valores.
+ */
+describe('App — el dashboard', () => {
+  async function entrar() {
+    render(<App hoy="2026-08-24" />);
+    await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' });
+  }
+
+  it('se llega al dashboard desde la pantalla principal y se vuelve', async () => {
+    const usuario = userEvent.setup();
+    await entrar();
+
+    await usuario.click(screen.getByRole('button', { name: /dashboard/i }));
+    expect(await screen.findByRole('heading', { level: 1, name: /dashboard/i })).toBeVisible();
+
+    await usuario.click(screen.getByRole('button', { name: /volver/i }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' })).toBeVisible();
+  });
+
+  /**
+   * Que la sesión termine estando en el dashboard tiene que devolver la vista a movimientos.
+   *
+   * Es la misma regla que la feature 007 escribió para la pantalla de categorías y la razón es la
+   * misma: si la vista quedara puesta, la próxima cuenta entraría donde salió la anterior.
+   *
+   * El camino es un `401` y no el botón de cerrar sesión: **el dashboard no tiene ese botón**, como
+   * tampoco lo tiene la pantalla de categorías — las pantallas secundarias sólo ofrecen volver. Así
+   * que la forma real de que una sesión termine desde acá es que venza, y ése es el camino que hay
+   * que probar.
+   */
+  it('si la sesión vence en el dashboard, la próxima cuenta entra en movimientos', async () => {
+    const usuario = userEvent.setup();
+    await entrar();
+
+    // El 401 lo produce la carga del dashboard, que es la única petición que esa pantalla hace.
+    vi.mocked(cliente.obtenerResumen).mockRejectedValue(new cliente.ErrorDeSesion());
+    await usuario.click(screen.getByRole('button', { name: /dashboard/i }));
+
+    await screen.findByRole('button', { name: 'Entrar' });
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue({
+      desde: '2026-08-01',
+      hasta: '2026-08-31',
+      monedas: [],
+    });
+
+    vi.mocked(cliente.iniciarSesion).mockResolvedValue({ email: 'otra@ejemplo.com' });
+    await usuario.type(screen.getByLabelText('Email'), 'otra@ejemplo.com');
+    await usuario.type(screen.getByLabelText('Contraseña'), 'Secreta123.');
+    await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' })).toBeVisible();
+  });
+});

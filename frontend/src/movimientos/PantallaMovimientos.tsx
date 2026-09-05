@@ -45,6 +45,8 @@ export interface PropsPantallaMovimientos {
   onCerrarSesion: () => void;
   /** Lleva a la pantalla de gestión del catálogo (FR-017). */
   onGestionarCategorias: () => void;
+  /** Lleva al dashboard, donde se elige el período y la moneda que se miran (FR-011b). */
+  onVerDashboard: () => void;
   /**
    * Se llama cuando una petición vuelve `401`, con el aviso que explica qué pasó y qué se perdió.
    *
@@ -92,6 +94,7 @@ export function PantallaMovimientos({
   errorDelCatalogoDeMonedas,
   onCerrarSesion,
   onGestionarCategorias,
+  onVerDashboard,
   onSesionVencida,
 }: PropsPantallaMovimientos) {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
@@ -340,6 +343,9 @@ export function PantallaMovimientos({
         {/* Se ve con qué cuenta se está trabajando (FR-004): sin esto, dos cuentas en el mismo
             navegador son indistinguibles hasta que alguien carga un gasto en la equivocada. */}
         <p>{email}</p>
+        <button type="button" onClick={onVerDashboard}>
+          Dashboard
+        </button>
         <button type="button" onClick={onGestionarCategorias}>
           Categorías
         </button>

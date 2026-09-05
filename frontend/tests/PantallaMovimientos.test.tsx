@@ -57,6 +57,7 @@ async function renderizar(monedas = MONEDAS) {
       errorDelCatalogoDeMonedas={null}
       onCerrarSesion={() => {}}
       onGestionarCategorias={() => {}}
+      onVerDashboard={() => {}}
       onSesionVencida={() => {}}
     />,
   );
@@ -394,6 +395,7 @@ describe('PantallaMovimientos — el resumen del mes en curso', () => {
         errorDelCatalogoDeMonedas={null}
         onCerrarSesion={() => {}}
         onGestionarCategorias={() => {}}
+        onVerDashboard={() => {}}
         onSesionVencida={alVencer}
       />,
     );

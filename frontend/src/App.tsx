@@ -11,6 +11,7 @@ import {
   renombrarCategoria,
 } from './api/cliente';
 import { PantallaCategorias } from './categorias/PantallaCategorias';
+import { PantallaDashboard } from './dashboard/PantallaDashboard';
 import type { Categoria, Moneda, NuevaCategoria, SesionActual } from './api/tipos';
 import { PantallaMovimientos } from './movimientos/PantallaMovimientos';
 
@@ -27,10 +28,13 @@ export interface PropsApp {
 type Estado = 'averiguando' | 'sin-sesion' | 'con-sesion';
 
 /**
- * Qué se está mirando con la sesión abierta. Igual que `Estado`, no son dos rutas sino un estado
- * con dos valores: no hay router y no hace falta uno (D-09, FR-018).
+ * Qué se está mirando con la sesión abierta. Igual que `Estado`, no son rutas sino un estado con
+ * tres valores: no hay router y no hace falta uno (D-09, FR-018).
+ *
+ * El dashboard entra como el tercero en la feature 010, y no como una ruta, por la misma razón por
+ * la que entró la gestión de categorías: nadie navega a `/dashboard`, se llega apretando un botón.
  */
-type Vista = 'movimientos' | 'categorias';
+type Vista = 'movimientos' | 'categorias' | 'dashboard';
 
 /**
  * Con qué vista arranca una sesión. **Siempre movimientos**, y por eso es una constante y no un
@@ -278,6 +282,15 @@ export function App({ hoy }: PropsApp) {
   }
 
   if (estado === 'con-sesion' && sesion) {
+    if (vista === 'dashboard') {
+      return (
+        <PantallaDashboard
+          onVolver={() => setVista('movimientos')}
+          onSesionVencida={alVencerLaSesion}
+        />
+      );
+    }
+
     if (vista === 'categorias') {
       return (
         <PantallaCategorias
@@ -301,6 +314,7 @@ export function App({ hoy }: PropsApp) {
         onCerrarSesion={() => void salir()}
         onSesionVencida={alVencerLaSesion}
         onGestionarCategorias={() => setVista('categorias')}
+        onVerDashboard={() => setVista('dashboard')}
       />
     );
   }

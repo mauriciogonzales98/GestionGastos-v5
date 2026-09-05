@@ -49,6 +49,7 @@ async function renderizar() {
       errorDelCatalogoDeMonedas={null}
       onCerrarSesion={() => {}}
       onGestionarCategorias={() => {}}
+      onVerDashboard={() => {}}
       onSesionVencida={() => {}}
     />,
   );

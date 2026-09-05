@@ -80,3 +80,84 @@ describe('GastosPorCategoria', () => {
     expect(within(fila).getByText(/US\$|USD/)).toBeVisible();
   });
 });
+
+/**
+ * FR-001 y NFR-003: la barra, que es el gráfico.
+ *
+ * **Es el único bloque de la feature que mira un ancho**, y con motivo: la proporción es lo único
+ * que puede fallar en una barra cuyo dato ya está probado como texto. Todo lo demás se afirma sobre
+ * el contenido de la fila (D-03).
+ */
+describe('GastosPorCategoria — la barra', () => {
+  function barraDe(nombre: string): HTMLElement {
+    const fila = screen.getByRole('row', { name: new RegExp(nombre) });
+    const barra = within(fila).getByTestId('barra');
+    return barra;
+  }
+
+  it('la barra más larga es la de la categoría con el total más alto, al 100 %', () => {
+    render(<GastosPorCategoria gastos={GASTOS_EN_PESOS} monedaCodigo="ARS" />);
+
+    // Vivienda es 80000 sobre un máximo de 80000.
+    expect(barraDe('Vivienda')).toHaveStyle({ width: '100%' });
+  });
+
+  it('el ancho de cada barra es proporcional al mayor total de esa moneda', () => {
+    render(<GastosPorCategoria gastos={GASTOS_EN_PESOS} monedaCodigo="ARS" />);
+
+    // Comida es 40000 sobre 80000; Transporte, 20000 sobre 80000.
+    expect(barraDe('Comida')).toHaveStyle({ width: '50%' });
+    expect(barraDe('Transporte')).toHaveStyle({ width: '25%' });
+  });
+
+  /**
+   * La barra es **decorativa**: no aporta ningún dato que la fila no tenga ya.
+   *
+   * Es lo que vuelve verdadera la decisión D-03. Si la barra llevara información propia, el
+   * equivalente textual dejaría de ser el gráfico y pasaría a ser una segunda representación — dos
+   * que pueden discrepar.
+   */
+  it('la barra es decorativa y no aporta texto propio', () => {
+    render(<GastosPorCategoria gastos={GASTOS_EN_PESOS} monedaCodigo="ARS" />);
+
+    const barra = barraDe('Vivienda');
+
+    expect(barra).toHaveAttribute('aria-hidden', 'true');
+    expect(barra).toHaveTextContent('');
+  });
+
+  /**
+   * `PRD:AC-13` y `NFR-003`: ninguna categoría se distingue por su color.
+   *
+   * La lectura habitual de "distinguir por un atributo además del color" es agregarle un patrón al
+   * color. Hay una lectura más fuerte: **no codificar por color en absoluto**. Si el color no lleva
+   * información, no hay nada que un daltonismo pueda quitarle — y lo que distingue a cada categoría
+   * es su nombre, escrito al lado de su barra (D-04).
+   *
+   * Un test que exigiera colores distintos estaría verificando lo contrario de la decisión.
+   */
+  it('todas las barras comparten el mismo relleno: ninguna categoría se codifica por color', () => {
+    render(<GastosPorCategoria gastos={GASTOS_EN_PESOS} monedaCodigo="ARS" />);
+
+    const clases = GASTOS_EN_PESOS.map((g) => barraDe(g.categoriaNombre).className);
+
+    expect(new Set(clases).size).toBe(1);
+
+    // Y ninguna trae un color propio puesto a mano, que sería la otra forma de codificar por color.
+    for (const gasto of GASTOS_EN_PESOS) {
+      expect(barraDe(gasto.categoriaNombre).style.backgroundColor).toBe('');
+    }
+  });
+
+  it('una categoría en cero no rompe el cálculo del ancho', () => {
+    render(
+      <GastosPorCategoria
+        gastos={[{ categoriaId: 1, categoriaNombre: 'Comida', total: 0 }]}
+        monedaCodigo="ARS"
+      />,
+    );
+
+    // Sin guarda, 0/0 da NaN y el ancho sale "NaN%": la fila se ve, la barra desaparece sin motivo.
+    expect(barraDe('Comida')).toHaveStyle({ width: '0%' });
+  });
+});
