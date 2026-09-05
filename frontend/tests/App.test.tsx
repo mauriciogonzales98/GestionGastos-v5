@@ -17,6 +17,9 @@ vi.mock('../src/api/cliente', async () => {
     obtenerCategorias: vi.fn(),
     obtenerMonedas: vi.fn(),
     obtenerMovimientos: vi.fn(),
+    obtenerResumen: vi
+      .fn()
+      .mockResolvedValue({ desde: '2026-08-01', hasta: '2026-08-31', monedas: [] }),
     crearMovimiento: vi.fn(),
     crearCategoria: vi.fn(),
     renombrarCategoria: vi.fn(),

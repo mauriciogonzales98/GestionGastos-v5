@@ -12,6 +12,9 @@ vi.mock('../src/api/cliente', async () => {
     ...real,
     obtenerMovimientos: vi.fn(),
     crearMovimiento: vi.fn(),
+    obtenerResumen: vi
+      .fn()
+      .mockResolvedValue({ desde: '2026-08-01', hasta: '2026-08-31', monedas: [] }),
   };
 });
 

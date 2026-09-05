@@ -8,6 +8,12 @@ import { MONEDAS } from './monedas.fixture';
 vi.mock('../src/api/cliente', () => ({
   obtenerMovimientos: vi.fn(),
   crearMovimiento: vi.fn(),
+  obtenerResumen: vi.fn().mockResolvedValue({
+    desde: '2026-08-01',
+    hasta: '2026-08-31',
+    monedas: [],
+  }),
+  ErrorDeSesion: class ErrorDeSesion extends Error {},
 }));
 
 const cliente = await import('../src/api/cliente');

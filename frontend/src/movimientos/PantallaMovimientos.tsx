@@ -1,9 +1,10 @@
-import { useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import {
   ErrorDeSesion,
   crearMovimiento,
   editarMovimiento,
   obtenerMovimientos,
+  obtenerResumen,
 } from '../api/cliente';
 import type {
   Categoria,
@@ -11,7 +12,9 @@ import type {
   Movimiento,
   MovimientoEditado,
   NuevoMovimiento,
+  Resumen,
 } from '../api/tipos';
+import { ResumenDelPeriodo } from '../resumen/ResumenDelPeriodo';
 import { FormularioMovimiento } from './FormularioMovimiento';
 import { ListadoMovimientos } from './ListadoMovimientos';
 import { VentanaDeEdicion } from './VentanaDeEdicion';
@@ -114,6 +117,22 @@ export function PantallaMovimientos({
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
   const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null);
 
+  /**
+   * El resumen del mes en curso (FR-011). **Su estado vive acá y no en `App.tsx`** (D-06).
+   *
+   * Izarlo a la raíz es el atajo que cualquiera tomaría por analogía con los catálogos, que sí
+   * viven allá desde la feature 007. Pero aquéllos se izaron porque las dos pantallas necesitan
+   * **el mismo dato**, y acá pasa lo contrario: esta pantalla y el dashboard necesitan **dos
+   * períodos distintos** del mismo cálculo. Con un único `resumen` en la raíz, elegir un trimestre
+   * en el dashboard cambiaría estos números — que es exactamente lo que FR-012 prohíbe, y sería
+   * invisible en la pantalla donde se produce.
+   *
+   * La regla, en sus dos mitades: se iza lo que es el mismo dato para todos; no se iza lo que cada
+   * pantalla parametriza distinto.
+   */
+  const [resumen, setResumen] = useState<Resumen | null>(null);
+  const [errorDelResumen, setErrorDelResumen] = useState<string | null>(null);
+
   useEffect(() => {
     // El catálogo ya no se pide acá: lo carga la raíz una sola vez y baja por props (D-08, AC-12).
     // Queda el listado, con su propio `catch`: sin él, un backend caído dejaba el indicador de
@@ -180,6 +199,51 @@ export function PantallaMovimientos({
     // estaría mal — mostraría sólo lo que ya se había traído.
   }, [onSesionVencida, monedaAcotada]);
 
+  /**
+   * Vuelve a pedir el resumen del mes.
+   *
+   * **Se pide sin período**: el mes en curso lo decide el servidor, y que el filtro exista en el
+   * dashboard no convierte a este valor por omisión en algo que el cliente elija (FR-011b).
+   *
+   * Se llama después de cada alta y de cada edición, y **siempre**, sin averiguar antes si el
+   * movimiento cae o no en el mes: averiguarlo obligaría a decidir acá si un total cambió, que es
+   * la clase de cuenta que FR-014 saca de la pantalla. Un total no se puede insertar como se
+   * inserta una fila — hay que recalcularlo, y el que recalcula es el servidor.
+   *
+   * `useCallback` no es una optimización: la usa un `useEffect`, y una función nueva en cada render
+   * volvería a disparar la carga en bucle. Es el mismo motivo por el que `alVencerLaSesion` lo es
+   * en la raíz.
+   */
+  const recargarResumen = useCallback(
+    () =>
+      obtenerResumen()
+        .then((traido) => {
+          setResumen(traido);
+
+          // El error de la carga anterior se va **cuando ésta sale bien**, no cuando empieza. Es la
+          // misma regla que el listado, y por la misma cicatriz: un cartel que sobrevive a una
+          // carga buena dice que no se pudo cargar justo lo que la persona está mirando.
+          setErrorDelResumen(null);
+        })
+        .catch((error: unknown) => {
+          // Un 401 no es "falló la carga": es que ya no hay sesión, y la reacción es volver al
+          // acceso en vez de mostrar un error de carga sobre una pantalla protegida (FR-017).
+          if (error instanceof ErrorDeSesion) {
+            onSesionVencida(SESION_VENCIDA);
+            return;
+          }
+
+          // Se dice, y se dice **como fallo**. Mostrar ceros acá sería la pantalla afirmando que no
+          // hubo movimientos, que es lo contrario de lo que pasó (FR-010).
+          setErrorDelResumen('No se pudo cargar el resumen del mes. Volvé a intentarlo.');
+        }),
+    [onSesionVencida],
+  );
+
+  useEffect(() => {
+    void recargarResumen();
+  }, [recargarResumen]);
+
   async function guardar(nuevo: NuevoMovimiento) {
     let creado: Movimiento;
 
@@ -199,6 +263,8 @@ export function PantallaMovimientos({
       );
       return;
     }
+
+    void recargarResumen();
 
     if (esDelMesDe(creado.fecha, hoy)) {
       setMovimientos((previos) => insertarEnOrden(previos, creado));
@@ -240,6 +306,7 @@ export function PantallaMovimientos({
     }
 
     setEnEdicion(null);
+    void recargarResumen();
 
     // **Si dejó de cumplir el acotado, sale del listado.** Es el caso de uso central de la ventana
     // —corregir la moneda— y sin esto la fila corregida queda visible bajo un control que dice
@@ -282,6 +349,15 @@ export function PantallaMovimientos({
           Cerrar sesión
         </button>
       </div>
+
+      {/* El resumen del mes, ARRIBA de todo (FR-011). Es lo primero que alguien quiere saber al
+          entrar —cómo viene el mes— y ponerlo debajo del formulario lo dejaría fuera de la
+          pantalla en cuanto el listado crezca.
+
+          Sin control de período y a propósito: el de acá es siempre el mes en curso, y elegir qué
+          mirar es del dashboard (FR-011b). */}
+      {errorDelResumen ? <p role="alert">{errorDelResumen}</p> : null}
+      {resumen ? <ResumenDelPeriodo resumen={resumen} titulo="Resumen del mes" /> : null}
 
       <FormularioMovimiento
         categorias={categorias}

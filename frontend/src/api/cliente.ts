@@ -9,6 +9,7 @@ import type {
   NuevaCuenta,
   NuevoMovimiento,
   ProblemDetails,
+  Resumen,
   SesionActual,
 } from './tipos';
 
@@ -228,6 +229,31 @@ export function obtenerMovimientos(acotado: AcotadoDelListado = {}): Promise<Mov
 
   const consulta = parametros.size === 0 ? '' : `?${parametros}`;
   return pedir<Movimiento[]>(`/api/movimientos${consulta}`);
+}
+
+/**
+ * El resumen de un período (RF-19, RF-20, RF-22).
+ *
+ * **Sin argumentos no manda ningún parámetro**, y esa ausencia es el mensaje: el servidor entiende
+ * "sin período pedido" como el mes en curso, decidido por él. Mandar `desde=&hasta=` vacíos lo
+ * obligaría a interpretar una cadena vacía como si fuera una fecha, y de paso pondría acá un
+ * segundo criterio de "hoy" — que es justo lo que `PeriodoPedido` existe para evitar.
+ *
+ * Los dos extremos van juntos o no va ninguno: es la regla del servidor y esta firma no la
+ * reimplementa, sólo la respeta. Medio rango se manda tal cual y el servidor lo rechaza con su
+ * mensaje, que es lo que la pantalla muestra (D-08).
+ */
+export function obtenerResumen(desde?: string, hasta?: string): Promise<Resumen> {
+  const parametros = new URLSearchParams();
+  if (desde != null && desde !== '') {
+    parametros.set('desde', desde);
+  }
+  if (hasta != null && hasta !== '') {
+    parametros.set('hasta', hasta);
+  }
+
+  const consulta = parametros.size === 0 ? '' : `?${parametros}`;
+  return pedir<Resumen>(`/api/resumen${consulta}`);
 }
 
 export function crearMovimiento(nuevo: NuevoMovimiento): Promise<Movimiento> {

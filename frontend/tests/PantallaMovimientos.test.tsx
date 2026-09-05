@@ -5,10 +5,13 @@ import { PantallaMovimientos } from '../src/movimientos/PantallaMovimientos';
 import type { Movimiento } from '../src/api/tipos';
 import { CATEGORIAS } from './categorias.fixture';
 import { LA_INESPERADA, MONEDAS } from './monedas.fixture';
+import { construirResumen, RESUMEN } from './resumen.fixture';
 
 vi.mock('../src/api/cliente', () => ({
   obtenerMovimientos: vi.fn(),
   crearMovimiento: vi.fn(),
+  obtenerResumen: vi.fn(),
+  ErrorDeSesion: class ErrorDeSesion extends Error {},
 }));
 
 const cliente = await import('../src/api/cliente');
@@ -40,6 +43,7 @@ beforeEach(() => {
   // tests, y un "se llamó una vez" que en realidad cuenta las corridas anteriores no verifica nada.
   vi.clearAllMocks();
   vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([DEL_20, DEL_10]);
+  vi.mocked(cliente.obtenerResumen).mockResolvedValue(RESUMEN);
 });
 
 async function renderizar(monedas = MONEDAS) {
@@ -56,11 +60,13 @@ async function renderizar(monedas = MONEDAS) {
       onSesionVencida={() => {}}
     />,
   );
-  await screen.findByRole('table');
+  // Por nombre y no `getByRole('table')` a secas: desde la feature 010 la pantalla tiene más de
+  // una tabla —el desglose del resumen es una— y la consulta sin nombre dejó de ser inequívoca.
+  await screen.findByRole('table', { name: /movimientos del mes/i });
 }
 
 function fechasDelListado() {
-  return screen
+  return within(screen.getByRole('table', { name: /movimientos del mes/i }))
     .getAllByRole('row')
     .slice(1)
     .map((f) => within(f).getAllByRole('cell')[0].textContent);
@@ -72,7 +78,7 @@ describe('PantallaMovimientos', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Mis movimientos' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Registrar' })).toBeInTheDocument();
-    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: /movimientos del mes/i })).toBeInTheDocument();
   });
 
   // AC-15 + FR-014: el movimiento guardado aparece en el listado, en su posición.
@@ -265,5 +271,134 @@ describe('PantallaMovimientos', () => {
     });
 
     expect(fechasDelListado()).toEqual(['2026-08-20', '2026-08-10']);
+  });
+});
+
+/**
+ * FR-011, FR-010 y FR-017: el resumen del mes en curso, arriba de todo.
+ *
+ * Es la deuda D9-06 saldándose. El servidor calcula estos números bien desde FEAT-001c y hasta hoy
+ * no los mostraba nadie.
+ */
+describe('PantallaMovimientos — el resumen del mes en curso', () => {
+  /**
+   * Devuelve la posición de un elemento en el orden real del documento.
+   *
+   * Se compara el orden y no la mera presencia porque `FR-011` es una afirmación sobre **dónde**
+   * está el resumen: "arriba del formulario y del listado" es el requisito, y un test que sólo
+   * comprobara que existe lo daría por cumplido con el resumen al pie de la página.
+   */
+  function posicionEnElDocumento(elemento: Element): number {
+    return Array.from(document.querySelectorAll('*')).indexOf(elemento);
+  }
+
+  it('muestra el resumen del mes ARRIBA del formulario y del listado FR-011', async () => {
+    await renderizar();
+
+    const resumen = await screen.findByRole('region', { name: /resumen del mes/i });
+    const formulario = screen.getByRole('button', { name: 'Registrar' });
+    const listado = screen.getByRole('table', { name: /movimientos del mes/i });
+
+    expect(posicionEnElDocumento(resumen)).toBeLessThan(posicionEnElDocumento(formulario));
+    expect(posicionEnElDocumento(resumen)).toBeLessThan(posicionEnElDocumento(listado));
+  });
+
+  it('lo pide sin período: el mes en curso lo decide el servidor FR-011b', async () => {
+    await renderizar();
+
+    await waitFor(() => expect(cliente.obtenerResumen).toHaveBeenCalled());
+    expect(vi.mocked(cliente.obtenerResumen).mock.calls[0]).toEqual([]);
+  });
+
+  /**
+   * FR-011b: esta pantalla no tiene control de período.
+   *
+   * El resumen de acá está clavado al mes en curso por decisión de FEAT-001c; elegir qué mirar es
+   * del dashboard. Un control de fechas acá volvería confusas las dos mitades de `FR-012`.
+   */
+  it('no ofrece ningún control de período FR-011b', async () => {
+    await renderizar();
+    await screen.findByRole('region', { name: /resumen del mes/i });
+
+    expect(screen.queryByLabelText(/desde/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/hasta/i)).not.toBeInTheDocument();
+  });
+
+  it('registrar un movimiento vuelve a pedir el resumen', async () => {
+    const usuario = userEvent.setup();
+    vi.mocked(cliente.crearMovimiento).mockResolvedValue({ ...DEL_10, id: 9, fecha: '2026-08-15' });
+    await renderizar();
+    await waitFor(() => expect(cliente.obtenerResumen).toHaveBeenCalledTimes(1));
+
+    await usuario.type(screen.getByLabelText('Monto'), '500');
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
+    await usuario.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    // El listado NO se vuelve a pedir —la fila se inserta— pero el resumen sí: un total no se puede
+    // insertar, hay que recalcularlo, y recalcularlo acá sería sumar en el cliente (FR-014).
+    await waitFor(() => expect(cliente.obtenerResumen).toHaveBeenCalledTimes(2));
+    expect(cliente.obtenerMovimientos).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * FR-010: cargando, sin datos y no se pudo cargar son TRES estados distintos.
+   *
+   * Mostrar ceros ante un servidor caído sería la pantalla afirmando que no hubo movimientos.
+   */
+  it('si el resumen falla lo dice, y NO muestra ceros FR-010', async () => {
+    vi.mocked(cliente.obtenerResumen).mockRejectedValue(new Error('sin red'));
+
+    await renderizar();
+
+    const aviso = await screen.findByRole('alert');
+    expect(aviso).toHaveTextContent(/no se pudo cargar/i);
+    expect(screen.queryByRole('region', { name: /resumen del mes/i })).not.toBeInTheDocument();
+  });
+
+  /**
+   * La cicatriz `10a2e6d` de la feature 009: un cartel de fallo que sobrevive a una carga que salió
+   * bien miente, y miente justo al lado de los datos que lo desmienten.
+   */
+  it('el cartel del fallo desaparece cuando una carga posterior sale bien', async () => {
+    const usuario = userEvent.setup();
+    vi.mocked(cliente.obtenerResumen).mockRejectedValueOnce(new Error('sin red'));
+    vi.mocked(cliente.crearMovimiento).mockResolvedValue({ ...DEL_10, id: 9, fecha: '2026-08-15' });
+    await renderizar();
+    await screen.findByRole('alert');
+
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue(construirResumen());
+    await usuario.type(screen.getByLabelText('Monto'), '500');
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
+    await usuario.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    await screen.findByRole('region', { name: /resumen del mes/i });
+    expect(screen.queryByText(/no se pudo cargar el resumen/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * FR-017: un 401 no es "falló la carga", es que ya no hay sesión.
+   *
+   * La reacción es volver al acceso, no mostrar un error de carga sobre una pantalla protegida.
+   */
+  it('un 401 al pedir el resumen vuelve al acceso, no muestra un error de carga FR-017', async () => {
+    const alVencer = vi.fn();
+    vi.mocked(cliente.obtenerResumen).mockRejectedValue(new cliente.ErrorDeSesion());
+
+    render(
+      <PantallaMovimientos
+        hoy={HOY}
+        email="ana@ejemplo.com"
+        categorias={CATEGORIAS}
+        monedas={MONEDAS}
+        errorDelCatalogo={null}
+        errorDelCatalogoDeMonedas={null}
+        onCerrarSesion={() => {}}
+        onGestionarCategorias={() => {}}
+        onSesionVencida={alVencer}
+      />,
+    );
+
+    await waitFor(() => expect(alVencer).toHaveBeenCalled());
+    expect(screen.queryByText(/no se pudo cargar el resumen/i)).not.toBeInTheDocument();
   });
 });
