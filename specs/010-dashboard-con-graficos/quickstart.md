@@ -6,7 +6,10 @@ Cómo comprobar a mano lo que esta feature construye. Un quickstart que nadie ej
 documentación que envejece sin avisar, así que la tarea de cierre es recorrerlo entero y anotar
 cualquier línea que no haya salido como dice.
 
-> **Estado**: sin recorrer. Se recorre al cerrar la feature y se anota acá qué se ejecutó y qué no.
+> **Recorrido el 2026-09-05.** Los pasos **1 a 5 y el 12** se ejecutaron contra la API y salieron
+> como dice acá; la medición también, y sus números están más abajo. Los pasos **6 a 11 y el 13**
+> son de navegador y quedaron **sin ejecutar a mano**: lo que verifican está cubierto por los tests
+> del frontend que cada uno cita. Lo que se encontró al recorrerlo está al final.
 
 **Prerrequisitos**: MySQL 8.4.10 en `127.0.0.1:3306` con `gestiongastos` migrado,
 `ConnectionStrings__Default` apuntando ahí, el backend con
@@ -159,15 +162,31 @@ dotnet test backend/ --filter "FullyQualifiedName~RendimientoResumen"
 ```
 
 **Esperado**: verde en los dos escalones —1000 movimientos bajo 2 s y 10000 bajo 4 s, p95 sobre 100
-ejecuciones— más el caso repartido en dos monedas. **Anotá los tres números acá abajo**: la
-referencia de la feature 006 fue 6 ms con 1000 filas en una moneda y 9 ms en dos, y tener los
-números permite decir si algo cambió en vez de sólo que pasó.
+ejecuciones— más el caso repartido en dos monedas.
 
-| Caso | p95 medido | Techo |
-|---|---|---|
-| 1000 movimientos, 1 moneda | _(anotar)_ | 2000 ms |
-| 1000 movimientos, 2 monedas | _(anotar)_ | 2000 ms |
-| 10000 movimientos, 1 moneda | _(anotar)_ | 4000 ms |
+**Medido el 2026-09-05**, en la máquina de desarrollo:
+
+| Caso | p95 | Mediana | Máximo | Techo | Margen |
+|---|---|---|---|---|---|
+| 1000 movimientos, 1 moneda | **6 ms** | 5 ms | 8 ms | 2000 ms | ×333 |
+| 1000 movimientos, 2 monedas | **10 ms** | 8 ms | 22 ms | 2000 ms | ×200 |
+| 10000 movimientos, 1 moneda | **33 ms** | 30 ms | 43 ms | 4000 ms | ×121 |
+
+Tres cosas que estos números dicen y conviene no perder:
+
+1. **`PRD:AC-12` no era el riesgo que el PRD creía.** Ese PRD pide atacar temprano el volumen de
+   10000 porque *"nunca se midió"*; se venía midiendo desde la feature 006 y da 33 ms contra un techo
+   de 4 s. Hay dos órdenes de magnitud de margen.
+2. **El costo crece menos que las filas.** Diez veces más movimientos cuestan cinco veces y media
+   más tiempo: el índice `(usuario_id, fecha DESC, id DESC)` acota bien y el `GROUP BY` opera sobre
+   un conjunto ya recortado.
+3. **La segunda moneda sigue costando alrededor de un 60 %** (6 → 10 ms), que es lo mismo que la
+   feature 008 anotó (6 → 9 ms). El índice por `categoria_id` de la deuda **D6-05** sigue sin
+   justificarse, y ahora con el número de 10000 en la mano.
+
+> Los tres números salen del propio test desde esta feature: hasta ahora el p95 vivía únicamente en
+> el mensaje del `Assert`, o sea que sólo se podía leer haciendo fallar la medición — justo el caso
+> en que el número no importa.
 
 ---
 
@@ -185,3 +204,42 @@ Ninguna es nueva y ninguna hay que tocarla (D-13), pero las seis se corren:
 ```
 
 Y la puerta completa de las dos pilas, con cobertura, como fija la constitución.
+
+---
+
+## Lo que se encontró al recorrerlo
+
+**Recorrido el 2026-09-05**, contra `gestiongastos_test` con el backend levantado en el 5125.
+
+**Los pasos 1 a 5 salieron exactamente como están escritos.** Vale la pena anotar los tres que más
+se pueden romper sin avisar:
+
+- **Paso 3, los extremos incluidos**: dos gastos de 7 y 11 en el primer y el último día del mes, y
+  el rango `desde=<día 1>&hasta=<último>` devolvió **18** en Transporte. Los dos bordes adentro.
+- **Paso 4, los dos rechazos**: medio rango dio `400`, y el rango invertido devolvió
+  `{'rango': ['La fecha de inicio no puede ser posterior a la de fin.']}` — la clave `rango` con el
+  texto exacto que la pantalla muestra al lado del control.
+- **Paso 5**: con el listado acotado a `monedaId=2`, el resumen siguió devolviendo **las dos**
+  monedas del catálogo. La garantía de la 009, viva.
+
+**El paso 12 es el que más dice, y salió mejor de lo que el quickstart pedía.** Un
+`INSERT INTO moneda` de `BRL` con SQL puro y, sin recompilar ni reiniciar nada:
+
+- `GET /api/monedas` devolvió `['ARS', 'USD', 'BRL']`;
+- y **`GET /api/resumen` la informó en cero**, `('BRL', 0)`, junto a las otras dos.
+
+Esa segunda mitad no estaba escrita en el paso y es la que cierra el círculo entre `FR-007` y
+`FR-009`: la moneda nueva no sólo aparece en el selector, aparece en el resumen con la forma
+completa que la pantalla sabe pintar. Se borró después.
+
+**Dos cosas que no se pudieron ejecutar**, y por qué:
+
+1. **Los pasos de navegador (6 a 11 y 13).** No hay navegador en este entorno. Cada uno cita los
+   tests que cubren lo mismo —el orden del DOM en `PantallaMovimientos.test.tsx`, la proporción de
+   la barra en `GastosPorCategoria.test.tsx`, la carrera y el rango en `PantallaDashboard.test.tsx`,
+   y la no-contaminación entre pantallas en `App.test.tsx`—, así que lo que queda sin comprobar no
+   es el comportamiento sino **cómo se ve**.
+2. **La contraseña del paso de alta de cuenta**: el quickstart no dice cuál usar y la primera que se
+   probó fue rechazada con *"La contraseña tiene que tener al menos 12 caracteres."*. No es un
+   hallazgo del dashboard —es `RNF-03` haciendo su trabajo— pero cuesta un intento a quien recorra
+   esto por primera vez. Queda dicho acá.
