@@ -162,4 +162,42 @@ describe('VentanaDeEdicion', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
+
+  /**
+   * **Una fila que deja de cumplir el acotado no puede quedarse en el listado.**
+   *
+   * Escenario, y es el caso de uso central de esta historia: el listado está acotado a Dólar, la
+   * persona abre una fila y le corrige la moneda a Pesos — que es exactamente para lo que la
+   * ventana existe. Al guardar, la fila se reemplaza en su lugar y queda visible **bajo un control
+   * que dice "Ver sólo la moneda: Dólar"**. El listado muestra algo que él mismo declara estar
+   * filtrando.
+   *
+   * Sacarla en silencio tampoco alcanza: la persona corrigió algo y necesita saber que salió bien.
+   * Por eso la confirmación lo dice, con el mismo criterio con el que el alta avisa cuando el
+   * movimiento cae fuera del mes del listado.
+   */
+  it('saca del listado la fila que dejó de cumplir el acotado, y lo dice', async () => {
+    vi.mocked(cliente.editarMovimiento).mockResolvedValue({ ...EN_PESOS, monedaCodigo: 'ARS' });
+
+    const usuario = userEvent.setup();
+    await renderizar();
+
+    // El listado, acotado a dólares, trae el movimiento que está en dólares.
+    vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([{ ...EN_PESOS, monedaCodigo: 'USD' }]);
+    await usuario.selectOptions(screen.getByLabelText('Ver sólo la moneda'), '2');
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'USD' })).toBeInTheDocument());
+
+    const fila = screen.getAllByRole('row')[1];
+    await usuario.click(within(fila).getByRole('button', { name: 'Editar' }));
+
+    const ventana = screen.getByRole('dialog');
+    await usuario.selectOptions(within(ventana).getByLabelText('Moneda'), '1');
+    await usuario.click(within(ventana).getByRole('button', { name: 'Guardar cambios' }));
+
+    await screen.findByText(
+      'Movimiento actualizado. Como ya no es de la moneda que estás viendo, salió del listado.',
+    );
+
+    expect(screen.queryByRole('cell', { name: 'ARS' })).not.toBeInTheDocument();
+  });
 });

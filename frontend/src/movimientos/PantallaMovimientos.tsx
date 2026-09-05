@@ -237,8 +237,30 @@ export function PantallaMovimientos({
       return;
     }
 
-    setMovimientos((previos) => previos.map((m) => (m.id === editado.id ? editado : m)));
     setEnEdicion(null);
+
+    // **Si dejó de cumplir el acotado, sale del listado.** Es el caso de uso central de la ventana
+    // —corregir la moneda— y sin esto la fila corregida queda visible bajo un control que dice
+    // estar mostrando otra moneda: el listado contradiciendo lo que él mismo declara filtrar.
+    //
+    // La comparación es por CÓDIGO contra el catálogo, porque el movimiento trae el código y el
+    // acotado guarda el identificador. Si el catálogo todavía no llegó, no se saca nada: preferir
+    // dejarla de más antes que hacerla desaparecer por no poder comprobarlo.
+    const codigoAcotado = monedas.find((m) => String(m.id) === monedaAcotada)?.codigo;
+
+    if (codigoAcotado !== undefined && editado.monedaCodigo !== codigoAcotado) {
+      setMovimientos((previos) => previos.filter((m) => m.id !== editado.id));
+
+      // Se dice, no se hace en silencio: la persona corrigió algo y necesita saber que salió bien
+      // aunque la fila desaparezca. Mismo criterio con el que el alta avisa cuando el movimiento
+      // queda fuera del mes del listado.
+      setConfirmacion(
+        'Movimiento actualizado. Como ya no es de la moneda que estás viendo, salió del listado.',
+      );
+      return;
+    }
+
+    setMovimientos((previos) => previos.map((m) => (m.id === editado.id ? editado : m)));
     setConfirmacion('Movimiento actualizado.');
   }
 
