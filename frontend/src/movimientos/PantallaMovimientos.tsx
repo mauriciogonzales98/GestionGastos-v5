@@ -110,19 +110,48 @@ export function PantallaMovimientos({
     // Queda el listado, con su propio `catch`: sin él, un backend caído dejaba el indicador de
     // carga encendido para siempre y la única señal era un unhandled rejection en la consola, que
     // nadie mira.
+    /**
+     * **La guarda contra la respuesta que llega tarde.**
+     *
+     * Desde que el acotado existe, este efecto corre más de una vez y puede haber dos peticiones en
+     * vuelo. Si la primera tarda más, resuelve última y su `setMovimientos` se escribe encima del
+     * resultado correcto: el listado termina mostrando lo que se pidió antes, con el control
+     * diciendo otra cosa. Sin error y sin nada en la consola — la pantalla contradiciéndose sola.
+     *
+     * El `cleanup` de React corre **antes** de volver a lanzar el efecto, así que apagar esta
+     * bandera es exactamente "lo que pedí dejó de importar". No se cancela la petición: cancelarla
+     * sería mejor y exige un `AbortController` hasta el `fetch`; descartar la respuesta arregla lo
+     * que se ve, que es el daño.
+     */
+    let vigente = true;
+
     void obtenerMovimientos({ monedaId: monedaAcotada === '' ? null : Number(monedaAcotada) })
-      .then(setMovimientos)
+      .then((traidos) => {
+        if (vigente) {
+          setMovimientos(traidos);
+        }
+      })
       .catch((error: unknown) => {
         if (error instanceof ErrorDeSesion) {
           onSesionVencida(SESION_VENCIDA);
           return;
         }
 
-        setErrorDeCarga('No se pudo cargar el listado de movimientos. Recargá la página.');
+        if (vigente) {
+          setErrorDeCarga('No se pudo cargar el listado de movimientos. Recargá la página.');
+        }
       })
       // El indicador se apaga pase lo que pase. Dejarlo encendido tras un fallo es decirle a la
       // persona que espere algo que no va a llegar.
-      .finally(() => setCargandoListado(false));
+      .finally(() => {
+        if (vigente) {
+          setCargandoListado(false);
+        }
+      });
+
+    return () => {
+      vigente = false;
+    };
     // `monedaAcotada` en las dependencias: el acotado lo hace el SERVIDOR, así que cambiarlo tiene
     // que volver a pedir. Filtrar del lado del cliente la lista que ya se tenía se vería igual y
     // estaría mal — mostraría sólo lo que ya se había traído.

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PantallaMovimientos } from '../src/movimientos/PantallaMovimientos';
@@ -220,5 +220,49 @@ describe('PantallaMovimientos', () => {
     await waitFor(() =>
       expect(vi.mocked(cliente.obtenerMovimientos)).toHaveBeenLastCalledWith({ monedaId: null }),
     );
+  });
+
+  /**
+   * **La respuesta que llega tarde no puede pisar a la que llegó después.**
+   *
+   * Escenario: el acotado se cambia dos veces seguidas. Salen dos peticiones y la primera tarda
+   * más, así que resuelve **última** y su `setMovimientos` se escribe encima del resultado correcto.
+   * El listado termina mostrando dólares con el control diciendo "Todas las monedas": la pantalla
+   * se contradice a sí misma, sin error y sin nada en la consola.
+   *
+   * No existía antes de esta feature porque el listado se pedía una sola vez, al montar. Lo trae
+   * el acotado por moneda, que es lo que vuelve al efecto capaz de correr más de una vez.
+   */
+  it('descarta la respuesta de un acotado que ya no está vigente', async () => {
+    const usuario = userEvent.setup();
+
+    let resolverLenta: (movimientos: Movimiento[]) => void = () => {};
+
+    vi.mocked(cliente.obtenerMovimientos).mockImplementation((acotado) => {
+      // El acotado a dólares es el lento: se resuelve a mano, después del otro.
+      if (acotado?.monedaId === 2) {
+        return new Promise<Movimiento[]>((resolver) => {
+          resolverLenta = resolver;
+        });
+      }
+
+      return Promise.resolve([DEL_20, DEL_10]);
+    });
+
+    await renderizar();
+
+    const acotado = screen.getByLabelText('Ver sólo la moneda');
+    await usuario.selectOptions(acotado, '2');
+    await usuario.selectOptions(acotado, '');
+
+    // Ahora sí contesta la de dólares, tarde y fuera de tiempo. `act` deja que su `.then` corra y
+    // que React pinte lo que sea que haya pasado: sin eso, la aserción se evalúa antes de que la
+    // respuesta vieja tenga oportunidad de pisar nada, y el test pasa sin verificar nada.
+    const soloDolares: Movimiento = { ...DEL_20, id: 99, monedaCodigo: 'USD' };
+    await act(async () => {
+      resolverLenta([soloDolares]);
+    });
+
+    expect(fechasDelListado()).toEqual(['2026-08-20', '2026-08-10']);
   });
 });
