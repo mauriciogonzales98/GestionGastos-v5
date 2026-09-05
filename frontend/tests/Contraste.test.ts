@@ -57,7 +57,20 @@ describe('relacionDeContraste — el verificador, antes que lo verificado', () =
   });
 });
 
-describe('los colores del dashboard cumplen AA PRD:AC-13', () => {
+/**
+ * **Qué mide este bloque y qué no** (hallazgo 6 de la revisión del PR #25).
+ *
+ * Mide los **valores declarados** en `COLORES_DEL_DASHBOARD`, no los que el navegador termina
+ * pintando. Para `barra` y `rielDeLaBarra` es lo mismo: el componente los baja a variables CSS, así
+ * que lo declarado es lo aplicado. Para `texto` y `fondo` **no**: son los valores por defecto del
+ * navegador escritos a mano, y ningún selector los pone.
+ *
+ * O sea que el día que el ticket 6 declare un gris para el texto en `base.css`, este bloque va a
+ * seguir en verde midiendo negro sobre blanco. La salida es que esa paleta consuma estas mismas
+ * constantes, como ya hace la barra — hasta entonces, esto es un piso, no una garantía. Queda
+ * anotado como deuda D10-07.
+ */
+describe('los colores DECLARADOS del dashboard cumplen AA PRD:AC-13', () => {
   it('el texto normal llega a 4,5:1 contra su fondo', () => {
     expect(
       relacionDeContraste(COLORES_DEL_DASHBOARD.texto, COLORES_DEL_DASHBOARD.fondo),

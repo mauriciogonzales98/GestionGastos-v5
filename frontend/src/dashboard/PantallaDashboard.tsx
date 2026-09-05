@@ -65,12 +65,8 @@ export function PantallaDashboard({ monedas, onVolver, onSesionVencida }: PropsP
   const [monedaAcotada, setMonedaAcotada] = useState('');
   const idAcotado = useId();
 
-  /**
-   * Pide el resumen. Sin período por ahora: el rango llega en la historia siguiente.
-   *
-   * `useCallback` no es una optimización: lo usa un `useEffect`, y una función nueva en cada render
-   * volvería a disparar la carga en bucle.
-   */
+  // Desarmado acá y no dentro del efecto: sus dependencias tienen que ser las dos cadenas y no la
+  // tupla, que es un objeto nuevo en cada render y volvería a disparar la carga en bucle.
   const [desde, hasta] = periodo;
 
   useEffect(() => {
