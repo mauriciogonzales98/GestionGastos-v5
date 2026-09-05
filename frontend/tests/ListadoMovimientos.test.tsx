@@ -132,4 +132,29 @@ describe('ListadoMovimientos', () => {
 
     expect(screen.getByRole('cell', { name: 'XCT' })).toBeInTheDocument();
   });
+
+  /**
+   * **Un código que no sea tres letras no puede tumbar la pantalla.**
+   *
+   * `Intl.NumberFormat` con `style: 'currency'` exige tres letras ASCII y lanza `RangeError` con
+   * cualquier otra cosa — comprobado: `'USD'` y `'XCT'` van, `'BT1'`, `'US'` y `'A-B'` lanzan.
+   *
+   * La columna `moneda.codigo` es `char(3)`, que garantiza **tres caracteres pero no tres letras**:
+   * `'BT1'` es un dato perfectamente válido para el esquema. Y desde esta feature se puede registrar
+   * un movimiento en cualquier moneda del catálogo, así que ese dato llega hasta acá. Sin este
+   * guardarraíl, el `RangeError` sube por el render, React desmonta el árbol y la cuenta queda con
+   * la pantalla en blanco hasta que alguien borre el movimiento por SQL.
+   *
+   * Es exactamente la promesa que la feature vende —agregar una moneda es sólo un dato— rompiéndose
+   * por un dato que nadie declaró inválido en ninguna parte.
+   */
+  it('muestra el monto aunque el código no sea una moneda que Intl entienda', () => {
+    const enUnCodigoRaro: Movimiento[] = [{ ...MISMO_MONTO_DOS_MONEDAS[0], monedaCodigo: 'BT1' }];
+
+    render(<ListadoMovimientos movimientos={enUnCodigoRaro} onEditar={() => {}} />);
+
+    // El monto se ve, y el código también: se degrada, no se cae.
+    expect(screen.getByRole('cell', { name: 'BT1' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: /100/ })).toBeInTheDocument();
+  });
 });
