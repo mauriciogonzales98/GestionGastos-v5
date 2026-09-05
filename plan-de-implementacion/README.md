@@ -41,6 +41,7 @@ Verificado contra el código el 2026-09-03.
 | 10 | FEAT-001c | Resumen del mes con desglose por categoría | `specs/006-resumen-del-mes/`, `GET /api/resumen`, `Resumenes/` | no está en el repo |
 | 11 | DISC-001-03 | Categorías propias del usuario | `specs/007-categorias-propias/`, `Categorias/` con su canal y su validación, `POST`/`PUT`/`DELETE /api/categorias`, la migración `DiscriminadorDeCategoria`, `frontend/src/categorias/PantallaCategorias.tsx` y `verificar-desglose.sh` | `prds/pendientes/prd-DISC-001-03.md` |
 | 12 | DISC-001-04a | Catálogo de monedas y totales por moneda | `specs/008-monedas-como-dato/`, `verificar-monedas.sh`. **La mayor parte ya venía construida**: la tabla `moneda` y su semilla salieron con FEAT-001a, y el resumen por moneda con FEAT-001c. Esta feature la **verificó** —que sumar una moneda cueste 0 líneas y 0 recompilaciones, y que la separación aguante 1000 movimientos en dos monedas— y documentó requisito por requisito qué ya estaba hecho | `prds/pendientes/prd-DISC-001-04a.md` |
+| 13 | DISC-001-04b | Registrar y filtrar en varias monedas | `specs/009-elegir-y-filtrar-moneda/`, `GET /api/monedas`, `monedaId` en el alta, la edición y el acotado del listado, `Monedas/`, `CamposDelMovimiento.tsx` y `VentanaDeEdicion.tsx`. **Saldó las tres deudas que la 008 le dejó**: D8-01 (rechazar una moneda fuera del catálogo, que hasta acá no se podía ni probar porque no había entrada que validar), D8-02 y D8-03. Extendió `verificar-monedas.sh` a `frontend/src/`: la promesa de que sumar una moneda cuesta 0 líneas sólo estaba protegida del lado del backend | `prds/pendientes/prd-DISC-001-04b.md` |
 
 Los FIX/FEAT de infraestructura (D-1 a D-4) salieron intercalados porque el usuario decidió cerrar
 la deuda de infraestructura antes de seguir con features de producto; el mapa de
@@ -51,13 +52,18 @@ la deuda de infraestructura antes de seguir con features de producto; el mapa de
 
 | Orden | # | Título | PRD |
 |-------|---|--------|-----|
-| 13 | 4b | Registrar y filtrar en varias monedas | `prds/pendientes/prd-DISC-001-04b.md` |
 | 14 | 5 | Dashboard con gráficos | `prds/pendientes/prd-DISC-001-05.md` |
 | 15 | 6 | Maquetación y accesibilidad | `prds/pendientes/prd-DISC-001-06.md` |
 | — | 2 | Nota descriptiva del movimiento | `prds/pendientes/prd-DISC-001-02.md` |
 
 `2` no tiene dependencias ni bloquea a nadie: entra en cualquier hueco. El resto es secuencial por
 las razones que están en `plan-DISC-001.md`.
+
+**El ticket 4b dejó dos cosas sin construir, y están anotadas.** La barra de filtros de categoría y
+fecha y la interfaz de eliminación —la mitad de frontend de FEAT-001b, que salió como feature de
+backend— quedaron para el ticket 6; la vista de totales, para el ticket 5. El criterio con el que se
+cortó: lo que todavía no tiene pantalla es porque está más adelante en el plan, no porque se haya
+olvidado.
 
 **El ticket 3 es el primero que toca las dos pilas.** Los diez anteriores dejaron el backend con
 sus endpoints y el frontend con el contrato declarado; éste agrega los tres endpoints de categorías

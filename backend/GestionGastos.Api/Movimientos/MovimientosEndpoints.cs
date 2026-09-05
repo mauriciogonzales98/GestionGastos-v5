@@ -38,23 +38,31 @@ public static class MovimientosEndpoints
                     && c.Activa)
                 : null;
 
-            // Se valida TODO antes de tocar la base: la respuesta junta los errores de los cuatro
+            // La moneda: la elegida, o la predeterminada del catálogo si no se eligió ninguna
+            // (FR-001, FR-002). Hasta el ticket 4b esto era siempre la predeterminada, porque el
+            // cliente no tenía cómo decir otra cosa.
+            //
+            // SingleAsync para la predeterminada y no FirstAsync: RF-25 dice que hay exactamente
+            // una, y la migración UnicaMonedaPredeterminada lo hace cumplir en la base. Si igual
+            // hubiera dos, First elegiría una sin criterio y en silencio; Single falla
+            // ruidosamente, que es lo que corresponde ante una invariante rota.
+            //
+            // La búsqueda de la elegida es FirstOrDefault y no Single: un id que no existe NO es
+            // una invariante rota, es una petición inválida, y tiene que terminar en un 400 con su
+            // campo y no en una excepción.
+            var moneda = peticion.MonedaId is { } monedaElegida
+                ? await contexto.Monedas.FirstOrDefaultAsync(m => (int)m.Id == monedaElegida)
+                : await contexto.Monedas.SingleAsync(m => m.EsPredeterminada);
+
+            // Se valida TODO antes de tocar la base: la respuesta junta los errores de los cinco
             // campos en una sola pasada, en vez de hacer corregir de a uno.
-            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, out var tipo);
+            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, moneda, out var tipo);
             if (errores.Count > 0)
             {
                 return Results.ValidationProblem(errores);
             }
 
             var monto = peticion.Monto!.Value;
-
-            // FR-009: la moneda sale de la predeterminada del catálogo, no de una constante.
-            //
-            // SingleAsync y no FirstAsync: RF-25 dice que hay exactamente una, y la migración
-            // UnicaMonedaPredeterminada lo hace cumplir en la base. Si igual hubiera dos, First
-            // elegiría una sin criterio y en silencio; Single falla ruidosamente, que es lo que
-            // corresponde ante una invariante rota.
-            var moneda = await contexto.Monedas.SingleAsync(m => m.EsPredeterminada);
 
             // El "hoy" sale del reloj inyectado y no de DateTime.Now: es lo que vuelve verificable
             // AC-17 con una fecha fija (D-03).
@@ -67,7 +75,7 @@ public static class MovimientosEndpoints
                 UsuarioId = usuarioActual.Id,
                 Tipo = tipo,
                 Monto = monto,
-                MonedaId = moneda.Id,
+                MonedaId = moneda!.Id,
                 CategoriaId = categoria!.Id,
                 Fecha = fecha,
             };
@@ -97,7 +105,8 @@ public static class MovimientosEndpoints
             TimeZoneInfo zona,
             DateOnly? desde,
             DateOnly? hasta,
-            int? categoriaId) =>
+            int? categoriaId,
+            int? monedaId) =>
         {
             // Las tres reglas del período —los dos extremos juntos o ninguno, el rango invertido
             // rechazado, y el mes en curso del SERVIDOR por omisión— viven en `PeriodoPedido` desde
@@ -111,11 +120,15 @@ public static class MovimientosEndpoints
                 return Results.ValidationProblem(errores);
             }
 
-            // La categoría NO se valida contra el catálogo: una que no existe simplemente no deja
-            // pasar nada. Rechazarla con un 400 confirmaría cuáles existen, que es la misma fuga
-            // que el 404 uniforme cierra en las rutas por identificador.
+            // Ni la categoría ni la moneda se validan contra su catálogo: una que no existe
+            // simplemente no deja pasar nada. Rechazarlas con un 400 confirmaría cuáles existen,
+            // que es la misma fuga que el 404 uniforme cierra en las rutas por identificador.
+            //
+            // Que el ALTA sí rechace una moneda inexistente y esto no, no es una incoherencia: una
+            // escribe y la otra sólo mira. Lo que se escribe tiene que quedar íntegro; lo que se
+            // mira puede no encontrar nada.
             var movimientos = await MovimientosConsulta
-                .Filtrado(contexto, usuarioActual.Id, rango, categoriaId)
+                .Filtrado(contexto, usuarioActual.Id, rango, categoriaId, monedaId)
                 .Select(m => new MovimientoDto(
                     m.Id,
                     m.Tipo == TipoMovimiento.Gasto ? TipoMovimientoTexto.Gasto : TipoMovimientoTexto.Ingreso,
@@ -197,7 +210,16 @@ public static class MovimientosEndpoints
                     && (c.Activa || c.Id == movimiento.CategoriaId))
                 : null;
 
-            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, out var tipo);
+            // La moneda pedida, si se pidió alguna. **Ausente NO es la predeterminada acá**: es
+            // "la que ya tenía" (FR-011). Copiar el criterio del alta dejaría que una edición que
+            // no menciona la moneda se la cambiara en silencio a quien la había elegido — un
+            // cambio que nadie pidió, que es lo único que la asimetría con el alta existe para
+            // evitar.
+            var moneda = peticion.MonedaId is { } monedaElegida
+                ? await contexto.Monedas.FirstOrDefaultAsync(m => (int)m.Id == monedaElegida)
+                : null;
+
+            var errores = ValidacionDelMovimiento.Validar(peticion, categoria, moneda, out var tipo);
 
             if (peticion.Fecha is null)
             {
@@ -218,9 +240,17 @@ public static class MovimientosEndpoints
             movimiento.CategoriaId = categoria!.Id;
             movimiento.Fecha = peticion.Fecha!.Value;
 
+            // Sólo si se pidió una. Sin esto, `moneda` en null pisaría la que tenía.
+            if (moneda is not null)
+            {
+                movimiento.MonedaId = moneda.Id;
+            }
+
             await contexto.SaveChangesAsync();
 
-            var moneda = await contexto.Monedas.SingleAsync(m => m.Id == movimiento.MonedaId);
+            // La que quedó: la nueva si se cambió, la de siempre si no. Se relee del catálogo
+            // porque la respuesta lleva el CÓDIGO y el movimiento sólo guarda el identificador.
+            var monedaFinal = moneda ?? await contexto.Monedas.SingleAsync(m => m.Id == movimiento.MonedaId);
 
             return Results.Ok(new MovimientoDto(
                 movimiento.Id,
@@ -228,7 +258,7 @@ public static class MovimientosEndpoints
                 movimiento.Monto,
                 categoria.Id,
                 categoria.Nombre,
-                moneda.Codigo,
+                monedaFinal.Codigo,
                 movimiento.Fecha));
         });
 

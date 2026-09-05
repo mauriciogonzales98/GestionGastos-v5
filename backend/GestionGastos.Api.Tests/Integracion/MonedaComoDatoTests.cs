@@ -29,52 +29,14 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
 
     /// <summary>
-    /// Agrega una moneda al catálogo, corre lo que se le pida con ella puesta, y **la borra pase lo
-    /// que pase**.
+    /// Agrega una moneda al catálogo, corre el cuerpo con ella puesta y la borra pase lo que pase.
     ///
-    /// El `finally` no es celo: si el cuerpo falla, la moneda queda igual, y entonces el rojo que
-    /// alguien va a leer mañana es el del canario y no el del test que de verdad falló. Un test que
-    /// ensucia al fallar convierte un rojo legible en dos ilegibles.
-    ///
-    /// **La limpieza va acá y no en `LimpiarCuentasAsync`.** Ahí borraría las dos monedas sembradas
-    /// para toda la suite —que la migración siembra una sola vez y media suite da por dadas—, que es
-    /// el mismo error que ese método ya evita en categorías filtrando por `usuario_id != null`.
+    /// **El cuerpo vive en <see cref="CatalogoDeMonedas"/> desde la feature 009**, que necesitó lo
+    /// mismo desde tres archivos más. Acá queda el atajo para no reescribir el fixture en cada
+    /// llamada; las dos razones de por qué la limpieza es así están escritas allá.
     /// </summary>
-    private async Task ConLaMonedaAsync(string codigo, Func<Moneda, Task> cuerpo)
-    {
-        var moneda = new Moneda
-        {
-            Codigo = codigo,
-            Nombre = $"Moneda de prueba {codigo}",
-            Simbolo = codigo,
-            Decimales = 2,
-            EsPredeterminada = false,
-        };
-
-        await using (var contexto = _baseDeDatos.CrearContexto())
-        {
-            contexto.Monedas.Add(moneda);
-            await contexto.SaveChangesAsync();
-        }
-
-        try
-        {
-            await cuerpo(moneda);
-        }
-        finally
-        {
-            await using var contexto = _baseDeDatos.CrearContexto();
-
-            // **Los movimientos primero.** `movimiento.moneda_id` es una clave foránea RESTRICT, así
-            // que borrar la moneda con un movimiento apuntándola falla — y falla DENTRO del
-            // `finally`, que es el peor lugar: la moneda queda, el rojo que se lee es el del canario
-            // de la corrida siguiente, y la causa no aparece en ninguno de los dos. Es el mismo
-            // orden que `LimpiarCuentasAsync` documenta para cuentas y categorías, por el mismo
-            // motivo.
-            await contexto.Movimientos.Where(m => m.Moneda!.Codigo == codigo).ExecuteDeleteAsync();
-            await contexto.Monedas.Where(m => m.Codigo == codigo).ExecuteDeleteAsync();
-        }
-    }
+    private Task ConLaMonedaAsync(string codigo, Func<Moneda, Task> cuerpo) =>
+        CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, codigo, cuerpo);
 
     /// <summary>
     /// AC-03 y FR-003: el catálogo migrado trae pesos y dólares, y **exactamente una** marcada como

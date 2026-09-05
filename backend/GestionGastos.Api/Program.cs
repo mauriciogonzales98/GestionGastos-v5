@@ -1,5 +1,6 @@
 using GestionGastos.Api.Categorias;
 using GestionGastos.Api.Cuentas;
+using GestionGastos.Api.Monedas;
 using GestionGastos.Api.Movimientos;
 using GestionGastos.Api.Persistencia;
 using GestionGastos.Api.Resumenes;
@@ -133,6 +134,7 @@ app.UseAuthorization();
 app.MapCuentas();
 app.MapSesion();
 app.MapCategorias();
+app.MapMonedas();
 app.MapMovimientos();
 app.MapResumen();
 

@@ -2,7 +2,9 @@ import type {
   Categoria,
   CategoriaEditada,
   Credenciales,
+  Moneda,
   Movimiento,
+  MovimientoEditado,
   NuevaCategoria,
   NuevaCuenta,
   NuevoMovimiento,
@@ -160,6 +162,16 @@ export function obtenerCategorias(): Promise<Categoria[]> {
 }
 
 /**
+ * El catálogo de monedas (FR-004). Alimenta el selector del formulario y el acotado del listado.
+ *
+ * Se pide **una sola vez por carga**, desde la raíz, y baja por props a las dos cosas
+ * (`PRD:NFR-02`). Que las dos salgan de la misma lectura es lo que hace imposible que discrepen.
+ */
+export function obtenerMonedas(): Promise<Moneda[]> {
+  return pedir<Moneda[]>('/api/monedas');
+}
+
+/**
  * Crea una categoría propia (FR-004). Devuelve la creada, en la misma forma que el catálogo.
  *
  * Que devuelva la categoría y no `void` es lo que permite insertarla en el catálogo que la pantalla
@@ -193,8 +205,29 @@ export function darDeBajaCategoria(id: number): Promise<void> {
   return pedirSinCuerpo(`/api/categorias/${id}`, { method: 'DELETE' });
 }
 
-export function obtenerMovimientos(): Promise<Movimiento[]> {
-  return pedir<Movimiento[]>('/api/movimientos');
+/**
+ * Lo que se puede acotar del listado desde esta pantalla.
+ *
+ * **Sólo la moneda.** El servidor acota también por categoría y por rango de fechas desde
+ * FEAT-001b, y esos dos no tienen control en la interfaz: la barra de filtros nunca se construyó.
+ * Es la deuda D9-01 de esta feature, y este tipo es donde va a crecer cuando se salde.
+ */
+export interface AcotadoDelListado {
+  /** `null` o ausente = todas las monedas. */
+  monedaId?: number | null;
+}
+
+export function obtenerMovimientos(acotado: AcotadoDelListado = {}): Promise<Movimiento[]> {
+  // Se arma con URLSearchParams y no concatenando: un id que llegue como texto raro se escapa
+  // solo. Y lo que vale `null` no se manda — el servidor entiende "ausente" como "todas", y
+  // mandar `monedaId=` vacío lo obligaría a interpretar una cadena vacía.
+  const parametros = new URLSearchParams();
+  if (acotado.monedaId != null) {
+    parametros.set('monedaId', String(acotado.monedaId));
+  }
+
+  const consulta = parametros.size === 0 ? '' : `?${parametros}`;
+  return pedir<Movimiento[]>(`/api/movimientos${consulta}`);
 }
 
 export function crearMovimiento(nuevo: NuevoMovimiento): Promise<Movimiento> {
@@ -202,6 +235,21 @@ export function crearMovimiento(nuevo: NuevoMovimiento): Promise<Movimiento> {
     method: 'POST',
     headers: JSON_ENVIADO,
     body: JSON.stringify(nuevo),
+  });
+}
+
+/**
+ * Modifica un movimiento propio (RF-14, FR-011). Devuelve el movimiento ya modificado, en la misma
+ * forma que el listado.
+ *
+ * Que devuelva el movimiento y no `void` es lo que permite actualizar la fila que la pantalla ya
+ * tiene, sin volver a pedir el listado entero.
+ */
+export function editarMovimiento(id: number, cambio: MovimientoEditado): Promise<Movimiento> {
+  return pedir<Movimiento>(`/api/movimientos/${id}`, {
+    method: 'PUT',
+    headers: JSON_ENVIADO,
+    body: JSON.stringify(cambio),
   });
 }
 

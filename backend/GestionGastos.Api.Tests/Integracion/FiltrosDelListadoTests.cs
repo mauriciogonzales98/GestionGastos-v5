@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestionGastos.Api.Tests.Integracion;
 
@@ -217,6 +218,100 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
 
     // ---- Helpers -------------------------------------------------------------------------------
 
+    /// <summary>
+    /// AC-06, AC-07 y FR-008: el listado se acota a una moneda, y sin el parámetro vienen todas.
+    ///
+    /// Las dos mitades en un caso porque son la misma afirmación mirada de los dos lados: acotar
+    /// tiene que dejar afuera, y no acotar no tiene que dejar afuera nada. Un filtro que devuelve
+    /// vacío siempre pasaría la primera mitad sola.
+    /// </summary>
+    [Fact]
+    public async Task El_Listado_Se_Acota_Por_Moneda_Y_Sin_El_Parametro_Vienen_Todas_AC06_AC07()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XF1", async moneda =>
+        {
+            using var factoria = new FactoriaConReloj(Hoy);
+            using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+            var enLaNueva = await RegistrarAsync(cuenta, 100m, Comida, Medio, moneda.Id);
+            var enLaPredeterminada = await RegistrarAsync(cuenta, 200m, Comida, Medio);
+
+            Assert.Equal([enLaNueva], await IdsAsync(cuenta, monedaId: moneda.Id));
+
+            var sinAcotar = await IdsAsync(cuenta);
+            Assert.Contains(enLaNueva, sinAcotar);
+            Assert.Contains(enLaPredeterminada, sinAcotar);
+        });
+    }
+
+    /// <summary>
+    /// AC-08 y FR-009: los **tres** acotados a la vez devuelven la intersección.
+    ///
+    /// Es donde suelen aparecer los `AND` que se pierden: cada filtro anda solo y juntos uno se
+    /// come al otro. El sembrado tiene, además del que cumple las tres condiciones, uno que falla
+    /// **cada** condición por separado — sin eso, un filtro que se ignora no se nota.
+    /// </summary>
+    [Fact]
+    public async Task Los_Tres_Acotados_Se_Combinan_Con_Y_AC08()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XF2", async moneda =>
+        {
+            using var factoria = new FactoriaConReloj(Hoy);
+            using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+            var cumpleLasTres = await RegistrarAsync(cuenta, 100m, Comida, Medio, moneda.Id);
+
+            // Falla sólo la fecha.
+            await RegistrarAsync(cuenta, 200m, Comida, Tarde, moneda.Id);
+
+            // Falla sólo la categoría.
+            await RegistrarAsync(cuenta, 300m, Transporte, Medio, moneda.Id);
+
+            // Falla sólo la moneda: queda en la predeterminada.
+            await RegistrarAsync(cuenta, 400m, Comida, Medio);
+
+            var resultado = await IdsAsync(
+                cuenta,
+                desde: Temprano,
+                hasta: Medio,
+                categoriaId: Comida,
+                monedaId: moneda.Id);
+
+            Assert.Equal([cumpleLasTres], resultado);
+        });
+    }
+
+    /// <summary>
+    /// FR-015: acotar por una moneda que no está en el catálogo **no es un error**: no deja pasar
+    /// nada.
+    ///
+    /// Es el mismo criterio que ya rige para la categoría inexistente en este mismo endpoint, y por
+    /// la misma razón: un `400` confirmaría cuáles existen. Que el ALTA sí rechace una moneda
+    /// inexistente y el ACOTADO no, no es una incoherencia — una escribe y la otra sólo mira.
+    /// </summary>
+    [Fact]
+    public async Task Acotar_Por_Una_Moneda_Inexistente_No_Es_Error_FR015()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        await RegistrarAsync(cuenta, 100m, Comida, Medio);
+
+        short inexistente;
+        await using (var contexto = _baseDeDatos.CrearContexto())
+        {
+            inexistente = (short)(await contexto.Monedas.MaxAsync(m => m.Id) + 1);
+        }
+
+        Assert.Empty(await IdsAsync(cuenta, monedaId: inexistente));
+    }
+
     private static async Task<(HttpStatusCode Estado, string Cuerpo)> CrudoAsync(
         CuentaDePrueba cuenta, string consulta)
     {
@@ -227,7 +322,11 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
     }
 
     private static async Task<List<long>> IdsAsync(
-        CuentaDePrueba cuenta, DateOnly? desde = null, DateOnly? hasta = null, int? categoriaId = null)
+        CuentaDePrueba cuenta,
+        DateOnly? desde = null,
+        DateOnly? hasta = null,
+        int? categoriaId = null,
+        int? monedaId = null)
     {
         var partes = new List<string>();
         if (desde is { } d)
@@ -245,6 +344,11 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
             partes.Add("categoriaId=" + c.ToString(CultureInfo.InvariantCulture));
         }
 
+        if (monedaId is { } m)
+        {
+            partes.Add("monedaId=" + m.ToString(CultureInfo.InvariantCulture));
+        }
+
         var consulta = partes.Count == 0 ? string.Empty : "?" + string.Join("&", partes);
         var (estado, cuerpo) = await CrudoAsync(cuenta, consulta);
 
@@ -255,7 +359,7 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
     }
 
     private static async Task<long> RegistrarAsync(
-        CuentaDePrueba cuenta, decimal monto, int categoriaId, DateOnly fecha)
+        CuentaDePrueba cuenta, decimal monto, int categoriaId, DateOnly fecha, int? monedaId = null)
     {
         using var respuesta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
@@ -264,6 +368,7 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
                 tipo = "gasto",
                 monto,
                 categoriaId,
+                monedaId,
                 fecha = fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             });
 

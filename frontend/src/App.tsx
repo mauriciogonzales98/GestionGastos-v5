@@ -7,10 +7,11 @@ import {
   crearCategoria,
   darDeBajaCategoria,
   obtenerCategorias,
+  obtenerMonedas,
   renombrarCategoria,
 } from './api/cliente';
 import { PantallaCategorias } from './categorias/PantallaCategorias';
-import type { Categoria, NuevaCategoria, SesionActual } from './api/tipos';
+import type { Categoria, Moneda, NuevaCategoria, SesionActual } from './api/tipos';
 import { PantallaMovimientos } from './movimientos/PantallaMovimientos';
 
 export interface PropsApp {
@@ -102,6 +103,21 @@ export function App({ hoy }: PropsApp) {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [errorDelCatalogo, setErrorDelCatalogo] = useState<string | null>(null);
 
+  /**
+   * El catálogo de monedas, con el mismo tratamiento que el de categorías y por la misma razón
+   * (`PRD:NFR-02`, AC-12): lo necesitan el selector del formulario y el acotado del listado, y la
+   * salida fácil —que cada uno lo pida— son dos peticiones al arrancar y dos listas que pueden
+   * discrepar.
+   *
+   * **Su fallo avisa, pero no bloquea, y las dos mitades importan.** Si las monedas no cargan, el
+   * alta sale sin `monedaId` y el servidor pone la predeterminada, así que se puede seguir
+   * registrando — por eso el aviso es distinto del de categorías, que sí describe una pantalla
+   * inservible. Pero el selector se ve **vacío**, y dejar eso sin explicación es el catch
+   * silencioso que `AGENTS.md` prohíbe: no bloquear no es lo mismo que callar.
+   */
+  const [monedas, setMonedas] = useState<Moneda[]>([]);
+  const [errorDelCatalogoDeMonedas, setErrorDelCatalogoDeMonedas] = useState<string | null>(null);
+
   useEffect(() => {
     void consultarSesion()
       .then((actual) => {
@@ -132,7 +148,9 @@ export function App({ hoy }: PropsApp) {
     setEstado('sin-sesion');
     setAviso(motivo);
     setCategorias([]);
+    setMonedas([]);
     setErrorDelCatalogo(null);
+    setErrorDelCatalogoDeMonedas(null);
     setVista(VISTA_INICIAL);
   }, []);
 
@@ -146,6 +164,25 @@ export function App({ hoy }: PropsApp) {
     if (estado !== 'con-sesion') {
       return;
     }
+
+    // Las monedas, en paralelo con las categorías y con el mismo disparador. Su fallo no vuelve al
+    // acceso salvo que sea un 401: sin monedas se puede seguir registrando en la predeterminada.
+    void obtenerMonedas()
+      .then(setMonedas)
+      .catch((error: unknown) => {
+        // Un 401 no es "falló la carga": es que ya no hay sesión. La reacción es volver al acceso.
+        if (error instanceof ErrorDeSesion) {
+          alVencerLaSesion(SESION_VENCIDA);
+          return;
+        }
+
+        // Cualquier otro error SE DICE. El aviso nombra la consecuencia real —se registra en la
+        // predeterminada— en vez de pedir que se recargue: recargar no es necesario para poder
+        // seguir trabajando, y pedirlo sugeriría que sí.
+        setErrorDelCatalogoDeMonedas(
+          'No se pudieron cargar las monedas. Se va a registrar en la moneda predeterminada.',
+        );
+      });
 
     void obtenerCategorias()
       .then(setCategorias)
@@ -226,7 +263,9 @@ export function App({ hoy }: PropsApp) {
     // quien acaba de apretar el botón.
     setAviso(null);
     setCategorias([]);
+    setMonedas([]);
     setErrorDelCatalogo(null);
+    setErrorDelCatalogoDeMonedas(null);
     setVista(VISTA_INICIAL);
   }
 
@@ -256,7 +295,9 @@ export function App({ hoy }: PropsApp) {
         hoy={hoy}
         email={sesion.email}
         categorias={categorias}
+        monedas={monedas}
         errorDelCatalogo={errorDelCatalogo}
+        errorDelCatalogoDeMonedas={errorDelCatalogoDeMonedas}
         onCerrarSesion={() => void salir()}
         onSesionVencida={alVencerLaSesion}
         onGestionarCategorias={() => setVista('categorias')}

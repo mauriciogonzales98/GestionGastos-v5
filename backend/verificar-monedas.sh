@@ -20,7 +20,20 @@
 #                              única razón por la que esto no quedó siendo un agujero silencioso.
 #                              El hash igual sigue valiendo, pero por otra cosa: dice que el binario
 #                              que corrió los tests es el mismo que se midió.
-#   · 0 líneas modificadas   → `git status --porcelain` sobre GestionGastos.Api/, vacío.
+#   · 0 líneas modificadas   → `git status --porcelain` sobre GestionGastos.Api/ **y sobre
+#                              frontend/src/**, vacío.
+#
+# **El frontend entró con la feature 009 y no estaba de más.** Hasta entonces esta barrera miraba
+# sólo el backend, porque el frontend no sabía nada de monedas: no había selector ni acotado, así
+# que no había dónde escribir una lista fija. Desde que el selector existe, un
+# `const MONEDAS = ['ARS', 'USD']` escrito del lado de la pantalla rompe la promesa de producto
+# —agregar una moneda cuesta 0 líneas— **del único lado que el usuario mira**, y esta barrera lo
+# habría dado por bueno.
+#
+# Lo que el script puede afirmar sobre el frontend es que nadie tuvo que tocarlo, y eso es
+# exactamente lo que se le pide. Correr su suite acá no serviría: los tests del frontend no hablan
+# con la base, reciben el catálogo por props. Que el selector salga del catálogo lo verifican ellos,
+# con una moneda que ninguna constante conoce.
 #
 # **Por qué la segunda mitad NO usa un hash del árbol de fuentes**, que es lo primero que se le
 # ocurre a cualquiera: un hash tomado antes y después sólo ve lo que cambió DURANTE la ventana del
@@ -138,13 +151,13 @@ MTIME_ANTES="$(stat -c %Y "$ENSAMBLADO")"
 
 # El árbol tiene que estar limpio ANTES de empezar, o la comprobación del final no distingue lo que
 # ensució el script de lo que ya estaba sucio.
-if [[ -n "$(git -C "$RAIZ" status --porcelain -- backend/GestionGastos.Api/)" ]]; then
-  echo "ERROR: hay cambios sin commitear en backend/GestionGastos.Api/." >&2
+if [[ -n "$(git -C "$RAIZ" status --porcelain -- backend/GestionGastos.Api/ frontend/src/)" ]]; then
+  echo "ERROR: hay cambios sin commitear en backend/GestionGastos.Api/ o frontend/src/." >&2
   echo "       Esta barrera mide que el script no modifique código, y con el árbol ya sucio no" >&2
   echo "       puede distinguir una cosa de la otra. Commiteá o descartá y volvé a correr." >&2
   exit 1
 fi
-echo "   ensamblado en ${HASH_ANTES:0:12}… (mtime $MTIME_ANTES) y árbol limpio"
+echo "   ensamblado en ${HASH_ANTES:0:12}… (mtime $MTIME_ANTES) y árbol limpio en las dos pilas"
 
 echo "== 2/4 · agregar la moneda al catálogo, sólo con SQL"
 limpiar
@@ -186,7 +199,7 @@ if [[ "$HASH_ANTES" != "$HASH_DESPUES" ]]; then
   exit 1
 fi
 
-SUCIO="$(git -C "$RAIZ" status --porcelain -- backend/GestionGastos.Api/)"
+SUCIO="$(git -C "$RAIZ" status --porcelain -- backend/GestionGastos.Api/ frontend/src/)"
 if [[ -n "$SUCIO" ]]; then
   echo "ERROR: quedaron archivos de producción modificados:" >&2
   echo "$SUCIO" >&2
