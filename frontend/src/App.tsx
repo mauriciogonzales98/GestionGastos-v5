@@ -285,6 +285,7 @@ export function App({ hoy }: PropsApp) {
     if (vista === 'dashboard') {
       return (
         <PantallaDashboard
+          monedas={monedas}
           onVolver={() => setVista('movimientos')}
           onSesionVencida={alVencerLaSesion}
         />

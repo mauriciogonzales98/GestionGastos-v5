@@ -617,3 +617,54 @@ describe('App — el dashboard no mueve el resumen de la pantalla principal FR-0
     expect(screen.queryByText(/88\.888/)).not.toBeInTheDocument();
   });
 });
+
+/**
+ * FR-006b: **el filtro de moneda es del dashboard y no se contagia.**
+ *
+ * Es, una capa más arriba, la misma garantía que la feature 009 blindó en el servidor con `monedaId:
+ * null` explícito: *"el resumen informa sobre TODAS las monedas del catálogo, siempre"*.
+ */
+describe('App — el filtro de moneda no se contagia a la pantalla principal FR-006b', () => {
+  const DOS_MONEDAS = {
+    desde: '2026-08-01',
+    hasta: '2026-08-31',
+    monedas: [
+      {
+        monedaId: 1,
+        monedaCodigo: 'ARS',
+        totalIngresado: 500,
+        totalGastado: 300,
+        balance: 200,
+        gastosPorCategoria: [{ categoriaId: 1, categoriaNombre: 'Comida', total: 300 }],
+      },
+      {
+        monedaId: 2,
+        monedaCodigo: 'USD',
+        totalIngresado: 10,
+        totalGastado: 4,
+        balance: 6,
+        gastosPorCategoria: [{ categoriaId: 1, categoriaNombre: 'Comida', total: 4 }],
+      },
+    ],
+  };
+
+  it('con una moneda elegida en el dashboard, la principal sigue mostrando todas', async () => {
+    const usuario = userEvent.setup();
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue(DOS_MONEDAS);
+
+    render(<App hoy="2026-08-24" />);
+    await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' });
+    await screen.findByRole('region', { name: /resumen del mes/i });
+
+    await usuario.click(screen.getByRole('button', { name: /dashboard/i }));
+    await screen.findByRole('heading', { level: 1, name: /dashboard/i });
+    await usuario.selectOptions(screen.getByLabelText(/ver sólo la moneda/i), '1');
+    expect(screen.queryByRole('region', { name: /USD/ })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: /volver/i }));
+    await screen.findByRole('region', { name: /resumen del mes/i });
+
+    expect(screen.getByRole('region', { name: /ARS/ })).toBeVisible();
+    expect(screen.getByRole('region', { name: /USD/ })).toBeVisible();
+  });
+});

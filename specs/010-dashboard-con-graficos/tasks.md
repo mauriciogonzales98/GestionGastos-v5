@@ -185,12 +185,12 @@ números no se movieron.
 **Independent Test**: con movimientos en dos monedas, elegir una y ver sólo esa; volver a "todas" y
 ver las dos con los mismos números.
 
-- [ ] T037 [TEST] [P] [US4] En `frontend/tests/PantallaDashboard.test.tsx`: el selector ofrece **las monedas del catálogo más la opción de no acotar**, y sale del catálogo que baja por props —el que `App.tsx` ya pide una vez por sesión—, **no de una lista escrita a mano**. Incluir el caso que importa: una moneda que ninguna constante del código conoce aparece igual (FR-007). Es el que se pone en rojo el día que alguien escriba `['ARS', 'USD']`, y el que `verificar-monedas.sh` ya vigila desde la 009
-- [ ] T038 [TEST] [P] [US4] En `frontend/tests/PantallaDashboard.test.tsx`, `FR-006` y [D-05](./research.md): elegir una moneda muestra **sólo** su bloque, con **los mismos números** que tenía cuando se veían todas, y **no dispara ninguna petición**. Ese último es la mitad que prueba que el filtro es de presentación: si pidiera de nuevo, sería otra decisión
-- [ ] T039 [TEST] [P] [US4] En `frontend/tests/App.test.tsx`, `FR-006b`: con una moneda elegida en el dashboard, volver a la pantalla principal y comprobar que su resumen sigue mostrando **todas** las monedas. El filtro es del dashboard y no se contagia — que es, una capa más arriba, la misma garantía que la 009 blindó en el servidor
-- [ ] T040 [ROJO] [US4] Correr `pnpm --dir frontend test` y exigir **ROJO** en T037, T038 y T039. Mostrar la salida
-- [ ] T041 [US4] El selector y el estado del filtro en `frontend/src/dashboard/PantallaDashboard.tsx`: un recorte sobre `resumen.monedas`, sin ninguna petición y sin ninguna suma. Verde de T037, T038 y T039
-- [ ] T042 [VERIFY] [US4] Puerta del frontend completa, con su salida
+- [X] T037 [TEST] [P] [US4] En `frontend/tests/PantallaDashboard.test.tsx`: el selector ofrece **las monedas del catálogo más la opción de no acotar**, y sale del catálogo que baja por props —el que `App.tsx` ya pide una vez por sesión—, **no de una lista escrita a mano**. Incluir el caso que importa: una moneda que ninguna constante del código conoce aparece igual (FR-007). Es el que se pone en rojo el día que alguien escriba `['ARS', 'USD']`, y el que `verificar-monedas.sh` ya vigila desde la 009
+- [X] T038 [TEST] [P] [US4] En `frontend/tests/PantallaDashboard.test.tsx`, `FR-006` y [D-05](./research.md): elegir una moneda muestra **sólo** su bloque, con **los mismos números** que tenía cuando se veían todas, y **no dispara ninguna petición**. Ese último es la mitad que prueba que el filtro es de presentación: si pidiera de nuevo, sería otra decisión
+- [X] T039 [TEST] [P] [US4] En `frontend/tests/App.test.tsx`, `FR-006b`: con una moneda elegida en el dashboard, volver a la pantalla principal y comprobar que su resumen sigue mostrando **todas** las monedas. El filtro es del dashboard y no se contagia — que es, una capa más arriba, la misma garantía que la 009 blindó en el servidor
+- [X] T040 [ROJO] [US4] Correr `pnpm --dir frontend test` y exigir **ROJO** en T037, T038 y T039. Mostrar la salida
+- [X] T041 [US4] El selector y el estado del filtro en `frontend/src/dashboard/PantallaDashboard.tsx`: un recorte sobre `resumen.monedas`, sin ninguna petición y sin ninguna suma. Verde de T037, T038 y T039
+- [X] T042 [VERIFY] [US4] Puerta del frontend completa, con su salida
 
 **Checkpoint**: las cuatro aberturas del PRD están construidas y las dos deudas que la 009 dejó
 —D9-02 y D9-06— están saldadas.

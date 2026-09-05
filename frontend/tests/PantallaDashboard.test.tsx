@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PantallaDashboard } from '../src/dashboard/PantallaDashboard';
-import { RESUMEN } from './resumen.fixture';
+import { LA_INESPERADA, MONEDAS } from './monedas.fixture';
+import { EN_PESOS, RESUMEN, SIN_MOVIMIENTOS } from './resumen.fixture';
 
 vi.mock('../src/api/cliente', () => ({
   obtenerResumen: vi.fn(),
@@ -21,8 +22,8 @@ beforeEach(() => {
   vi.mocked(cliente.obtenerResumen).mockResolvedValue(RESUMEN);
 });
 
-function renderizar() {
-  render(<PantallaDashboard onVolver={() => {}} onSesionVencida={() => {}} />);
+function renderizar(monedas = MONEDAS) {
+  render(<PantallaDashboard monedas={monedas} onVolver={() => {}} onSesionVencida={() => {}} />);
 }
 
 describe('PantallaDashboard', () => {
@@ -77,7 +78,7 @@ describe('PantallaDashboard', () => {
     const alVencer = vi.fn();
     vi.mocked(cliente.obtenerResumen).mockRejectedValue(new cliente.ErrorDeSesion());
 
-    render(<PantallaDashboard onVolver={() => {}} onSesionVencida={alVencer} />);
+    render(<PantallaDashboard monedas={MONEDAS} onVolver={() => {}} onSesionVencida={alVencer} />);
 
     await vi.waitFor(() => expect(alVencer).toHaveBeenCalled());
     expect(screen.queryByText(/no se pudo cargar/i)).not.toBeInTheDocument();
@@ -204,5 +205,108 @@ describe('PantallaDashboard — el período', () => {
 
     await waitFor(() => expect(screen.getByText(/2026-07-31/)).toBeVisible());
     expect(screen.queryByText(/2026-01-31/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * FR-006, FR-007 y D-05: mirar una sola moneda. Salda la deuda **D9-02**.
+ *
+ * **El filtro es de presentación**: elige cuál de los bloques que el servidor ya devuelve separados
+ * se mira. `PRD:RF-29` prohíbe que un total mezcle monedas, así que ningún número depende de qué
+ * monedas se pidan — filtrar es mostrar menos de lo que ya llegó, no calcular otra cosa.
+ */
+describe('PantallaDashboard — el acotado por moneda', () => {
+  const idDelSelector = /ver sólo la moneda/i;
+
+  it('ofrece las monedas del catálogo más la opción de no acotar FR-006', async () => {
+    renderizar();
+    await screen.findByRole('region', { name: /resumen del período/i });
+
+    const selector = screen.getByLabelText(idDelSelector);
+
+    // Una opción por moneda del catálogo MÁS la de "todas". Se cuenta contra el catálogo y no
+    // contra un número escrito: `verificar-monedas.sh` corre la suite con una moneda de más.
+    expect(within(selector).getAllByRole('option')).toHaveLength(MONEDAS.length + 1);
+  });
+
+  /**
+   * FR-007: **una moneda que ninguna línea de código conoce aparece igual.**
+   *
+   * Es el caso que se pone en rojo el día que alguien escriba `['ARS', 'USD']` en el frontend, y el
+   * que sostiene de este lado la promesa que `verificar-monedas.sh` protege del otro: sumar una
+   * moneda al catálogo cuesta 0 líneas.
+   */
+  it('una moneda agregada sólo como dato aparece en el selector FR-007', async () => {
+    renderizar([...MONEDAS, LA_INESPERADA]);
+    await screen.findByRole('region', { name: /resumen del período/i });
+
+    expect(
+      within(screen.getByLabelText(idDelSelector)).getByRole('option', {
+        name: new RegExp(LA_INESPERADA.codigo),
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('sin elegir ninguna se ven todas las monedas FR-006', async () => {
+    renderizar();
+    await screen.findByRole('region', { name: /resumen del período/i });
+
+    for (const moneda of RESUMEN.monedas) {
+      expect(screen.getByRole('region', { name: new RegExp(moneda.monedaCodigo) })).toBeVisible();
+    }
+  });
+
+  it('elegir una moneda muestra sólo esa FR-006', async () => {
+    const usuario = userEvent.setup();
+    renderizar();
+    await screen.findByRole('region', { name: /resumen del período/i });
+
+    await usuario.selectOptions(screen.getByLabelText(idDelSelector), String(EN_PESOS.monedaId));
+
+    expect(screen.getByRole('region', { name: new RegExp(EN_PESOS.monedaCodigo) })).toBeVisible();
+    expect(
+      screen.queryByRole('region', { name: new RegExp(SIN_MOVIMIENTOS.monedaCodigo) }),
+    ).not.toBeInTheDocument();
+  });
+
+  /**
+   * **Filtrar recorta lo que se ve, nunca lo que se calcula** (FR-013).
+   *
+   * Los números de una moneda son idénticos esté o no aplicado el filtro, y no pueden no serlo: son
+   * los mismos que ya habían llegado.
+   */
+  it('los totales de una moneda son los mismos con y sin filtro FR-013', async () => {
+    const usuario = userEvent.setup();
+    renderizar();
+    await screen.findByRole('region', { name: /resumen del período/i });
+
+    const sinFiltro = screen.getByRole('region', {
+      name: new RegExp(EN_PESOS.monedaCodigo),
+    }).textContent;
+
+    await usuario.selectOptions(screen.getByLabelText(idDelSelector), String(EN_PESOS.monedaId));
+
+    expect(
+      screen.getByRole('region', { name: new RegExp(EN_PESOS.monedaCodigo) }).textContent,
+    ).toBe(sinFiltro);
+  });
+
+  /**
+   * **Cambiar de moneda no dispara ninguna petición** (D-05).
+   *
+   * Es la mitad que prueba que el filtro es de presentación: si pidiera de nuevo, sería la otra
+   * decisión — la que habría que discutir contra la garantía que la feature 009 blindó en el
+   * servidor, y que dice que el resumen informa sobre TODAS las monedas del catálogo, siempre.
+   */
+  it('cambiar de moneda no vuelve a pedir nada al servidor D-05', async () => {
+    const usuario = userEvent.setup();
+    renderizar();
+    await screen.findByRole('region', { name: /resumen del período/i });
+    const pedidosAntes = vi.mocked(cliente.obtenerResumen).mock.calls.length;
+
+    await usuario.selectOptions(screen.getByLabelText(idDelSelector), String(EN_PESOS.monedaId));
+    await usuario.selectOptions(screen.getByLabelText(idDelSelector), '');
+
+    expect(vi.mocked(cliente.obtenerResumen).mock.calls).toHaveLength(pedidosAntes);
   });
 });
