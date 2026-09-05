@@ -122,13 +122,26 @@ export function PantallaDashboard({ monedas, onVolver, onSesionVencida }: PropsP
          * El mensaje es **el del servidor**, bajo la clave `rango`. No se reescribe ni se traduce:
          * el único intérprete del período es `PeriodoPedido` (D-08).
          */
+        /**
+         * **Un solo error a la vista por vez, y siempre el vigente.**
+         *
+         * Cada rama limpia la otra. Sin esto los dos mensajes conviven y uno de los dos miente: con
+         * el backend caído y después un rango invertido, la pantalla decía a la vez que no se pudo
+         * conectar —falso, el servidor acababa de contestar— y cuál era el problema real. El
+         * primero manda a revisar la red cuando lo que hay que corregir es lo que se tipeó.
+         *
+         * Es el hallazgo 2 y 3 de la revisión del PR #25, y la misma familia que la cicatriz
+         * `10a2e6d` de la feature 009: estado que le sobrevive a lo que lo causó.
+         */
         if (error instanceof ErrorDeValidacion) {
+          setErrorDeCarga(null);
           setErrorDelRango(
             error.errores.rango?.join(' ') ?? 'No se pudo interpretar el período pedido.',
           );
           return;
         }
 
+        setErrorDelRango(null);
         setErrorDeCarga('No se pudo cargar el dashboard. Volvé a intentarlo.');
       });
 

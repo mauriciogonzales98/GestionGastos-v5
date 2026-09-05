@@ -310,3 +310,73 @@ describe('PantallaDashboard — el acotado por moneda', () => {
     expect(vi.mocked(cliente.obtenerResumen).mock.calls).toHaveLength(pedidosAntes);
   });
 });
+
+/**
+ * **Un cartel no sobrevive a la condición que lo produjo** — hallazgos 2 y 3 de la revisión del
+ * PR #25.
+ *
+ * El dashboard tiene dos mensajes de error que viven en estados distintos: el de carga y el del
+ * rango. Cada rama del `catch` ponía el suyo sin limpiar el otro, así que los dos podían quedar a
+ * la vista a la vez, y uno de los dos siempre era falso.
+ *
+ * Es el mismo descuido en las dos direcciones, y la misma familia que la cicatriz `10a2e6d` de la
+ * feature 009: estado que le sobrevive a lo que lo causó.
+ */
+describe('PantallaDashboard — los dos errores no se pisan', () => {
+  async function aplicar(desde: string, hasta: string) {
+    const usuario = userEvent.setup();
+    await usuario.clear(screen.getByLabelText(/desde/i));
+    await usuario.type(screen.getByLabelText(/desde/i), desde);
+    await usuario.clear(screen.getByLabelText(/hasta/i));
+    await usuario.type(screen.getByLabelText(/hasta/i), hasta);
+    await usuario.click(screen.getByRole('button', { name: /aplicar/i }));
+  }
+
+  /**
+   * Hallazgo 2. **Escenario**: el backend está caído y el dashboard dice que no se pudo cargar. El
+   * backend vuelve; la persona escribe un rango invertido y el servidor lo rechaza. Con el cartel
+   * viejo puesto, la pantalla manda a revisar la conexión cuando el servidor acaba de contestar y
+   * el problema es lo que se tipeó.
+   */
+  it('un rango rechazado limpia el cartel del fallo de carga', async () => {
+    vi.mocked(cliente.obtenerResumen).mockRejectedValueOnce(new Error('sin red'));
+    renderizar();
+    expect(await screen.findByText(/no se pudo cargar el dashboard/i)).toBeVisible();
+
+    vi.mocked(cliente.obtenerResumen).mockRejectedValueOnce(
+      new cliente.ErrorDeValidacion({
+        rango: ['La fecha de inicio no puede ser posterior a la de fin.'],
+      }),
+    );
+    await aplicar('2026-09-30', '2026-09-01');
+
+    expect(await screen.findByText(/la fecha de inicio no puede ser posterior/i)).toBeVisible();
+    expect(screen.queryByText(/no se pudo cargar el dashboard/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Hallazgo 3, la dirección contraria. **Escenario**: rango invertido rechazado; la persona
+   * corrige las fechas y aprieta Aplicar, pero justo se cae la conexión. Aparece el error de carga
+   * y sigue el del rango, señalando unas fechas que ahora están bien.
+   */
+  it('un fallo de carga limpia el mensaje del rango anterior', async () => {
+    renderizar();
+    await screen.findByRole('region', { name: /resumen del período/i });
+
+    vi.mocked(cliente.obtenerResumen).mockRejectedValueOnce(
+      new cliente.ErrorDeValidacion({
+        rango: ['La fecha de inicio no puede ser posterior a la de fin.'],
+      }),
+    );
+    await aplicar('2026-09-30', '2026-09-01');
+    await screen.findByText(/la fecha de inicio no puede ser posterior/i);
+
+    vi.mocked(cliente.obtenerResumen).mockRejectedValueOnce(new Error('sin red'));
+    await aplicar('2026-09-01', '2026-09-30');
+
+    expect(await screen.findByText(/no se pudo cargar el dashboard/i)).toBeVisible();
+    expect(
+      screen.queryByText(/la fecha de inicio no puede ser posterior/i),
+    ).not.toBeInTheDocument();
+  });
+});
