@@ -86,3 +86,34 @@ describe('ResumenDelPeriodo', () => {
     expect(within(region).getByText(/Vivienda/)).toBeVisible();
   });
 });
+
+/**
+ * **Un resumen sin monedas dice por qué, en vez de quedarse mudo** — hallazgo 4 de la revisión del
+ * PR #25.
+ *
+ * El servidor devuelve una entrada por cada moneda del catálogo, así que `monedas: []` no llega
+ * nunca desde la API. Llega desde **la pantalla**: el dashboard recorta la lista al filtrar por una
+ * moneda, y si esa moneda no está en el resumen el recorte queda vacío.
+ *
+ * Sin esto se ve el título y el período y **nada más**: ni totales, ni "no hay datos", ni error. El
+ * silencio es justo lo que este proyecto no se permite en ningún otro lado.
+ */
+describe('ResumenDelPeriodo — sin ninguna moneda que mostrar', () => {
+  it('lo dice, en vez de dejar la sección vacía', () => {
+    render(<ResumenDelPeriodo resumen={{ ...RESUMEN, monedas: [] }} />);
+
+    expect(screen.getByText(/no hay/i)).toBeVisible();
+  });
+
+  it('no lo presenta como un error: no hay datos y un fallo son cosas distintas', () => {
+    render(<ResumenDelPeriodo resumen={{ ...RESUMEN, monedas: [] }} />);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('el período se sigue viendo: es lo que explica sobre qué no hay nada', () => {
+    render(<ResumenDelPeriodo resumen={{ ...RESUMEN, monedas: [] }} />);
+
+    expect(screen.getByText(/2026-09-01/)).toBeVisible();
+  });
+});

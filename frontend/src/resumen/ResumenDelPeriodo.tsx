@@ -29,9 +29,24 @@ export function ResumenDelPeriodo({ resumen, titulo = 'Resumen del mes' }: Props
         Del {resumen.desde} al {resumen.hasta}
       </p>
 
-      {resumen.monedas.map((moneda) => (
-        <TotalesDeUnaMoneda key={moneda.monedaId} moneda={moneda} />
-      ))}
+      {/* **Sin ninguna moneda que mostrar, se dice.**
+          
+          El servidor devuelve una entrada por cada moneda del catálogo, así que esta lista no llega
+          vacía desde la API: llega vacía desde la PANTALLA, cuando el dashboard la recorta por una
+          moneda que el resumen no trae — el catálogo del selector se pidió al abrir la sesión y el
+          resumen es de recién, así que pueden discrepar.
+          
+          Sin esto se veía el título y el período y nada más: ni totales, ni "no hay datos", ni
+          error. Es el hallazgo 4 de la revisión del PR #25, y el silencio es justo lo que este
+          proyecto no se permite en ningún otro lado. Sin `role="alert"`, porque no hay datos y un
+          fallo son cosas distintas (FR-009, FR-010). */}
+      {resumen.monedas.length === 0 ? (
+        <p>No hay ninguna moneda para mostrar en este período.</p>
+      ) : (
+        resumen.monedas.map((moneda) => (
+          <TotalesDeUnaMoneda key={moneda.monedaId} moneda={moneda} />
+        ))
+      )}
     </section>
   );
 }
