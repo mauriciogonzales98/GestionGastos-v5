@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PantallaMovimientos } from '../src/movimientos/PantallaMovimientos';
 import { ErrorDeRed, ErrorDelServidor } from '../src/api/cliente';
@@ -15,6 +16,9 @@ vi.mock('../src/api/cliente', async () => {
 });
 
 const cliente = await import('../src/api/cliente');
+
+/** Estable a propósito: va en las dependencias del efecto que pide el listado. */
+const NO_OP = () => {};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -113,5 +117,51 @@ describe('carga inicial que falla', () => {
 
     const aviso = await screen.findByRole('alert');
     expect(aviso).toHaveTextContent(/categor/i);
+  });
+
+  /**
+   * **El cartel de un fallo viejo no puede sobrevivir a una carga que salió bien.**
+   *
+   * Escenario: falla la carga inicial y aparece "No se pudo cargar…". La persona acota el listado a
+   * una moneda, esa petición sale bien y el listado se llena — y el cartel sigue ahí, diciendo que
+   * no se pudo cargar exactamente lo que está mirando.
+   *
+   * No podía pasar antes de esta feature: el listado se pedía una sola vez y del error no se salía
+   * sin recargar. El acotado por moneda creó ese camino de recuperación y el cartel quedó atrás.
+   *
+   * `NO_OP` y no una flecha inline: `onSesionVencida` está en las dependencias del efecto que pide
+   * el listado, así que una función nueva en cada render lo vuelve a disparar sola. `App` la
+   * memoriza con `useCallback` justamente por eso.
+   */
+  it('limpia el error de carga cuando una carga posterior sale bien', async () => {
+    const usuario = userEvent.setup();
+
+    vi.mocked(cliente.obtenerMovimientos)
+      .mockRejectedValueOnce(new ErrorDelServidor(500, 'boom'))
+      .mockResolvedValue([]);
+
+    render(
+      <PantallaMovimientos
+        hoy="2026-08-23"
+        email="ana@ejemplo.com"
+        categorias={CATEGORIAS}
+        monedas={MONEDAS}
+        errorDelCatalogo={null}
+        errorDelCatalogoDeMonedas={null}
+        onCerrarSesion={NO_OP}
+        onGestionarCategorias={NO_OP}
+        onSesionVencida={NO_OP}
+      />,
+    );
+
+    await screen.findByText('No se pudo cargar el listado de movimientos. Recargá la página.');
+
+    await usuario.selectOptions(screen.getByLabelText('Ver sólo la moneda'), '2');
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText('No se pudo cargar el listado de movimientos. Recargá la página.'),
+      ).not.toBeInTheDocument(),
+    );
   });
 });

@@ -138,6 +138,18 @@ export function PantallaMovimientos({
       .then((traidos) => {
         if (vigente) {
           setMovimientos(traidos);
+
+          // El error de la carga ANTERIOR se va **cuando ésta sale bien**, no cuando empieza. Sin
+          // esto, un fallo inicial dejaba el cartel puesto sobre un listado que después cargó bien:
+          // decía que no se pudo cargar exactamente lo que la persona estaba mirando. No podía
+          // pasar antes del acotado, porque el listado se pedía una sola vez y del error no se
+          // salía sin recargar.
+          //
+          // Va acá y no al principio del efecto por dos razones que apuntan al mismo lado: el
+          // linter prohíbe `setState` sincrónico dentro de un efecto —cuesta un render extra—, y
+          // limpiarlo al empezar borraría el cartel también cuando la carga nueva vuelve a fallar,
+          // dejando un instante sin ninguna señal y después el mismo error de vuelta.
+          setErrorDeCarga(null);
         }
       })
       .catch((error: unknown) => {
