@@ -170,7 +170,10 @@ describe('carga inicial que falla', () => {
 
     await screen.findByText('No se pudo cargar el listado de movimientos. Volvé a intentarlo.');
 
-    await usuario.selectOptions(screen.getByLabelText('Ver sólo la moneda'), '2');
+    // Desde la feature 011 el acotado se aplica con el botón y no al cambiar el `<select>` (D-06):
+    // con tres controles, aplicar en cada cambio serían tres peticiones para una sola pregunta.
+    await usuario.selectOptions(screen.getByLabelText('Acotar por moneda'), '2');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
 
     await waitFor(() =>
       expect(

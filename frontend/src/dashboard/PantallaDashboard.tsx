@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { ErrorDeSesion, ErrorDeValidacion, obtenerResumen } from '../api/cliente';
 import type { Moneda, Resumen } from '../api/tipos';
 import { ResumenDelPeriodo } from '../resumen/ResumenDelPeriodo';
-import { ControlesDelPeriodo } from './ControlesDelPeriodo';
+import { ControlesDelPeriodo } from '../periodo/ControlesDelPeriodo';
 
 export interface PropsPantallaDashboard {
   /**
@@ -183,6 +183,7 @@ export function PantallaDashboard({ monedas, onVolver, onSesionVencida }: PropsP
 
       {resumen ? (
         <ResumenDelPeriodo
+          monedas={monedas}
           resumen={
             monedaAcotada === ''
               ? resumen

@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ErrorDeSesion,
+  ErrorDeValidacion,
   crearMovimiento,
   editarMovimiento,
+  eliminarMovimiento,
   obtenerMovimientos,
   obtenerResumen,
 } from '../api/cliente';
+import type { AcotadoDelListado } from '../api/cliente';
 import type {
   Categoria,
   Moneda,
@@ -16,6 +19,7 @@ import type {
 } from '../api/tipos';
 import { ResumenDelPeriodo } from '../resumen/ResumenDelPeriodo';
 import { FormularioMovimiento } from './FormularioMovimiento';
+import { FiltrosDelListado } from './FiltrosDelListado';
 import { ListadoMovimientos } from './ListadoMovimientos';
 import { VentanaDeEdicion } from './VentanaDeEdicion';
 
@@ -100,12 +104,16 @@ export function PantallaMovimientos({
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
 
   /**
-   * La moneda a la que está acotado el listado. `''` es "todas" (FR-008).
+   * Los acotados **aplicados**, que no son los elegidos: los elegidos viven en la barra y sólo
+   * llegan acá cuando alguien aprieta "Aplicar" (D-06). Un objeto vacío es "todo".
    *
-   * Cadena y no `number | null` porque es el valor de un `<select>`, y convertirlo de ida y vuelta
-   * en cada render abre la posibilidad de que el control muestre una cosa y el estado guarde otra.
+   * Desde la feature 011 son los cuatro que el servidor entiende desde FEAT-001b, y no sólo la
+   * moneda: es la deuda D9-01 saldada.
    */
-  const [monedaAcotada, setMonedaAcotada] = useState('');
+  const [acotado, setAcotado] = useState<AcotadoDelListado>({});
+
+  /** El mensaje con el que el servidor rechazó el período, si lo rechazó (FR-018). */
+  const [errorDelPeriodo, setErrorDelPeriodo] = useState<string | null>(null);
 
   /**
    * El movimiento que se está corrigiendo, o `null` si la ventana está cerrada (FR-011).
@@ -116,7 +124,6 @@ export function PantallaMovimientos({
    */
   const [enEdicion, setEnEdicion] = useState<Movimiento | null>(null);
   const [cargandoListado, setCargandoListado] = useState(true);
-  const idAcotado = useId();
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
   const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null);
 
@@ -150,6 +157,21 @@ export function PantallaMovimientos({
    */
   const ultimaRecarga = useRef(0);
 
+  /**
+   * Adónde va el foco cuando la fila que lo tenía deja de existir (D-09).
+   *
+   * El botón que se apretó desaparece en el mismo render, y el navegador manda el foco al `<body>`:
+   * quien navega con teclado queda al principio de la página sin ningún anuncio de que la acción
+   * salió bien, y se entera apretando Tab hasta volver a encontrar el listado. Es la variante de
+   * `FR-005` que sólo aparece cuando algo se borra, y por eso ninguna pantalla anterior se la
+   * encontró.
+   *
+   * El destino es el encabezado del listado y no la fila siguiente: la fila siguiente falla en los
+   * dos bordes —eliminar la última, eliminar la única— con un caso especial cada uno, y el
+   * encabezado siempre existe.
+   */
+  const encabezadoDelListado = useRef<HTMLHeadingElement>(null);
+
   useEffect(() => {
     // El catálogo ya no se pide acá: lo carga la raíz una sola vez y baja por props (D-08, AC-12).
     // Queda el listado, con su propio `catch`: sin él, un backend caído dejaba el indicador de
@@ -170,7 +192,7 @@ export function PantallaMovimientos({
      */
     let vigente = true;
 
-    void obtenerMovimientos({ monedaId: monedaAcotada === '' ? null : Number(monedaAcotada) })
+    void obtenerMovimientos(acotado)
       .then((traidos) => {
         if (vigente) {
           setMovimientos(traidos);
@@ -186,6 +208,7 @@ export function PantallaMovimientos({
           // limpiarlo al empezar borraría el cartel también cuando la carga nueva vuelve a fallar,
           // dejando un instante sin ninguna señal y después el mismo error de vuelta.
           setErrorDeCarga(null);
+          setErrorDelPeriodo(null);
         }
       })
       .catch((error: unknown) => {
@@ -194,11 +217,33 @@ export function PantallaMovimientos({
           return;
         }
 
-        if (vigente) {
-          // No dice "recargá la página": desde que existe el acotado hay un camino de recuperación
-          // sin recargar —cambiarlo vuelve a pedir— y pedir una recarga sugeriría que no lo hay.
-          setErrorDeCarga('No se pudo cargar el listado de movimientos. Volvé a intentarlo.');
+        if (!vigente) {
+          return;
         }
+
+        /**
+         * **El rechazo del período va al lado de los campos que lo produjeron** (FR-018).
+         *
+         * `PeriodoPedido` rechaza un rango invertido y un rango con un solo extremo, bajo la clave
+         * `rango` — una clave que existe, según su propio comentario, "porque el frontend la usa
+         * para poner el mensaje al lado del control". La pantalla no reimplementa esas reglas:
+         * muestra la que volvió.
+         *
+         * Y el listado **conserva lo que estaba mostrando**: no se vacía. Lo que se rechazó fue el
+         * pedido nuevo; lo que estaba en pantalla sigue siendo el resultado válido del anterior, y
+         * borrarlo diría que no hay movimientos, que es otra cosa.
+         */
+        if (error instanceof ErrorDeValidacion) {
+          const motivos = Object.values(error.errores).flat();
+          setErrorDelPeriodo(
+            motivos[0] ?? 'El período pedido no es válido. Revisá las dos fechas.',
+          );
+          return;
+        }
+
+        // No dice "recargá la página": desde que existe el acotado hay un camino de recuperación
+        // sin recargar —cambiarlo vuelve a pedir— y pedir una recarga sugeriría que no lo hay.
+        setErrorDeCarga('No se pudo cargar el listado de movimientos. Volvé a intentarlo.');
       })
       // El indicador se apaga pase lo que pase. Dejarlo encendido tras un fallo es decirle a la
       // persona que espere algo que no va a llegar.
@@ -211,10 +256,10 @@ export function PantallaMovimientos({
     return () => {
       vigente = false;
     };
-    // `monedaAcotada` en las dependencias: el acotado lo hace el SERVIDOR, así que cambiarlo tiene
-    // que volver a pedir. Filtrar del lado del cliente la lista que ya se tenía se vería igual y
-    // estaría mal — mostraría sólo lo que ya se había traído.
-  }, [onSesionVencida, monedaAcotada]);
+    // `acotado` en las dependencias: el acotado lo hace el SERVIDOR, así que cambiarlo tiene que
+    // volver a pedir. Filtrar del lado del cliente la lista que ya se tenía se vería igual y estaría
+    // mal — mostraría sólo lo que ya se había traído (FR-017).
+  }, [onSesionVencida, acotado]);
 
   /**
    * Vuelve a pedir el resumen del mes.
@@ -344,7 +389,12 @@ export function PantallaMovimientos({
     // La comparación es por CÓDIGO contra el catálogo, porque el movimiento trae el código y el
     // acotado guarda el identificador. Si el catálogo todavía no llegó, no se saca nada: preferir
     // dejarla de más antes que hacerla desaparecer por no poder comprobarlo.
-    const codigoAcotado = monedas.find((m) => String(m.id) === monedaAcotada)?.codigo;
+    //
+    // **Sólo la moneda, y no los otros dos acotados.** Una edición también puede sacar la fila del
+    // rango de fechas o de la categoría acotada, y eso no se comprueba: haría falta reimplementar
+    // acá las reglas del período, que es lo que `PeriodoPedido` existe para impedir. La fila queda
+    // de más hasta la próxima carga, que es lo mismo que ya pasaba con el reordenamiento.
+    const codigoAcotado = monedas.find((m) => m.id === acotado.monedaId)?.codigo;
 
     if (codigoAcotado !== undefined && editado.monedaCodigo !== codigoAcotado) {
       setMovimientos((previos) => previos.filter((m) => m.id !== editado.id));
@@ -360,6 +410,53 @@ export function PantallaMovimientos({
 
     setMovimientos((previos) => previos.map((m) => (m.id === editado.id ? editado : m)));
     setConfirmacion('Movimiento actualizado.');
+  }
+
+  /**
+   * Elimina un movimiento ya confirmado y deja la pantalla coherente (FR-010, FR-012, `PRD:AC-21`).
+   *
+   * **No se vuelve a pedir el listado**: la fila se saca del estado, que es la misma regla que el
+   * alta y la edición ya siguen — el servidor no tiene nada más que decir sobre una fila que ya no
+   * está, y traer la lista entera para quitar una es traer todo para tirar uno.
+   *
+   * **El resumen sí se recalcula**, y siempre, sin averiguar antes si el movimiento caía en el mes
+   * en curso: un total no se puede editar en la pantalla, hay que recalcularlo, y quien recalcula
+   * es el servidor. Averiguarlo acá sería la clase de cuenta que `FR-014` de la feature 009 sacó de
+   * la pantalla.
+   *
+   * **Eliminar con la ventana de edición abierta sobre esa misma fila no es alcanzable**: el
+   * `<dialog>` es modal y `showModal()` vuelve inerte el fondo, así que no se puede llegar al botón.
+   * Queda dicho para que sea una decisión y no un caso olvidado.
+   */
+  async function eliminar(movimiento: Movimiento) {
+    try {
+      await eliminarMovimiento(movimiento.id);
+    } catch (error) {
+      if (error instanceof ErrorDeSesion) {
+        onSesionVencida(
+          'Tu sesión venció y el movimiento no se eliminó. Volvé a entrar e intentá de nuevo.',
+        );
+        return;
+      }
+
+      // Un 404 significa que ya no está: no existe, no es de esta cuenta, o alguien lo eliminó
+      // antes. El servidor responde lo mismo en los tres casos a propósito, y la pantalla no
+      // intenta distinguirlos — la reacción es la misma. La fila se saca igual, porque dejarla
+      // visible afirmaría que existe algo que no existe.
+      setMovimientos((previos) => previos.filter((m) => m.id !== movimiento.id));
+      setConfirmacion(null);
+      setErrorDeCarga('Ese movimiento ya no está. Se quitó del listado.');
+      void recargarResumen();
+      encabezadoDelListado.current?.focus();
+      return;
+    }
+
+    setMovimientos((previos) => previos.filter((m) => m.id !== movimiento.id));
+    void recargarResumen();
+    setConfirmacion('Movimiento eliminado.');
+
+    // El foco, antes de que el render se lleve el botón que se apretó (D-09).
+    encabezadoDelListado.current?.focus();
   }
 
   return (
@@ -389,7 +486,9 @@ export function PantallaMovimientos({
           Sin control de período y a propósito: el de acá es siempre el mes en curso, y elegir qué
           mirar es del dashboard (FR-011b). */}
       {errorDelResumen ? <p role="alert">{errorDelResumen}</p> : null}
-      {resumen ? <ResumenDelPeriodo resumen={resumen} titulo="Resumen del mes" /> : null}
+      {resumen ? (
+        <ResumenDelPeriodo resumen={resumen} titulo="Resumen del mes" monedas={monedas} />
+      ) : null}
 
       <FormularioMovimiento
         categorias={categorias}
@@ -414,29 +513,33 @@ export function PantallaMovimientos({
       {/* `role="status"` y no `alert`: no impide trabajar, así que se anuncia sin interrumpir. */}
       {errorDelCatalogoDeMonedas ? <p role="status">{errorDelCatalogoDeMonedas}</p> : null}
 
-      {/* El acotado por moneda (FR-008, FR-010). Es el ÚNICO control de acotado de esta pantalla:
-          el servidor también acota por categoría y por rango de fechas desde FEAT-001b, y esos dos
-          nunca tuvieron interfaz. Es la deuda D9-01, y acá es donde la barra va a crecer. */}
-      <div className="l-fila">
-        <label htmlFor={idAcotado}>Ver sólo la moneda</label>
-        <select
-          id={idAcotado}
-          value={monedaAcotada}
-          onChange={(e) => setMonedaAcotada(e.target.value)}
-        >
-          <option value="">Todas las monedas</option>
-          {monedas.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.nombre}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* La barra de acotado, con los TRES controles (FR-014 a FR-016). Hasta la feature 011 acá
+          había un `<select>` de moneda suelto y el comentario decía que era "donde la barra va a
+          crecer": creció. Los tres se aplican juntos con un solo botón (D-06).
+
+          El período arranca con el que el servidor eligió, que llega en el `Resumen` del mes en
+          curso: `GET /api/movimientos` no dice qué período aplicó, y calcularlo acá sería un segundo
+          intérprete de "hoy" (FR-015, D-05). Mientras el resumen no haya llegado, los campos
+          arrancan vacíos — que es lo mismo que el servidor entiende por "el mes en curso". */}
+      <FiltrosDelListado
+        categorias={categorias}
+        monedas={monedas}
+        desdeInicial={resumen?.desde}
+        hastaInicial={resumen?.hasta}
+        errorDelPeriodo={errorDelPeriodo}
+        onAplicar={setAcotado}
+      />
 
       {cargandoListado ? (
         <p>Cargando movimientos…</p>
       ) : (
-        <ListadoMovimientos movimientos={movimientos} onEditar={setEnEdicion} />
+        <ListadoMovimientos
+          monedas={monedas}
+          movimientos={movimientos}
+          onEditar={setEnEdicion}
+          onEliminar={(m) => void eliminar(m)}
+          refDelEncabezado={encabezadoDelListado}
+        />
       )}
 
       {/* La ventana se monta sólo cuando hay algo que editar, y se desmonta al cerrarse. Montarla
