@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from 'vitest';
-import { anchosPorEncimaDe, hojaDeEstilos } from './fuentes';
+import { anchosPorEncimaDe, codigoDeLasPantallas, hojaDeEstilos } from './fuentes';
 
 /**
  * FR-003, FR-004 — el ancho objetivo de 360 px, **verificado por regla y no por medición** (D-04).
@@ -26,6 +26,18 @@ describe('FR-003 · ninguna regla puede producir desborde a 360 px', () => {
     // `max-width` no cuenta: acota hacia arriba y el elemento igual se encoge en una ventana
     // angosta. Los que desbordan son `width` y `min-width`.
     expect(anchosPorEncimaDe(hojaDeEstilos(), OBJETIVO_PX)).toEqual([]);
+  });
+
+  /**
+   * **Los estilos en línea también cuentan** (hallazgo 8 de la revisión del PR #28).
+   *
+   * El verificador miraba sólo la hoja de estilos, así que un `style={{ width: '400px' }}` escrito
+   * en un `.tsx` pasaba sin que nadie lo viera. Hoy el único ancho en línea es el de la barra del
+   * desglose, que va en porcentaje; el punto es que la promesa de `NFR-003` no dependa de que nadie
+   * se acuerde de mirar el otro lado.
+   */
+  it('tampoco los declara en línea, dentro de una pantalla (FR-003)', () => {
+    expect(anchosPorEncimaDe(codigoDeLasPantallas(), OBJETIVO_PX)).toEqual([]);
   });
 
   it('le da a la tabla del listado un contenedor que se desplaza solo (FR-004)', () => {
@@ -61,6 +73,12 @@ describe('D-03 · el verificador de anchos sabe fallar', () => {
     const css = '.c-tabla { min-width: 640px; }';
 
     expect(anchosPorEncimaDe(css, OBJETIVO_PX)).toEqual([{ propiedad: 'min-width', valor: 640 }]);
+  });
+
+  it('detecta un ancho fijo escrito en línea dentro de un .tsx', () => {
+    const codigo = `<div style={{ width: '400px' }} />`;
+
+    expect(anchosPorEncimaDe(codigo, OBJETIVO_PX)).toEqual([{ propiedad: 'width', valor: 400 }]);
   });
 
   it('deja pasar un max-width grande y un ancho por debajo del objetivo', () => {

@@ -111,18 +111,24 @@ export function coloresDeclarados(css: string): Record<string, string> {
 }
 
 /**
- * Los anchos fijos que la hoja declara en píxeles: `width`, `min-width` y `max-width`.
+ * Los anchos fijos declarados en píxeles: `width`, `min-width` y `max-width`.
+ *
+ * **Sirve para las dos fuentes**: la hoja de estilos y los `style` en línea de un `.tsx`. De ahí las
+ * dos formas que reconoce — `min-width: 400px` en CSS y `minWidth: '400px'` en JSX, con la comilla
+ * que el valor lleva ahí. Sin la variante en línea, un ancho fijo escrito en una pantalla pasaba sin
+ * que nadie lo viera (hallazgo 8 de la revisión del PR #28).
  *
  * `max-width` entra porque un `max-width: 400px` no desborda pero sí deja contenido inalcanzable si
  * lo que hay adentro no se adapta; se informa igual y el test decide qué hacer con cada uno.
  */
-export function anchosFijosEnPx(css: string): { propiedad: string; valor: number }[] {
-  return [...css.matchAll(/\b((?:min-|max-)?width)\s*:\s*(\d+(?:\.\d+)?)px/g)].map(
-    (coincidencia) => ({
-      propiedad: coincidencia[1],
-      valor: Number(coincidencia[2]),
-    }),
-  );
+export function anchosFijosEnPx(fuente: string): { propiedad: string; valor: number }[] {
+  const declaracion = /\b(min-?|max-?)?[wW]idth\s*:\s*['"`]?(\d+(?:\.\d+)?)px/g;
+
+  return [...fuente.matchAll(declaracion)].map((coincidencia) => ({
+    // Se normaliza a la forma del CSS para que el filtro de `max-width` valga en los dos lados.
+    propiedad: `${(coincidencia[1] ?? '').replace(/-?$/, coincidencia[1] ? '-' : '')}width`,
+    valor: Number(coincidencia[2]),
+  }));
 }
 
 /**
