@@ -15,19 +15,28 @@ import { RESUMEN } from './resumen.fixture';
  * que esta feature agrega es todo de este lado.
  */
 
-vi.mock('../src/api/cliente', () => ({
-  obtenerMovimientos: vi.fn(),
-  obtenerResumen: vi.fn(),
-  eliminarMovimiento: vi.fn(),
-  crearMovimiento: vi.fn(),
-  editarMovimiento: vi.fn(),
-  ErrorDeSesion: class ErrorDeSesion extends Error {},
-  ErrorDeValidacion: class ErrorDeValidacion extends Error {
-    constructor(readonly errores: Record<string, string[]>) {
-      super('rechazada');
-    }
-  },
-}));
+/**
+ * **Las clases de error son las de verdad, no unas de mentira.**
+ *
+ * La pantalla distingue por `instanceof`, así que una clase inventada en el mock no es la misma que
+ * la que el componente importa: la comparación da siempre `false`, o directamente lanza un
+ * `TypeError` si la clase ni siquiera está en el mock. Se descubrió acá — el primer intento
+ * declaraba sólo dos y `ErrorDelServidor` llegaba como `undefined`.
+ *
+ * Se mockean las funciones y se conservan las clases.
+ */
+vi.mock('../src/api/cliente', async () => {
+  const real = await vi.importActual<typeof import('../src/api/cliente')>('../src/api/cliente');
+
+  return {
+    ...real,
+    obtenerMovimientos: vi.fn(),
+    obtenerResumen: vi.fn(),
+    eliminarMovimiento: vi.fn(),
+    crearMovimiento: vi.fn(),
+    editarMovimiento: vi.fn(),
+  };
+});
 
 const cliente = await import('../src/api/cliente');
 
@@ -192,10 +201,8 @@ describe('FR-010, FR-012 · confirmar elimina y deja la pantalla coherente', () 
 
 describe('FR-013 · lo que pasa cuando el servidor dice que no', () => {
   it('un 404 lo dice y deja de mostrar la fila (FR-013)', async () => {
-    const { ErrorDelServidor } =
-      await vi.importActual<typeof import('../src/api/cliente')>('../src/api/cliente');
     vi.mocked(cliente.eliminarMovimiento).mockRejectedValue(
-      new ErrorDelServidor(404, 'El servidor respondió 404.'),
+      new cliente.ErrorDelServidor(404, 'El servidor respondió 404.'),
     );
 
     const usuario = userEvent.setup();
@@ -213,6 +220,62 @@ describe('FR-013 · lo que pasa cuando el servidor dice que no', () => {
       const tabla = screen.queryByRole('table', { name: 'Movimientos del mes' });
       expect(tabla && within(tabla).queryByRole('cell', { name: 'Comida' })).toBeFalsy();
     });
+  });
+
+  /**
+   * **Un fallo que no es un 404 no puede afirmar que el movimiento ya no existe** (hallazgo 2 de la
+   * revisión del PR #28).
+   *
+   * Hasta el arreglo, el `catch` mandaba a la rama del 404 **todo** lo que no fuera `ErrorDeSesion`.
+   * Con el backend caído, confirmar un borrado sacaba la fila del listado y la pantalla decía "Ese
+   * movimiento ya no está" — mientras el movimiento seguía existiendo. Al recargar reaparecía.
+   *
+   * Es una pantalla afirmando algo falso, que es la clase de bug que este proyecto persigue desde
+   * la feature 009. La fila se queda, y se dice que no se pudo.
+   */
+  it('un fallo de red no saca la fila ni dice que el movimiento ya no está (FR-013)', async () => {
+    vi.mocked(cliente.eliminarMovimiento).mockRejectedValue(
+      new cliente.ErrorDeRed(new Error('sin red')),
+    );
+
+    const usuario = userEvent.setup();
+    renderizar();
+
+    const laDelGasto = await fila('Comida');
+    await usuario.click(within(laDelGasto).getByRole('button', { name: /^Eliminar el gasto/ }));
+    await usuario.click(within(laDelGasto).getByRole('button', { name: /^Confirmar y eliminar/ }));
+
+    expect(await screen.findByText(/no se pudo eliminar/i)).toBeInTheDocument();
+
+    // Y NO dice que ya no está, porque sigue estando.
+    expect(screen.queryByText(/ya no está/i)).not.toBeInTheDocument();
+
+    // La fila se queda: sacarla afirmaría que se borró algo que no se borró.
+    expect(
+      within(screen.getByRole('table', { name: 'Movimientos del mes' })).getByRole('cell', {
+        name: 'Comida',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('un 500 tampoco saca la fila (FR-013)', async () => {
+    vi.mocked(cliente.eliminarMovimiento).mockRejectedValue(
+      new cliente.ErrorDelServidor(500, 'El servidor respondió 500.'),
+    );
+
+    const usuario = userEvent.setup();
+    renderizar();
+
+    const laDelGasto = await fila('Comida');
+    await usuario.click(within(laDelGasto).getByRole('button', { name: /^Eliminar el gasto/ }));
+    await usuario.click(within(laDelGasto).getByRole('button', { name: /^Confirmar y eliminar/ }));
+
+    expect(await screen.findByText(/no se pudo eliminar/i)).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('table', { name: 'Movimientos del mes' })).getByRole('cell', {
+        name: 'Comida',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('un 401 vuelve al acceso diciendo qué pasó con ESE movimiento (FR-013)', async () => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ErrorDeSesion,
+  ErrorDelServidor,
   ErrorDeValidacion,
   crearMovimiento,
   editarMovimiento,
@@ -114,6 +115,16 @@ export function PantallaMovimientos({
 
   /** El mensaje con el que el servidor rechazó el período, si lo rechazó (FR-018). */
   const [errorDelPeriodo, setErrorDelPeriodo] = useState<string | null>(null);
+
+  /**
+   * Lo que pasó con el último borrado, si salió mal (FR-013).
+   *
+   * **Es un estado propio y no `errorDeCarga`**, aunque los dos terminen en un `role="alert"`: aquél
+   * habla de una carga del listado y se limpia cuando una carga posterior sale bien. Un fallo al
+   * eliminar no es un fallo de carga, y meterlo ahí hacía que el aviso sobreviviera a todo lo que
+   * viniera después (hallazgo 2 de la revisión del PR #28).
+   */
+  const [errorDelBorrado, setErrorDelBorrado] = useState<string | null>(null);
 
   /**
    * El movimiento que se está corrigiendo, o `null` si la ventana está cerrada (FR-011).
@@ -439,20 +450,36 @@ export function PantallaMovimientos({
         return;
       }
 
-      // Un 404 significa que ya no está: no existe, no es de esta cuenta, o alguien lo eliminó
-      // antes. El servidor responde lo mismo en los tres casos a propósito, y la pantalla no
-      // intenta distinguirlos — la reacción es la misma. La fila se saca igual, porque dejarla
-      // visible afirmaría que existe algo que no existe.
-      setMovimientos((previos) => previos.filter((m) => m.id !== movimiento.id));
+      /**
+       * **Sólo el 404 significa "ya no está".** El servidor responde lo mismo si el movimiento no
+       * existe, si es de otra cuenta o si alguien lo eliminó antes, y la pantalla no intenta
+       * distinguir esos tres: la reacción es la misma y distinguirlos desharía la decisión que
+       * impide contar los movimientos ajenos. La fila se saca, porque dejarla visible afirmaría que
+       * existe algo que no existe.
+       *
+       * **Todo lo demás NO.** Un fallo de red o un 500 no dicen nada sobre si el movimiento sigue
+       * estando — y casi siempre sigue. Sacarlo del listado y decir "ya no está" sería la pantalla
+       * afirmando algo falso, que reaparece en cuanto alguien recarga (hallazgo 2 de la revisión
+       * del PR #28).
+       */
+      if (error instanceof ErrorDelServidor && error.estado === 404) {
+        setMovimientos((previos) => previos.filter((m) => m.id !== movimiento.id));
+        setConfirmacion(null);
+        setErrorDelBorrado('Ese movimiento ya no está. Se quitó del listado.');
+        void recargarResumen();
+        encabezadoDelListado.current?.focus();
+        return;
+      }
+
+      // No se pudo, y el movimiento sigue donde estaba. Se dice, y la fila se queda.
       setConfirmacion(null);
-      setErrorDeCarga('Ese movimiento ya no está. Se quitó del listado.');
-      void recargarResumen();
-      encabezadoDelListado.current?.focus();
+      setErrorDelBorrado('No se pudo eliminar el movimiento. Volvé a intentarlo.');
       return;
     }
 
     setMovimientos((previos) => previos.filter((m) => m.id !== movimiento.id));
     void recargarResumen();
+    setErrorDelBorrado(null);
     setConfirmacion('Movimiento eliminado.');
 
     // El foco, antes de que el render se lleve el botón que se apretó (D-09).
@@ -504,6 +531,10 @@ export function PantallaMovimientos({
       {/* role="alert": la carga falló y no hay nada que la persona pueda hacer desde el formulario
           para enterarse sola. */}
       {errorDeCarga ? <p role="alert">{errorDeCarga}</p> : null}
+
+      {/* Lo que pasó con el último borrado, si salió mal. Aparte del error de carga porque son dos
+          cosas distintas y confundirlas hacía que el aviso sobreviviera a lo que viniera después. */}
+      {errorDelBorrado ? <p role="alert">{errorDelBorrado}</p> : null}
 
       {/* El fallo de carga del catálogo lo produce la raíz, que es quien lo pide, pero se muestra
           acá: es esta pantalla la que queda inservible sin él —sin categorías no se puede
