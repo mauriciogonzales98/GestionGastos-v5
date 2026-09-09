@@ -278,6 +278,37 @@ describe('FR-013 · lo que pasa cuando el servidor dice que no', () => {
     ).toBeInTheDocument();
   });
 
+  /**
+   * **El aviso no le sobrevive a lo que venga después** (hallazgo 6 de la revisión del PR #28).
+   *
+   * Un cartel que se queda puesto mientras la persona sigue trabajando termina describiendo algo que
+   * pasó hace rato. Es la misma regla que el listado ya sigue con su error de carga —se va cuando
+   * una carga posterior sale bien— aplicada al resultado del borrado.
+   */
+  it('el aviso del borrado se va cuando se registra un movimiento (FR-013)', async () => {
+    vi.mocked(cliente.eliminarMovimiento).mockRejectedValue(
+      new cliente.ErrorDeRed(new Error('sin red')),
+    );
+    vi.mocked(cliente.crearMovimiento).mockResolvedValue({ ...EL_GASTO, id: 50 });
+
+    const usuario = userEvent.setup();
+    renderizar();
+
+    const laDelGasto = await fila('Comida');
+    await usuario.click(within(laDelGasto).getByRole('button', { name: /^Eliminar el gasto/ }));
+    await usuario.click(within(laDelGasto).getByRole('button', { name: /^Confirmar y eliminar/ }));
+
+    expect(await screen.findByText(/no se pudo eliminar/i)).toBeInTheDocument();
+
+    await usuario.type(screen.getByLabelText('Monto'), '500');
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
+    await usuario.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/no se pudo eliminar/i)).not.toBeInTheDocument();
+    });
+  });
+
   it('un 401 vuelve al acceso diciendo qué pasó con ESE movimiento (FR-013)', async () => {
     vi.mocked(cliente.eliminarMovimiento).mockRejectedValue(new cliente.ErrorDeSesion());
     const alVencer = vi.fn();

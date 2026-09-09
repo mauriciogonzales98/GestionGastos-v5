@@ -371,6 +371,10 @@ export function PantallaMovimientos({
 
     void recargarResumen();
 
+    // El aviso del último borrado se va: quien está registrando ya pasó a otra cosa, y un cartel que
+    // sobrevive termina describiendo algo que pasó hace rato (hallazgo 6 de la revisión del PR #28).
+    setErrorDelBorrado(null);
+
     if (esDelMesDe(creado.fecha, hoy)) {
       setMovimientos((previos) => insertarEnOrden(previos, creado));
       setConfirmacion('Movimiento registrado.');
@@ -412,6 +416,7 @@ export function PantallaMovimientos({
 
     setEnEdicion(null);
     void recargarResumen();
+    setErrorDelBorrado(null);
 
     // **Si dejó de cumplir el acotado, sale del listado.** Es el caso de uso central de la ventana
     // —corregir la moneda— y sin esto la fila corregida queda visible bajo un control que dice
