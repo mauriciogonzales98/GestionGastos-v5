@@ -116,8 +116,9 @@ select {
   border: 1px solid var(--color-borde);
   border-radius: var(--radio);
   background-color: var(--color-fondo);
-  /* Un ancho mínimo en `ch` y no en `px`: escala con la tipografía y no puede desbordar a 360 px
-     como lo haría un valor fijo. */
+  /* Quita el ancho mínimo intrínseco que el navegador le da a los controles de formulario. Sin
+     esto, un `select` con opciones largas no se encoge y estira la fila que lo contiene más allá de
+     los 360 px. */
   min-width: 0;
 }
 
