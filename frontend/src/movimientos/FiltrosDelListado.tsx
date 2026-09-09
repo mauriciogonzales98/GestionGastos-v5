@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import type { AcotadoDelListado } from '../api/cliente';
 import type { Categoria, Moneda } from '../api/tipos';
 import { ControlesDelPeriodo } from '../periodo/ControlesDelPeriodo';
@@ -65,19 +65,22 @@ export function FiltrosDelListado({
    * Con la semilla guardada en un `ref`, la `key` cambia **una sola vez** —de "sin período" al
    * primero que se supo— y después queda fija pase lo que pase con el resumen.
    */
-  const semilla = useRef<{ desde?: string; hasta?: string } | null>(null);
+  const [semilla, setSemilla] = useState<{ desde?: string; hasta?: string } | null>(null);
 
   /**
-   * Si alguien ya aplicó algo, el período dejó de ser suyo para sembrar.
+   * Si alguien ya aplicó algo, el período dejó de ser del servidor para sembrar.
    *
    * Sin esto, un resumen que llegara tarde —porque falló al principio y volvió a pedirse tras el
    * primer alta— remontaba el control con el mes en curso encima de un rango que la persona ya
    * había aplicado y que el listado seguía mostrando.
    */
-  const yaSeAplico = useRef(false);
+  const [yaSeAplico, setYaSeAplico] = useState(false);
 
-  if (semilla.current === null && !yaSeAplico.current && desdeInicial !== undefined) {
-    semilla.current = { desde: desdeInicial, hasta: hastaInicial };
+  // Estado ajustado durante el render, que es el patrón que React documenta para "derivar de una
+  // prop mientras nadie la haya tocado". Con `useRef` sería más corto y estaría mal: leer o escribir
+  // un ref en el render rompe las reglas de los hooks, y el linter lo dice.
+  if (semilla === null && !yaSeAplico && desdeInicial !== undefined) {
+    setSemilla({ desde: desdeInicial, hasta: hastaInicial });
   }
 
   // Las etiquetas dicen "Acotar por" y no sólo "Categoría" y "Moneda": el formulario de registro,
@@ -151,12 +154,12 @@ export function FiltrosDelListado({
          * alguien ya aplicó. Es la misma decisión que la `key` de `VentanaDeEdicion`, y por el mismo
          * motivo: que no dependa de un efecto de sincronización sino de la estructura.
          */
-        key={semilla.current?.desde ?? 'sin-periodo'}
-        desdeInicial={semilla.current?.desde}
-        hastaInicial={semilla.current?.hasta}
+        key={semilla?.desde ?? 'sin-periodo'}
+        desdeInicial={semilla?.desde}
+        hastaInicial={semilla?.hasta}
         error={errorDelPeriodo}
         onAplicar={(desde, hasta) => {
-          yaSeAplico.current = true;
+          setYaSeAplico(true);
 
           onAplicar({
             categoriaId: categoria === '' ? null : Number(categoria),
