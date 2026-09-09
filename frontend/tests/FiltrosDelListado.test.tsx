@@ -15,19 +15,20 @@ import { RESUMEN } from './resumen.fixture';
  * verifica acá es capacidad nueva del servidor: es la pantalla que faltaba.
  */
 
-vi.mock('../src/api/cliente', () => ({
-  obtenerMovimientos: vi.fn(),
-  obtenerResumen: vi.fn(),
-  crearMovimiento: vi.fn(),
-  editarMovimiento: vi.fn(),
-  eliminarMovimiento: vi.fn(),
-  ErrorDeSesion: class ErrorDeSesion extends Error {},
-  ErrorDeValidacion: class ErrorDeValidacion extends Error {
-    constructor(readonly errores: Record<string, string[]>) {
-      super('rechazada');
-    }
-  },
-}));
+// Las clases de error son las reales: la pantalla distingue por `instanceof`, y una clase inventada
+// en el mock nunca es la que el componente importa.
+vi.mock('../src/api/cliente', async () => {
+  const real = await vi.importActual<typeof import('../src/api/cliente')>('../src/api/cliente');
+
+  return {
+    ...real,
+    obtenerMovimientos: vi.fn(),
+    obtenerResumen: vi.fn(),
+    crearMovimiento: vi.fn(),
+    editarMovimiento: vi.fn(),
+    eliminarMovimiento: vi.fn(),
+  };
+});
 
 const cliente = await import('../src/api/cliente');
 
@@ -289,6 +290,41 @@ describe('FR-018 · el rechazo del período', () => {
         name: 'Comida',
       }),
     ).toBeInTheDocument();
+  });
+
+  /**
+   * **Los dos errores no conviven** (hallazgo 5 de la revisión del PR #28).
+   *
+   * Es la misma cicatriz que la feature 010 corrigió en `b842d13`. El `catch` del listado tiene dos
+   * ramas —el rechazo del período y el fallo de carga— y ninguna limpiaba a la otra: un rango
+   * invertido seguido de un backend caído dejaba los dos carteles a la vista, y el primero ya no
+   * describía nada.
+   */
+  it('un fallo de carga posterior se lleva el mensaje del período (FR-018)', async () => {
+    const usuario = userEvent.setup();
+    await renderizar();
+
+    vi.mocked(cliente.obtenerMovimientos).mockRejectedValueOnce(
+      new cliente.ErrorDeValidacion({ rango: ['La fecha de inicio no puede ser posterior.'] }),
+    );
+    await usuario.clear(screen.getByLabelText('Desde'));
+    await usuario.type(screen.getByLabelText('Desde'), '2026-08-31');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+    expect(await screen.findByText(/no puede ser posterior/i)).toBeInTheDocument();
+
+    // Ahora el rango está bien pero el servidor no responde.
+    vi.mocked(cliente.obtenerMovimientos).mockRejectedValueOnce(
+      new cliente.ErrorDeRed(new Error('sin red')),
+    );
+    await usuario.clear(screen.getByLabelText('Hasta'));
+    await usuario.type(screen.getByLabelText('Hasta'), '2026-09-30');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+    expect(await screen.findByText(/No se pudo cargar el listado/i)).toBeInTheDocument();
+
+    // Y el del período se fue: ya no describe nada.
+    expect(screen.queryByText(/no puede ser posterior/i)).not.toBeInTheDocument();
   });
 
   it('medio rango se manda igual, para que lo rechace el servidor (FR-018)', async () => {

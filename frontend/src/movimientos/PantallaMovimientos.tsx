@@ -245,16 +245,36 @@ export function PantallaMovimientos({
          * borrarlo diría que no hay movimientos, que es otra cosa.
          */
         if (error instanceof ErrorDeValidacion) {
-          const motivos = Object.values(error.errores).flat();
-          setErrorDelPeriodo(
-            motivos[0] ?? 'El período pedido no es válido. Revisá las dos fechas.',
-          );
+          /**
+           * **Sólo la clave `rango`.** Es la única con la que este endpoint rechaza hoy, y es la que
+           * el servidor emite —según su propio comentario— "porque el frontend la usa para poner el
+           * mensaje al lado del control". Tomar el primer mensaje de cualquier clave haría que un
+           * rechazo futuro sobre otra cosa apareciera señalando las fechas, que no lo produjeron; lo
+           * que no tenga dónde ir cae en la región general, como hace `repartir()` en la pantalla de
+           * categorías (hallazgo 9 de la revisión del PR #28).
+           */
+          const delRango = error.errores.rango?.[0];
+
+          if (delRango === undefined) {
+            setErrorDelPeriodo(null);
+            setErrorDeCarga('No se pudo cargar el listado de movimientos. Volvé a intentarlo.');
+            return;
+          }
+
+          setErrorDelPeriodo(delRango);
+
+          // El fallo de carga anterior se va: éste lo reemplaza, y dos carteles a la vez dejan uno
+          // que ya no describe nada (hallazgo 5).
+          setErrorDeCarga(null);
           return;
         }
 
         // No dice "recargá la página": desde que existe el acotado hay un camino de recuperación
         // sin recargar —cambiarlo vuelve a pedir— y pedir una recarga sugeriría que no lo hay.
         setErrorDeCarga('No se pudo cargar el listado de movimientos. Volvé a intentarlo.');
+
+        // Y el rechazo del período anterior se va con él, por el mismo motivo.
+        setErrorDelPeriodo(null);
       })
       // El indicador se apaga pase lo que pase. Dejarlo encendido tras un fallo es decirle a la
       // persona que espere algo que no va a llegar.
