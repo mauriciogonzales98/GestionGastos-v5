@@ -2,9 +2,54 @@
  * Lo semántico: los elementos se estilan por su selector cuando la regla vale para todos, y la
  * clase se agrega sólo cuando hace falta distinguir un caso.
  *
- * Colores, espaciados y tipografía son del ticket 6. Acá va únicamente lo que sale caro
- * retrofitear.
+ * **Acá vive la paleta, y ése es el cambio de la feature 011.** Hasta la 010 el proyecto no
+ * declaraba ni un color: los cuatro que existían vivían en `ui/contraste.ts` y el componente del
+ * desglose los bajaba a variables en su propio elemento, con el argumento —correcto— de que dos
+ * declaraciones se desincronizan. El argumento sigue en pie y por eso hay que elegir UN lado; cuál,
+ * cambia ahora que los colores dejaron de ser cuatro y de pertenecer a un solo componente (D-01):
+ *
+ *   1. Un color declarado en CSS existe **antes** de que corra una línea de JavaScript. Con el
+ *      módulo TypeScript como fuente, la aplicación entera tendría que inyectar la paleta al
+ *      montarse y la primera pintura sería sin colores.
+ *   2. El verificador que lee este archivo cubre **cualquier** color que alguien agregue, sin que
+ *      nadie lo agende (NFR-003). Uno que leyera un objeto cubre lo que ese objeto tenga.
+ *
+ * `ui/contraste.ts` se quedó con la cuenta de WCAG, que es lo suyo, y `tests/Paleta.test.ts` mide
+ * estos valores contra sus umbrales. Un color nuevo sin decir contra qué fondo se usa pone ese test
+ * en rojo, a propósito.
  */
+
+:root {
+  /* La paleta (FR-002, NFR-001). Los pares y sus umbrales están en `tests/Paleta.test.ts`. */
+  --color-fondo: #ffffff;
+  --color-texto: #1a1a1a;
+
+  /* El acento: enlaces, el control activo, el énfasis. Llega a 4,5:1 para poder llevar texto. */
+  --color-acento: #1f5c8b;
+
+  /* El anillo de foco. Es más oscuro que el acento a propósito: tiene que ganarle al fondo Y
+     distinguirse del borde de un control que ya está pintado de acento. */
+  --color-foco: #0b4f7a;
+
+  --color-error: #b3261e;
+
+  /* Bordes y separadores: 4,5:1 contra el fondo, bastante más que el 3:1 que se les pide. Sale
+     gratis y hace legible la tabla del listado, que se apoya entera en su línea inferior. */
+  --color-borde: #767676;
+
+  /* El desglose del dashboard. `--color-barra` es el relleno de TODAS las barras: una sola entrada
+     y no una paleta categórica, porque las categorías no se codifican por color (D-04 de la 010).
+     Si el color no lleva información, no hay nada que un daltonismo pueda quitarle. */
+  --color-barra: #1f5c8b;
+  --color-riel: #e8e8e8;
+
+  /* Espaciado y tipografía. No son colores, así que el verificador de contraste no los toca. */
+  --espacio-chico: 0.5rem;
+  --espacio: 0.75rem;
+  --espacio-grande: 1.5rem;
+  --ancho-maximo: 60rem;
+  --radio: 0.25rem;
+}
 
 *,
 *::before,
@@ -15,24 +60,82 @@
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: var(--color-texto);
+  background-color: var(--color-fondo);
 }
 
 /*
  * El foco visible NUNCA se anula sin reemplazo. Un `outline: none` sin sustituto deja a quien
  * navega con teclado sin saber dónde está parado, y eso es un fallo de la regla, no una cuestión
  * de gusto. Se refuerza el indicador del navegador en vez de quitarlo.
+ *
+ * **Desde la feature 011 el color es explícito y no `currentcolor`** (FR-005). Con `currentcolor`,
+ * el anillo tomaba el color del texto del propio control: sobre un botón de acento el anillo salía
+ * de acento, o sea del mismo color que el borde que tenía que destacar, y sobre un texto de error
+ * salía rojo. Un indicador cuyo contraste depende de sobre qué esté parado no es un indicador
+ * verificable, y `--color-foco` es lo que `Paleta.test.ts` puede medir.
  */
 :focus-visible {
-  outline: 3px solid currentcolor;
+  outline: 3px solid var(--color-foco);
   outline-offset: 2px;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.25;
 }
 
 table {
   border-collapse: collapse;
+  /* La tabla ocupa el ancho de su contenedor y no más: a 360 px el que se desplaza es el
+     contenedor, no la página (FR-004). */
+  width: 100%;
 }
 
 th {
   text-align: start;
+}
+
+/*
+ * Los controles heredan la tipografía del documento. Sin esto, `input`, `select` y `button` usan la
+ * fuente del sistema a 13,33 px, que es más chica que el texto de al lado y no la eligió nadie.
+ */
+input,
+select,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+select {
+  padding: var(--espacio-chico);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  background-color: var(--color-fondo);
+  /* Un ancho mínimo en `ch` y no en `px`: escala con la tipografía y no puede desbordar a 360 px
+     como lo haría un valor fijo. */
+  min-width: 0;
+}
+
+button {
+  padding: var(--espacio-chico) var(--espacio);
+  border: 1px solid var(--color-acento);
+  border-radius: var(--radio);
+  background-color: var(--color-fondo);
+  color: var(--color-acento);
+  cursor: pointer;
+}
+
+/*
+ * El mensaje de error, dondequiera que esté. El color NO es lo único que lo distingue —siempre va
+ * acompañado del texto del motivo y de `role="alert"`—, porque el color solo no es accesible.
+ */
+[role='alert'] {
+  color: var(--color-error);
 }
 
 /*

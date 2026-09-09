@@ -2,21 +2,86 @@
  * `c-*` es el elemento que ES la cosa.
  *
  * Un elemento con `c-` no define su propia posición ni su propio margen externo: dónde va lo
- * decide su contenedor `l-`. Es lo que permite reubicar un componente en el ticket 6 sin editarlo.
+ * decide su contenedor `l-`. Es lo que permite reubicar un componente sin editarlo.
+ *
+ * **Toda clase que el código nombra tiene una regla acá o en `disposicion.css`** (FR-001), y
+ * `tests/ClasesConRegla.test.ts` lo comprueba recorriendo el código, no una lista. Antes de la
+ * feature 011 había cinco escritas y sin respaldo: la pantalla se sostenía por el flujo por defecto
+ * del navegador.
  */
 
+/* El campo: etiqueta, control y su error, apilados por `l-pila`. Acá va sólo lo que es del campo. */
+.c-campo {
+  /* La etiqueta pegada a su control, más cerca que la distancia al campo siguiente: es lo que hace
+     que se lea a cuál pertenece sin tener que probar. */
+  gap: 0.25rem;
+}
+
+.c-campo label {
+  font-weight: 600;
+}
+
+.c-formulario-acceso {
+  /* El formulario de acceso es lo único en su pantalla y no compite con nada: se centra y se acota,
+     porque una línea de campo de 1200 px de ancho no la lee nadie. */
+  max-width: 24rem;
+  width: 100%;
+}
+
+/* El fallo general del alta o de la edición, el que no pertenece a ningún campo. */
+.c-formulario-movimiento__error {
+  margin: 0;
+}
+
+/* El bloque del resumen: los totales de cada moneda, uno debajo del otro. */
+.c-resumen {
+  padding: var(--espacio);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+/*
+ * Los totales de UNA moneda. Se enmarca cada una por separado y a propósito: dos monedas son dos
+ * universos separados y nada se suma nunca a través de ellos (`PRD:RF-29`). Que se vean como dos
+ * bloques y no como una lista continua es esa regla dicha en la maquetación.
+ */
+.c-totales-moneda {
+  padding: var(--espacio-chico) 0;
+}
+
+.c-totales-moneda + .c-totales-moneda {
+  border-top: 1px solid var(--color-borde);
+}
+
 .c-formulario-movimiento fieldset {
-  border: 1px solid;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: var(--espacio);
 }
 
 .c-campo__error {
   margin: 0;
 }
 
+/*
+ * **El contenedor desplazable de la tabla** (FR-004).
+ *
+ * Seis columnas no entran en 360 px. Lo que no puede pasar es que desborde la PÁGINA: quien lee en
+ * un teléfono terminaría arrastrando la pantalla entera de costado para ver una fecha. El desborde
+ * queda acá adentro, y `tests/AnchoDeLasPantallas.test.ts` comprueba que esta regla exista — no que
+ * no desborde, que es algo que jsdom no puede medir (D-04, deuda D11-01).
+ */
+.c-listado-movimientos__desborde {
+  overflow-x: auto;
+}
+
 .c-listado-movimientos th,
 .c-listado-movimientos td {
-  border-bottom: 1px solid;
-  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-borde);
+  padding: var(--espacio-chico);
+  /* La fecha y el código de moneda no se parten en dos líneas: son cortos y partidos se leen peor
+     que desplazados. */
+  white-space: nowrap;
 }
 
 .c-formulario-acceso__error {
@@ -36,18 +101,18 @@
 /*
  * El desglose por categoría: la barra es el gráfico (D-03 de la feature 010).
  *
- * Los colores NO se declaran acá. Bajan como variables desde `ui/contraste.ts`, que es el archivo
- * que el test de contraste mide: dos declaraciones darían dos copias, y el día que una cambiara el
- * test seguiría midiendo la otra.
+ * Los colores salen de la paleta de `base.css`, que es el archivo que `tests/Paleta.test.ts` mide.
+ * Hasta la feature 010 bajaban desde `ui/contraste.ts` y los inyectaba el componente; la razón para
+ * tener UNA sola fuente no cambió, sí cambió cuál conviene que sea (D-01 de la 011).
  */
 .c-desglose__riel {
   /* El riel ocupa lo que sobra: la barra se compara con las de las otras filas, así que todas
      tienen que medirse contra el mismo ancho. */
   width: 100%;
-  background-color: var(--c-riel);
+  background-color: var(--color-riel);
 }
 
 .c-desglose__barra {
   height: 1rem;
-  background-color: var(--c-barra);
+  background-color: var(--color-barra);
 }

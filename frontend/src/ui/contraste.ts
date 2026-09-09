@@ -1,34 +1,14 @@
 /**
- * Los colores que el dashboard declara, y la cuenta que verifica que alcanzan (`PRD:AC-13`).
+ * La cuenta de contraste de WCAG 2.1, y nada más.
  *
- * **Son pocos a propósito.** `estilos/base.css` dice, en su primer comentario, que colores,
- * espaciados y tipografía son del ticket 6, y el proyecto no tiene ni un color declarado. Inventar
- * acá una paleta entera sería hacer ese trabajo antes de tiempo y sin su contexto, para que después
- * lo rehagan. Lo que hay acá es el mínimo que el dashboard necesita para dibujar una barra.
+ * **Los colores ya no viven acá** (D-01 de la feature 011). Hasta la 010 este archivo tenía los
+ * cuatro del dashboard, porque eran los únicos del proyecto y los bajaba un solo componente. Desde
+ * que existe una paleta entera, la declara `estilos/base.css` y la mide `tests/Paleta.test.ts`
+ * leyendo ese archivo: un color tiene que existir antes de que corra JavaScript, y un verificador
+ * que lee el CSS cubre cualquier color que alguien agregue sin agendarlo (NFR-003).
  *
- * Y son la **única** fuente: el componente los baja a variables CSS en su propio elemento, así que
- * no hay una copia en la hoja de estilos que pueda quedar desincronizada de la que el test mide.
+ * Lo que quedó acá es la función, que es lo que no depende de qué colores haya.
  */
-export const COLORES_DEL_DASHBOARD = {
-  /**
-   * El texto y el fondo de la página. **Hoy son los del navegador**, no una elección: el proyecto
-   * no declara colores todavía. Están escritos acá porque el test necesita medir contra algo, y
-   * porque el día que el ticket 6 traiga la paleta, este archivo es donde se va a notar si el par
-   * elegido no llega a 4,5:1.
-   */
-  texto: '#000000',
-  fondo: '#ffffff',
-
-  /**
-   * El relleno de **todas** las barras. Una sola entrada y no una paleta categórica: las categorías
-   * no se codifican por color (D-04). Si el color no lleva información, no hay nada que un
-   * daltonismo pueda quitarle.
-   */
-  barra: '#1f5c8b',
-
-  /** El riel sobre el que se dibuja la barra, para que se vea de dónde a dónde va. */
-  rielDeLaBarra: '#e8e8e8',
-} as const;
 
 /** Los tres canales de un color, de 0 a 255. */
 function canales(color: string): [number, number, number] {

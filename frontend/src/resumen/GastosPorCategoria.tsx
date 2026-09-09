@@ -1,13 +1,16 @@
-import type { CSSProperties } from 'react';
-import type { TotalPorCategoria } from '../api/tipos';
-import { COLORES_DEL_DASHBOARD } from '../ui/contraste';
-import { formatearMonto } from '../ui/formatearMonto';
+import type { Moneda, TotalPorCategoria } from '../api/tipos';
+import { decimalesDe, formatearMonto } from '../ui/formatearMonto';
 
 export interface PropsGastosPorCategoria {
   /** El desglose de UNA moneda, ya ordenado por el servidor. */
   gastos: TotalPorCategoria[];
   /** El código de esa moneda, para formatear cada total con su símbolo. */
   monedaCodigo: string;
+  /**
+   * El catálogo, para la escala de cada monto (`FR-019`). Opcional: sin él se cae en lo que `Intl`
+   * deduzca del código ISO, que es lo que se hacía hasta la feature 011.
+   */
+  monedas?: Moneda[];
 }
 
 /**
@@ -29,7 +32,7 @@ export interface PropsGastosPorCategoria {
  * La única cuenta que sí se hace es el **ancho** de cada barra, `total / mayor`. No es un dato: es
  * cómo se dibuja el dato que ya está escrito al lado.
  */
-export function GastosPorCategoria({ gastos, monedaCodigo }: PropsGastosPorCategoria) {
+export function GastosPorCategoria({ gastos, monedaCodigo, monedas }: PropsGastosPorCategoria) {
   if (gastos.length === 0) {
     // Sin datos NO es un error, y por eso no lleva `role="alert"`. Un período sin movimientos y un
     // servidor caído terminan en pantallas parecidas por motivos opuestos: confundirlos haría que
@@ -42,18 +45,9 @@ export function GastosPorCategoria({ gastos, monedaCodigo }: PropsGastosPorCateg
   const mayor = Math.max(...gastos.map((gasto) => gasto.total));
 
   return (
-    <table
-      aria-label={`Gastos por categoría en ${monedaCodigo}`}
-      // Los colores bajan desde su única fuente en `ui/contraste.ts`, que es el archivo que el test
-      // de `PRD:AC-13` mide. Declararlos también en la hoja de estilos daría dos copias, y el día
-      // que una cambie el test seguiría midiendo la otra.
-      style={
-        {
-          '--c-barra': COLORES_DEL_DASHBOARD.barra,
-          '--c-riel': COLORES_DEL_DASHBOARD.rielDeLaBarra,
-        } as CSSProperties
-      }
-    >
+    // Sin `style` con los colores: desde la feature 011 la paleta la declara `estilos/base.css` y
+    // la hoja los toma de ahí (D-01). El componente no inyecta nada.
+    <table aria-label={`Gastos por categoría en ${monedaCodigo}`}>
       <thead>
         <tr>
           <th scope="col">Categoría</th>
@@ -72,7 +66,7 @@ export function GastosPorCategoria({ gastos, monedaCodigo }: PropsGastosPorCateg
             {/* Un `td` y no un `th scope="row"`: el nombre es un dato del desglose, y como
                 encabezado de fila cambiaría su rol y con él la forma de leerlo. */}
             <td>{gasto.categoriaNombre}</td>
-            <td>{formatearMonto(gasto.total, monedaCodigo)}</td>
+            <td>{formatearMonto(gasto.total, monedaCodigo, decimalesDe(monedas, monedaCodigo))}</td>
             <td className="c-desglose__riel">
               {/* **La barra: el gráfico** (FR-001, D-03).
 
