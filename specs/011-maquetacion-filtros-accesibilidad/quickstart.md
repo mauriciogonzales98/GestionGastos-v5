@@ -51,6 +51,12 @@ estaría rota del único lado que el usuario mira. La barrera se pone en rojo. E
 
 ## Los pasos a mano
 
+> **Estado al cerrar la feature (2026-09-09): los pasos 1 a 4 NO se ejecutaron.** No hay navegador en
+> el entorno donde se implementó —WSL2 sin servidor gráfico—, que es exactamente lo que le pasó a la
+> feature 010 y quedó anotado como **D10-09**. Los pasos 5, 6 y 7 sí están cubiertos por tests
+> automatizados que los citan; lo que queda sin comprobar de 1 a 4 no es el comportamiento sino cómo
+> se ve y cómo se recorre de verdad. Sigue abierto como **D11-01** y **D10-09**.
+
 Se necesita la aplicación corriendo y un navegador. Los pasos 1 a 4 son los que **ningún test de
 este proyecto puede reemplazar**.
 

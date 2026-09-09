@@ -213,7 +213,7 @@ centavos, en las tres pantallas.
 - [X] T054 [ROJO] [US5] Correr `pnpm --dir frontend test` y exigir **ROJO** en T052 y T053, verificando que el motivo es que `formatearMonto` todavía no recibe la escala. Mostrar la salida
 - [X] T055 [US5] `MonedaDto` suma `Decimales` en `backend/GestionGastos.Api/Monedas/MonedasEndpoints.cs`. **Es el único cambio de código de producción del backend en toda la feature.** Va **último en el record**, después de `EsPredeterminada`, y el ejemplo de [contracts/api.md](./contracts/api.md) se corrige para que coincida. Si los tests de contrato comparan sólo nombres el orden da igual; el primer rojo de T051 es donde se comprueba cuál de las dos cosas hacen. Sin migración: la columna existe desde `20260823220228_Inicial`. Verde de T051
 - [X] T056 [US5] `formatearMonto(monto, monedaCodigo, decimales)` en `frontend/src/ui/formatearMonto.ts` fija `minimumFractionDigits` y `maximumFractionDigits` con el dato del catálogo, en la rama normal **y en la degradada**. Actualizar los tres puntos de llamada. **Ninguna lista de monedas escrita a mano en ningún lado**: es lo que `verificar-monedas.sh` vigila (punto 6). Verde de T052 y T053
-- [ ] T057 [VERIFY] [US5] Puerta de **las dos pilas**: `lint` + `format` + `tsc --noEmit` + `test` del frontend, y `dotnet format --verify-no-changes` + `dotnet build -warnaserror` + `dotnet test backend/`. Con su salida
+- [X] T057 [VERIFY] [US5] Puerta de **las dos pilas**: `lint` + `format` + `tsc --noEmit` + `test` del frontend, y `dotnet format --verify-no-changes` + `dotnet build -warnaserror` + `dotnet test backend/`. Con su salida
 
 **Checkpoint**: las cinco historias entregadas. Las tres deudas que la 010 mandó acá están saldadas.
 
@@ -221,16 +221,16 @@ centavos, en las tres pantallas.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T058 Commitear todo. `verificar-monedas.sh` **exige los dos árboles limpios** o no puede distinguir lo que ensució ella de lo que ya estaba sucio: `git status --short` tiene que estar vacío antes del paso siguiente
-- [ ] T059 Correr `./backend/verificar-monedas.sh` (~1 min) y mostrar la salida. Es **la barrera crítica de esta feature** (punto 6): verifica que `FR-019` no haya cableado una lista de monedas en ninguna de las dos pilas
-- [ ] T060 [P] Correr las otras cinco barreras con su salida: `verificar-contrato.sh` (~2,5 min, el campo nuevo del contrato), `verificar-autorizacion.sh`, `verificar-desglose.sh`, `verificar-linter.sh` y `verificar-aislamiento.sh` (~7 min)
-- [ ] T061 [P] Cobertura del backend: `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings`, con su salida
-- [ ] T062 [P] Build de producción del frontend: `pnpm --dir frontend build`
-- [ ] T063 **Comprobar que no entró ninguna dependencia** (`NFR-004`, `SC-008`): `git diff main -- frontend/package.json frontend/pnpm-lock.yaml 'backend/**/*.csproj'` tiene que estar vacío. Es la restricción que se decidió a mano en *Clarifications* frente a axe-core y a un navegador sin cabeza, y hasta acá no la comprobaba nadie
-- [ ] T064 **Comprobar la tabla de [D-12](./research.md) contra lo que realmente se tocó**: `git diff --stat main -- frontend/tests backend/GestionGastos.Api.Tests`. Cada test modificado tiene que estar en la tabla; si hay uno que no está, decir cuál y qué requisito lo justifica — o revertirlo. **Es la verificación de `SC-007`**, y es la única forma de que `FR-020` sea algo más que una intención
-- [ ] T065 Correr los pasos a mano del [quickstart](./quickstart.md). **Los pasos 1 a 4 no los cubre ningún test**: los 360 px medidos de verdad, el recorrido completo con teclado, el árbol de accesibilidad y si la paleta se ve bien. Si no hay navegador en el entorno, anotarlo como **D10-09**, que sigue abierta desde la feature 010
-- [ ] T066 Actualizar `plan-de-implementacion/README.md`: mover DISC-001-06 a la tabla de implementado, con qué lo demuestra en el código y qué deudas saldó. Anotar que el plan queda con **un solo ticket pendiente**, el 2 (Nota descriptiva del movimiento)
-- [ ] T067 Cerrar la tabla de *Deuda registrada* de [spec.md](./spec.md): confirmar cuáles de D11-01 a D11-07 quedaron efectivamente abiertas, y anotar en las tablas de las features 008, 009 y 010 que D8-05, D9-01, D9-05, D10-01 y D10-02 están saldadas
+- [X] T058 Commitear todo. `verificar-monedas.sh` **exige los dos árboles limpios** o no puede distinguir lo que ensució ella de lo que ya estaba sucio: `git status --short` tiene que estar vacío antes del paso siguiente
+- [X] T059 Correr `./backend/verificar-monedas.sh` (~1 min) y mostrar la salida. Es **la barrera crítica de esta feature** (punto 6): verifica que `FR-019` no haya cableado una lista de monedas en ninguna de las dos pilas
+- [X] T060 [P] Correr las otras cinco barreras con su salida: `verificar-contrato.sh` (~2,5 min, el campo nuevo del contrato), `verificar-autorizacion.sh`, `verificar-desglose.sh`, `verificar-linter.sh` y `verificar-aislamiento.sh` (~7 min)
+- [X] T061 [P] Cobertura del backend: `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings`, con su salida
+- [X] T062 [P] Build de producción del frontend: `pnpm --dir frontend build`
+- [X] T063 **Comprobar que no entró ninguna dependencia** (`NFR-004`, `SC-008`): `git diff main -- frontend/package.json frontend/pnpm-lock.yaml 'backend/**/*.csproj'` tiene que estar vacío. Es la restricción que se decidió a mano en *Clarifications* frente a axe-core y a un navegador sin cabeza, y hasta acá no la comprobaba nadie
+- [X] T064 **Comprobar la tabla de [D-12](./research.md) contra lo que realmente se tocó**: `git diff --stat main -- frontend/tests backend/GestionGastos.Api.Tests`. Cada test modificado tiene que estar en la tabla; si hay uno que no está, decir cuál y qué requisito lo justifica — o revertirlo. **Es la verificación de `SC-007`**, y es la única forma de que `FR-020` sea algo más que una intención
+- [X] T065 Correr los pasos a mano del [quickstart](./quickstart.md). **Los pasos 1 a 4 no los cubre ningún test**: los 360 px medidos de verdad, el recorrido completo con teclado, el árbol de accesibilidad y si la paleta se ve bien. Si no hay navegador en el entorno, anotarlo como **D10-09**, que sigue abierta desde la feature 010
+- [X] T066 Actualizar `plan-de-implementacion/README.md`: mover DISC-001-06 a la tabla de implementado, con qué lo demuestra en el código y qué deudas saldó. Anotar que el plan queda con **un solo ticket pendiente**, el 2 (Nota descriptiva del movimiento)
+- [X] T067 Cerrar la tabla de *Deuda registrada* de [spec.md](./spec.md): confirmar cuáles de D11-01 a D11-07 quedaron efectivamente abiertas, y anotar en las tablas de las features 008, 009 y 010 que D8-05, D9-01, D9-05, D10-01 y D10-02 están saldadas
 
 ---
 
