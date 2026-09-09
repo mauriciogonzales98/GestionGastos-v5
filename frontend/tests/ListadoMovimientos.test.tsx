@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ListadoMovimientos } from '../src/movimientos/ListadoMovimientos';
 import type { Movimiento } from '../src/api/tipos';
+import { SIN_CENTAVOS } from './monedas.fixture';
 
 const MOVIMIENTOS: Movimiento[] = [
   {
@@ -52,7 +53,9 @@ const MISMO_MONTO_DOS_MONEDAS: Movimiento[] = [
 
 describe('ListadoMovimientos', () => {
   it('es una tabla con encabezados de columna, no una grilla de divs', () => {
-    render(<ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} />);
+    render(
+      <ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} onEliminar={() => {}} />,
+    );
 
     const tabla = screen.getByRole('table');
     const encabezados = within(tabla).getAllByRole('columnheader');
@@ -73,7 +76,9 @@ describe('ListadoMovimientos', () => {
   });
 
   it('muestra el tipo como texto y no sólo por color', () => {
-    render(<ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} />);
+    render(
+      <ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} onEliminar={() => {}} />,
+    );
 
     const filas = screen.getAllByRole('row').slice(1);
     expect(within(filas[0]).getByText('Ingreso')).toBeInTheDocument();
@@ -81,7 +86,9 @@ describe('ListadoMovimientos', () => {
   });
 
   it('muestra categoría y monto de cada movimiento', () => {
-    render(<ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} />);
+    render(
+      <ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} onEliminar={() => {}} />,
+    );
 
     const filas = screen.getAllByRole('row').slice(1);
     expect(within(filas[1]).getByText('Comida')).toBeInTheDocument();
@@ -89,7 +96,7 @@ describe('ListadoMovimientos', () => {
   });
 
   it('sin movimientos muestra un mensaje explícito y ninguna tabla FR-012', () => {
-    render(<ListadoMovimientos movimientos={[]} onEditar={() => {}} />);
+    render(<ListadoMovimientos movimientos={[]} onEditar={() => {}} onEliminar={() => {}} />);
 
     // Un mes sin movimientos no es un error: es un listado vacío con su mensaje.
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
@@ -109,7 +116,13 @@ describe('ListadoMovimientos', () => {
    * columna existiera, que es exactamente el test que no sirve.
    */
   it('muestra el código de la moneda de cada fila AC-05', () => {
-    render(<ListadoMovimientos movimientos={MISMO_MONTO_DOS_MONEDAS} onEditar={() => {}} />);
+    render(
+      <ListadoMovimientos
+        movimientos={MISMO_MONTO_DOS_MONEDAS}
+        onEditar={() => {}}
+        onEliminar={() => {}}
+      />,
+    );
 
     const filas = screen.getAllByRole('row').slice(1);
     const codigos = filas.map((f) => within(f).getAllByRole('cell')[4].textContent);
@@ -128,7 +141,13 @@ describe('ListadoMovimientos', () => {
   it('muestra el código de una moneda que ninguna constante conoce AC-04', () => {
     const enUnaMonedaNueva: Movimiento[] = [{ ...MISMO_MONTO_DOS_MONEDAS[0], monedaCodigo: 'XCT' }];
 
-    render(<ListadoMovimientos movimientos={enUnaMonedaNueva} onEditar={() => {}} />);
+    render(
+      <ListadoMovimientos
+        movimientos={enUnaMonedaNueva}
+        onEditar={() => {}}
+        onEliminar={() => {}}
+      />,
+    );
 
     expect(screen.getByRole('cell', { name: 'XCT' })).toBeInTheDocument();
   });
@@ -151,10 +170,54 @@ describe('ListadoMovimientos', () => {
   it('muestra el monto aunque el código no sea una moneda que Intl entienda', () => {
     const enUnCodigoRaro: Movimiento[] = [{ ...MISMO_MONTO_DOS_MONEDAS[0], monedaCodigo: 'BT1' }];
 
-    render(<ListadoMovimientos movimientos={enUnCodigoRaro} onEditar={() => {}} />);
+    render(
+      <ListadoMovimientos movimientos={enUnCodigoRaro} onEditar={() => {}} onEliminar={() => {}} />,
+    );
 
     // El monto se ve, y el código también: se degrada, no se cae.
     expect(screen.getByRole('cell', { name: 'BT1' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: /100/ })).toBeInTheDocument();
+  });
+});
+
+/**
+ * `FR-019` — el listado muestra cada monto en la escala de su moneda.
+ *
+ * Es una de las tres pantallas que muestran plata, y las tres tienen que tomar la escala del mismo
+ * lado: del catálogo, y no de lo que `Intl` deduzca del código ISO (D-08).
+ */
+describe('ListadoMovimientos — la escala del monto FR-019', () => {
+  const EN_YENES = {
+    id: 40,
+    tipo: 'gasto' as const,
+    monto: 1250,
+    categoriaId: 1,
+    categoriaNombre: 'Comida',
+    monedaCodigo: 'JPY',
+    fecha: '2026-09-01',
+  };
+
+  it('una moneda sin centavos se muestra sin centavos FR-019', () => {
+    render(
+      <ListadoMovimientos
+        movimientos={[EN_YENES]}
+        monedas={[SIN_CENTAVOS]}
+        onEditar={() => {}}
+        onEliminar={() => {}}
+      />,
+    );
+
+    const monto = screen.getByRole('cell', { name: /1\.250/ });
+
+    expect(monto).toBeInTheDocument();
+    expect(monto.textContent).not.toMatch(/1\.250,/);
+  });
+
+  it('sin catálogo se cae en lo que Intl deduzca, y la fila se sigue leyendo', () => {
+    render(
+      <ListadoMovimientos movimientos={[EN_YENES]} onEditar={() => {}} onEliminar={() => {}} />,
+    );
+
+    expect(screen.getByRole('cell', { name: /1\.250/ })).toBeInTheDocument();
   });
 });
