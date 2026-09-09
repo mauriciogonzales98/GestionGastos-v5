@@ -32,13 +32,35 @@ import type { Moneda } from '../api/tipos';
  * también, y una segunda copia sería una segunda que se olvida del `try` — o sea, el mismo
  * `RangeError` esperando en otra pantalla.
  */
+/** Lo máximo que `Intl.NumberFormat` acepta como cantidad de decimales. Con más, lanza. */
+const MAXIMO_DE_INTL = 20;
+
 export function formatearMonto(monto: number, monedaCodigo: string, decimales?: number): string {
+  /**
+   * **La escala se comprueba antes de usarla, y por el mismo motivo que el código.**
+   *
+   * `moneda.decimales` es `tinyint unsigned`: el esquema admite 0 a 255 y **no tiene `CHECK`** —es
+   * la misma deuda que `moneda.codigo`, anotada como D11-02—. `Intl` acepta hasta 20 y lanza con
+   * más, y esa excepción no la ataja el `try` de abajo: la rama degradada también le pasa la escala,
+   * así que volvería a lanzar. El `RangeError` subiría, React desmontaría el árbol y la cuenta se
+   * quedaría con la pantalla en blanco, que es exactamente lo que este `try/catch` existe para
+   * evitar (hallazgo 1 de la revisión del PR #28).
+   *
+   * Un valor imposible se trata como ausente: se muestra el monto con la escala que `Intl` deduzca
+   * del código. Es la misma degradación que el código ilegible — información suficiente, y nunca
+   * falla.
+   */
+  const escalaUsable =
+    decimales !== undefined &&
+    Number.isInteger(decimales) &&
+    decimales >= 0 &&
+    decimales <= MAXIMO_DE_INTL;
+
   // La escala va en las dos ramas: la degradada también tiene que respetarla, o una moneda sin
   // centavos mostraría centavos justo cuando su código es el que `Intl` no entiende.
-  const escala =
-    decimales === undefined
-      ? {}
-      : { minimumFractionDigits: decimales, maximumFractionDigits: decimales };
+  const escala = escalaUsable
+    ? { minimumFractionDigits: decimales, maximumFractionDigits: decimales }
+    : {};
 
   try {
     return new Intl.NumberFormat('es-AR', {

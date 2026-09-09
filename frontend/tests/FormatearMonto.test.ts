@@ -84,3 +84,38 @@ describe('decimalesDe · el catálogo responde, o no responde', () => {
     expect(decimalesDe(MONEDAS, 'JPY')).toBeUndefined();
   });
 });
+
+/**
+ * **Una escala que `Intl` no admite no puede tirar la pantalla abajo** (hallazgo 1 de la revisión
+ * del PR #28).
+ *
+ * `moneda.decimales` es `tinyint unsigned`: el esquema admite **0 a 255** y no tiene `CHECK` —es la
+ * misma deuda que `moneda.codigo`, anotada como D11-02—. `Intl.NumberFormat` acepta como mucho 20
+ * decimales y lanza `RangeError` con más.
+ *
+ * Hasta el arreglo, un `decimales` grande lanzaba dentro del `try`, caía al `catch`, y **el `catch`
+ * volvía a lanzar** porque también le pasaba la escala a `Intl`. El `RangeError` subía, React
+ * desmontaba el árbol y la cuenta se quedaba con la pantalla en blanco — que es exactamente el
+ * fallo que este `try/catch` fue escrito para prevenir, reintroducido por una columna nueva que
+ * tampoco tiene `CHECK`.
+ */
+describe('FR-019 · una escala imposible se degrada, no tira la pantalla', () => {
+  it('un decimales fuera del rango de Intl no lanza', () => {
+    expect(() => formatearMonto(1250, 'ARS', 255)).not.toThrow();
+  });
+
+  it('y muestra el monto con la escala que Intl deduzca, en vez de no mostrarlo', () => {
+    expect(formatearMonto(1250.5, 'ARS', 255)).toMatch(/1\.250,50/);
+  });
+
+  it('lo mismo cuando además el código es uno que Intl no interpreta', () => {
+    // Los dos guardarraíles a la vez: el código ilegible manda a la rama degradada, y la escala
+    // imposible haría lanzar también a esa rama.
+    expect(() => formatearMonto(1250, 'BT1', 255)).not.toThrow();
+    expect(formatearMonto(1250, 'BT1', 255)).toContain('BT1');
+  });
+
+  it('el límite que Intl sí admite se sigue respetando', () => {
+    expect(formatearMonto(1250, 'ARS', 20)).toMatch(/1\.250,0{20}/);
+  });
+});
