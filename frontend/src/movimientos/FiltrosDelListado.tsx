@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { AcotadoDelListado } from '../api/cliente';
 import type { Categoria, Moneda } from '../api/tipos';
 import { ControlesDelPeriodo } from '../periodo/ControlesDelPeriodo';
@@ -52,6 +52,33 @@ export function FiltrosDelListado({
 }: PropsFiltrosDelListado) {
   const idCategoria = useId();
   const idMoneda = useId();
+
+  /**
+   * **El primer período conocido, y sólo el primero** (hallazgo 4 de la revisión del PR #28).
+   *
+   * `ControlesDelPeriodo` lee sus valores iniciales al montarse, así que el período que llega con el
+   * resumen entra por una `key` que lo remonta. Con la `key` atada directamente a `desdeInicial`, un
+   * resumen que llegara **después** de que alguien ya hubiera aplicado un rango propio remontaba el
+   * control y lo dejaba mostrando el mes en curso mientras el listado seguía mostrando el rango
+   * elegido: la pantalla contradiciéndose sola.
+   *
+   * Con la semilla guardada en un `ref`, la `key` cambia **una sola vez** —de "sin período" al
+   * primero que se supo— y después queda fija pase lo que pase con el resumen.
+   */
+  const semilla = useRef<{ desde?: string; hasta?: string } | null>(null);
+
+  /**
+   * Si alguien ya aplicó algo, el período dejó de ser suyo para sembrar.
+   *
+   * Sin esto, un resumen que llegara tarde —porque falló al principio y volvió a pedirse tras el
+   * primer alta— remontaba el control con el mes en curso encima de un rango que la persona ya
+   * había aplicado y que el listado seguía mostrando.
+   */
+  const yaSeAplico = useRef(false);
+
+  if (semilla.current === null && !yaSeAplico.current && desdeInicial !== undefined) {
+    semilla.current = { desde: desdeInicial, hasta: hastaInicial };
+  }
 
   // Las etiquetas dicen "Acotar por" y no sólo "Categoría" y "Moneda": el formulario de registro,
   // que está en la misma pantalla, ya tiene un campo con cada uno de esos dos nombres. Dos combos
@@ -119,24 +146,25 @@ export function FiltrosDelListado({
          * `CamposDelMovimiento`— y el resumen del que salen llega después del primer render. Sin
          * `key`, los campos se quedaban vacíos para siempre y `FR-015` no se cumplía.
          *
-         * La `key` es el período y no un contador: las recargas posteriores del resumen —tras cada
-         * alta, edición o borrado— devuelven el mismo mes, así que la `key` no cambia y **no se
-         * remonta**. Si se remontara en cada recarga, borraría un rango a medio escribir. Es la
-         * misma decisión que la `key` de `VentanaDeEdicion`, y por el mismo motivo: que no dependa
-         * de un efecto de sincronización sino de la estructura.
+         * La `key` sale de la **semilla**, que se fija la primera vez que se sabe el período y no
+         * vuelve a cambiar: así el remonte ocurre una sola vez y nunca puede pisar un rango que
+         * alguien ya aplicó. Es la misma decisión que la `key` de `VentanaDeEdicion`, y por el mismo
+         * motivo: que no dependa de un efecto de sincronización sino de la estructura.
          */
-        key={desdeInicial ?? 'sin-periodo'}
-        desdeInicial={desdeInicial}
-        hastaInicial={hastaInicial}
+        key={semilla.current?.desde ?? 'sin-periodo'}
+        desdeInicial={semilla.current?.desde}
+        hastaInicial={semilla.current?.hasta}
         error={errorDelPeriodo}
-        onAplicar={(desde, hasta) =>
+        onAplicar={(desde, hasta) => {
+          yaSeAplico.current = true;
+
           onAplicar({
             categoriaId: categoria === '' ? null : Number(categoria),
             monedaId: moneda === '' ? null : Number(moneda),
             desde,
             hasta,
-          })
-        }
+          });
+        }}
       />
     </section>
   );

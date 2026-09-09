@@ -201,6 +201,48 @@ describe('FR-015 · acotar por rango de fechas', () => {
     expect(ultimoAcotado()).toEqual({});
   });
 
+  /**
+   * **El control no puede terminar mostrando un período distinto del aplicado** (hallazgo 4 de la
+   * revisión del PR #28).
+   *
+   * `ControlesDelPeriodo` lee sus valores iniciales sólo al montarse, así que el período que llega
+   * con el resumen entra por una `key` que lo remonta. El problema es que esa `key` cambiaba
+   * **después** de que alguien ya hubiera aplicado un rango propio: si el resumen tarda o falla al
+   * principio y llega recién tras el primer alta, el control se remontaba mostrando el mes en curso
+   * mientras el listado seguía mostrando agosto. La pantalla contradiciéndose sola, que es el mismo
+   * daño que la guarda `vigente` evita del otro lado.
+   */
+  it('el período aplicado no lo pisa un resumen que llega después', async () => {
+    const usuario = userEvent.setup();
+
+    // El resumen falla al principio: el control arranca sin período prefijado.
+    vi.mocked(cliente.obtenerResumen).mockRejectedValueOnce(new Error('caído'));
+    await renderizar();
+
+    await usuario.clear(screen.getByLabelText('Desde'));
+    await usuario.type(screen.getByLabelText('Desde'), '2026-08-01');
+    await usuario.clear(screen.getByLabelText('Hasta'));
+    await usuario.type(screen.getByLabelText('Hasta'), '2026-08-31');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+    await waitFor(() =>
+      expect(ultimoAcotado()).toMatchObject({ desde: '2026-08-01', hasta: '2026-08-31' }),
+    );
+
+    // Ahora sí llega un resumen, disparado por un alta. El período del listado no cambió.
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue(RESUMEN);
+    vi.mocked(cliente.crearMovimiento).mockResolvedValue({ ...UN_GASTO, id: 99 });
+    await usuario.type(screen.getByLabelText('Monto'), '500');
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
+    await usuario.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    await waitFor(() => expect(cliente.obtenerResumen).toHaveBeenCalledTimes(2));
+
+    // El control tiene que seguir diciendo agosto, que es lo que el listado está mostrando.
+    expect(screen.getByLabelText('Desde')).toHaveValue('2026-08-01');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-08-31');
+  });
+
   it('un rango elegido se manda con sus dos extremos (PRD:AC-26, FR-015)', async () => {
     const usuario = userEvent.setup();
     await renderizar();
