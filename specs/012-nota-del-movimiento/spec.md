@@ -94,6 +94,41 @@ exactamente el contrabando que hay que no hacer.
   nota", un cliente que no la mande borraría en silencio lo que la persona escribió. Exigirla saca
   las dos trampas: `""` y `null` significan **sin nota**, y los dos son explícitos. Queda como
   `FR-004` y `AC-06`.
+- P: ¿En qué unidad se cuentan los 120 caracteres? MySQL cuenta caracteres Unicode y tanto C# como
+  JavaScript cuentan por omisión unidades UTF-16, donde un emoji vale 2.
+  → R: **Caracteres Unicode (code points)**, que es lo que `varchar(120)` ya cuenta. Es la única
+  unidad en la que las tres capas acuerdan qué significa 120 sin que ninguna tenga que convertir
+  nada, y contarla así cuesta una línea en cada pila. **Ninguna de las dos validaciones usa el largo
+  "natural" de la cadena**: en UTF-16 un emoji vale 2, así que a quien escribe emoji se le cortaría
+  a mitad del límite que el mensaje le promete. Queda como `FR-003` y `AC-04`.
+- P: Cuando un movimiento no tiene nota, ¿qué se guarda: `NULL` o la cadena vacía?
+  → R: **Las dos se admiten**, y el esquema no elige una. La nota es la primera columna de texto
+  anulable del proyecto —todas las de hoy son `IsRequired()`— y no se normaliza al escribir.
+  **Eso mueve la invariante de `FR-005` del esquema a la lectura**: "sin nota" sigue siendo un solo
+  estado *para quien lo mira*, pero ya no por construcción, así que todo camino que muestre una nota
+  DEBE tratar `NULL` y `''` de la misma forma, y un test DEBE fijarlo. Sin ese test, dos movimientos
+  que se ven idénticos en la pantalla pasan a ser distinguibles según cómo se guardaron, que es
+  precisamente lo que `FR-005` no quiere. Queda como `FR-005`, `FR-011` y `AC-02`, con su costo
+  anotado en D12-08.
+- P: ¿El campo de la nota es una entrada de una sola línea o un área de texto de varias?
+  → R: **Un área de texto de varias líneas.** Con 120 caracteres, ver la nota entera sin desplazar
+  vale más que la comodidad de tipearla en una línea. Tres consecuencias, todas encodeadas y ninguna
+  descubierta después: **(1)** `PRD:AC-55` **no se rompe** —el recorrido con Tab hasta el botón y el
+  Enter sobre el botón siguen funcionando igual, que es exactamente lo que ese AC pide y lo que su
+  test verifica—, pero el test enumera el orden de tabulación y por lo tanto **se pone en rojo con el
+  control nuevo**, que es su propósito declarado: extenderlo es parte del trabajo, no un daño
+  colateral. **(2)** Lo que sí deja de ser cierto es el comentario de `CamposDelMovimiento.tsx` que
+  afirma que el envío con Enter sale *de cualquier campo*: dentro de un área de texto Enter inserta un
+  salto. El comentario se corrige, porque un comentario que describe otra cosa es peor que ninguno.
+  **(3)** Los saltos de línea pasan a ser representables en el dato, y `FR-012` dice qué se hace con
+  ellos. Queda como `FR-001`, `FR-012` y `FR-013`.
+- P: ¿Qué devuelve la API en el campo de la nota cuando el movimiento no tiene una?
+  → R: **El campo viaja siempre, y "sin nota" es la cadena vacía.** La lectura **normaliza**: una fila
+  guardada sin valor sale como `""`, así que la dualidad que el almacenamiento admite **se detiene en
+  el borde de la API** y no llega a la pantalla. Con esto `FR-011` se cumple en un solo lugar —el
+  único por el que pasan todas las lecturas— en vez de repartido por cada consumidor, ninguna
+  respuesta lleva nulos (hoy `MovimientoDto` no tiene ninguno) y el listado muestra la nota sin un
+  solo condicional, porque una cadena vacía no pinta nada. Queda como `FR-009` y `FR-011`.
 
 ---
 
@@ -201,13 +236,22 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
 - **Una nota de 120 caracteres visibles más espacios alrededor.** El límite se mide sobre el valor
   ya recortado, así que se acepta. Medirlo antes de recortar rechazaría algo que, una vez guardado,
   entra.
-- **Una nota con acentos, eñes o emoji.** Cuentan igual que cualquier otro carácter, y el límite se
-  aplica de la misma forma en la pantalla y en el servidor: los dos lados tienen que rechazar y
-  aceptar exactamente lo mismo, o la pantalla deja pasar algo que el servidor rechaza con un mensaje
-  que la persona no puede entender.
+- **Una nota con acentos, eñes o emoji.** Cada uno cuenta **uno**, porque el límite se mide en
+  caracteres Unicode: 120 emoji es una nota válida. Es el caso que separa esta decisión de la fácil —
+  contando unidades UTF-16, esos mismos 120 emoji se rechazarían por "superar 120" cuando la persona
+  escribió exactamente 120. Los dos lados tienen que aceptar y rechazar exactamente el mismo
+  conjunto de notas, o la pantalla deja pasar algo que el servidor rechaza con un mensaje que la
+  persona no puede entender.
+- **Una nota escrita en varias líneas.** Se guarda con sus saltos y se lee en el listado en una sola
+  línea visual, sin que el salto agregue ni quite nada al texto (`FR-012`). Al volver a abrir la
+  ventana de edición, el campo la trae con sus saltos intactos: lo guardado es lo que se escribió.
 - **Una nota larga en el listado a 360 px.** La columna no puede empujar la página: el envoltorio
   desplazable que la 011 dejó puesto es el que absorbe el ancho. El texto completo queda en el DOM,
   así que un lector de pantalla lo lee entero aunque visualmente esté acotado.
+- **Dos movimientos sin nota guardados de las dos formas posibles** —uno sin valor y uno con la
+  cadena vacía—. La API devuelve lo mismo para los dos, así que se ven **idénticos** en el listado:
+  los dos sin texto de relleno y sin error. Es el caso que `FR-011` existe para fijar, y el único que
+  el esquema ya no impide por construcción.
 - **Un movimiento registrado antes de esta feature.** No tiene nota, y se muestra igual que uno
   guardado sin nota: sin relleno y sin error. Es el caso que cubre toda la base existente.
 - **Una nota que llega con más de 120 caracteres directo a la API**, sin pasar por la pantalla. Se
@@ -224,15 +268,18 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
   es **opcional**: se tiene que poder registrar un movimiento sin tocarlo (`PRD:FR-01`, `PRD:AC-09`).
 - **FR-002**: La nota se escribe al registrar un movimiento y viaja con él (`PRD:FR-01`).
 - **FR-003**: El sistema DEBE rechazar el alta y la modificación de un movimiento cuya nota supere
-  los 120 caracteres, **indicando el motivo al lado del campo de la nota** y sin crear ni alterar
-  nada (`PRD:FR-03`, `PRD:AC-03`). El límite se aplica en el servidor, que es la barrera, y se
-  adelanta en la pantalla, que es comodidad.
+  los 120 **caracteres Unicode** (code points, no unidades UTF-16), **indicando el motivo al lado del
+  campo de la nota** y sin crear ni alterar nada (`PRD:FR-03`, `PRD:AC-03`). El límite se aplica en el
+  servidor, que es la barrera, y se adelanta en la pantalla, que es comodidad, y **las dos cuentan en
+  la misma unidad que el esquema**: las tres capas tienen que acordar qué significa 120 (Clarifications).
 - **FR-004**: Se DEBE poder modificar y **vaciar** la nota de un movimiento propio ya registrado
   (`PRD:FR-04`). En la modificación la nota es un valor **obligatorio del contrato**, igual que la
   fecha: sin nota se expresa explícitamente, nunca por omisión (Clarifications).
 - **FR-005**: Un movimiento enviado con la nota vacía queda **sin nota**, y el listado lo muestra sin
   texto de relleno y sin ningún error (`PRD:FR-05`, `PRD:AC-02`). Una nota de sólo espacios es una
-  nota vacía, y los espacios de los extremos se recortan (Edge Cases).
+  nota vacía, y los espacios de los extremos se recortan (Edge Cases). **"Sin nota" es un solo estado
+  para quien lo mira, y el almacenamiento admite dos formas de representarlo** (Clarifications): de
+  ahí `FR-011`.
 - **FR-006**: El listado DEBE mostrar la nota de cada movimiento **junto al movimiento al que
   pertenece**, como una columna más de la tabla, con el texto completo presente para quien lo lee con
   un lector de pantalla (`PRD:FR-02`, Clarifications).
@@ -244,11 +291,26 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
   (piso de la feature 011).
 - **FR-009**: El contrato de las tres formas del movimiento —lo que se manda al registrar, lo que se
   manda al modificar y lo que se devuelve— DEBE declarar la nota, y la verificación del contrato
-  DEBE ponerse en rojo si una de las dos pilas la declara y la otra no.
+  DEBE ponerse en rojo si una de las dos pilas la declara y la otra no. En **lo que se devuelve** el
+  campo viaja **siempre** y nunca es nulo: "sin nota" es la cadena vacía (Clarifications).
 - **FR-010**: El esquema DEBE rechazar un código de moneda que no sean **tres letras**. Es la deuda
   **D11-02**, saldada en la migración que esta feature abre por otro motivo. **No** se agrega
   validación de aplicación sobre el catálogo: el catálogo se administra como dato y nadie lo escribe
   desde la aplicación (`PRD:RF-32`, Clarifications).
+- **FR-011**: La **lectura de la API** DEBE tratar la ausencia de valor y la cadena vacía exactamente
+  igual, devolviendo siempre la cadena vacía, y eso DEBE estar fijado por un test y no confiado a la
+  disciplina de quien escriba la próxima consulta. Es lo que mantiene en pie `FR-005` dado que el
+  esquema no elige una sola representación, y está puesto **en el borde de la API a propósito**: es el
+  único punto por el que pasan todas las lecturas, así que la pantalla recibe una sola forma de "sin
+  nota" y no tiene que saber que existieron dos.
+- **FR-012**: La nota se escribe en un control de **varias líneas**, así que los saltos de línea son
+  representables y **se conservan tal como se escribieron**. En el listado la nota se muestra en una
+  sola línea visual: el salto **no tiene significado de presentación**, porque el formato dentro de la
+  nota está fuera de alcance (D12-06). Conservarlo sin darle significado es la única combinación que
+  no miente — transformar el texto al guardarlo cambiaría en silencio lo que la persona escribió, y
+  darle significado sería construir el formato que el PRD excluye.
+- **FR-013**: El salto de línea **cuenta como un carácter** para el límite de `FR-003`, igual que
+  cualquier otro. No se descuenta ni se trata de forma especial.
 
 ### Non-Functional Requirements
 
@@ -271,11 +333,12 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
 
 ### Key Entities
 
-- **Movimiento**: suma un atributo, la **nota** — texto libre opcional, de hasta 120 caracteres,
-  **descriptivo y no clasificatorio**. Ausente es un estado normal y no un dato faltante: la mayoría
-  de los movimientos no va a tener nota, y los que ya existen no la tienen. No participa de ninguna
-  relación, de ningún índice de búsqueda y de ninguna agregación — y eso es una decisión de producto,
-  no una omisión.
+- **Movimiento**: suma un atributo, la **nota** — texto libre opcional de varias líneas, de hasta 120
+  caracteres Unicode, **descriptivo y no clasificatorio**. Ausente es un estado normal y no un dato
+  faltante: la mayoría de los movimientos no va a tener nota, y los que ya existen no la tienen. El
+  almacenamiento admite **dos formas** de representar esa ausencia y la lectura de la API devuelve
+  **una sola** (`FR-011`). No participa de ninguna relación, de ningún índice de búsqueda y de ninguna
+  agregación — y eso es una decisión de producto, no una omisión.
 - **Moneda**: no suma atributos. Su `codigo` pasa a tener en el esquema la restricción que le
   faltaba: tres letras (`FR-010`).
 
@@ -295,6 +358,8 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
   después de agregar, cambiar y borrar una nota.
 - **SC-006**: El listado con 1000 movimientos con nota carga en menos de 2 s en el percentil 95 sobre
   100 ejecuciones.
+- **SC-011**: Un movimiento guardado sin valor de nota y otro guardado con la cadena vacía producen
+  **la misma respuesta de la API** —y por lo tanto la misma pantalla—, verificado con un test.
 - **SC-007**: La nota no aparece en ningún acotado, orden ni total: la cuenta de lugares donde se
   puede filtrar o agrupar por nota es **cero**.
 - **SC-008**: Los verificadores de la feature 011 siguen todos en verde con la columna nueva, y la
@@ -308,10 +373,9 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
 
 - **El límite de 120 es el del PRD y no se discute.** Ampliarlo o hacerlo configurable es una
   modificación de `PRD:RF-33`, no una decisión de este ticket, y está fuera de alcance explícito.
-- **El límite se cuenta sobre el valor ya recortado** y de la misma forma en las dos pilas. Los dos
-  lados tienen que aceptar y rechazar exactamente el mismo conjunto de notas; si se separaran, la
-  pantalla dejaría pasar algo que el servidor rechaza con un mensaje que la persona no puede
-  entender.
+- **El límite se cuenta sobre el valor ya recortado, en caracteres Unicode**, y de la misma forma en
+  las dos pilas (Clarifications). Es además la unidad del esquema, así que una nota que las dos
+  validaciones aceptan entra siempre en la columna: no hay un cuarto criterio escondido en la base.
 - **La nota no es obligatoria en ningún caso**, ni para ningún tipo de movimiento, ni para ninguna
   categoría. No hay un solo escenario en el que el sistema la exija.
 - **Los movimientos que ya existen quedan sin nota**, y eso no necesita ni migración de datos ni
@@ -319,8 +383,21 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
 - **El aislamiento entre cuentas ya cubre la nota** por la vía por la que cubre todo lo demás: un
   movimiento ajeno no se lee. Esta feature lo verifica en lugar de suponerlo, porque la nota es el
   primer campo de texto libre que ese aislamiento tiene que tapar.
+- **`frontend/tests/TecladoFormulario.test.tsx` se extiende, y eso está previsto.** Ese test enumera
+  el orden de tabulación del formulario completo, así que un control nuevo lo pone en rojo **por
+  diseño** — su propio comentario lo dice: que se haya puesto en rojo al agregar un botón es la señal
+  de que sirve. Es el único test existente que esta feature tiene que tocar por el control nuevo, y se
+  declara acá para que no parezca un daño colateral descubierto durante la implementación.
 - **La validación del contrato la verifica la barrera que ya existe.** El campo nuevo viaja en las
   tres formas del movimiento, así que `verificar-contrato.sh` participa del cierre.
+- **`NFR-003` se mide sobre la respuesta de la API, no sobre el navegador.** Es lo que hacen los
+  otros tres tests de rendimiento del proyecto, y es lo único medible sin traer un runner de
+  navegador, que `NFR-005` prohíbe. La spec lo dice en lugar de afirmar "el listado carga en 2 s",
+  que sería afirmar algo que no se midió — la misma honestidad que la 011 aplicó a los 360 px.
+- **La nota no se registra en ningún log ni se repite en ningún mensaje de error.** Es la única
+  entrada de texto libre de la aplicación, o sea el único lugar por el que contenido de la persona
+  podría salir hacia donde nadie lo está mirando. El mensaje de `FR-003` dice que se pasó del límite;
+  no devuelve el texto.
 - **El test de rendimiento del listado queda fuera del CI**, como los otros tres, por el filtro
   `FullyQualifiedName!~Rendimiento` que `AGENTS.md` declara: mide tiempo de pared y en un runner
   compartido da rojos que no dicen nada. En local corre.
@@ -339,6 +416,8 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
 | D12-05 | **Autocompletado o sugerencias** a partir de notas anteriores | Fuera de alcance explícito: sería la puerta de atrás a la misma taxonomía informal que `PRD:RF-33` evita | Nadie |
 | D12-06 | **Formato dentro de la nota** —negrita, saltos de línea con significado, enlaces que se puedan seguir— y **adjuntar comprobantes** al movimiento | Fuera de alcance explícito del PRD. El formato además chocaría de frente con `NFR-001`, que es el requisito que hace que la nota sea segura | Nadie |
 | D12-07 | **Modo oscuro, temas y cualquier preferencia visual configurable**, y la **auditoría completa de ARIA con lectores de pantalla concretos** | Son **D11-05** y **D11-06**, sin cambios: alcance que nadie pidió, y la dependencia con la que se haría está prohibida | Nadie |
+
+| D12-08 | **Una sola representación de "sin nota" garantizada por el esquema** | Decisión tomada en *Clarifications*: la columna admite tanto la ausencia de valor como la cadena vacía, y no se normaliza al escribir. El costo es que la invariante de `FR-005` pasa a depender de la lectura en vez del almacenamiento, y lo que la sostiene es `FR-011` con su test en lugar de una restricción. Es una deuda **aceptada a sabiendas, no un descuido**: queda anotada para que el día que aparezca un camino de lectura nuevo se sepa que hay una invariante que no se cumple sola | Quien decida normalizar al escribir, si alguna vez el test de `FR-011` resulta insuficiente |
 
 **Lo que esta feature salda**: **D11-02** (`FR-010`, el `CHECK` de tres letras sobre
 `moneda.codigo`, que venía de la 009 como D9-09 y de la 010 como D10-03) y **D11-07** (la nota

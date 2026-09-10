@@ -6,9 +6,9 @@
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
+- [ ] No implementation details (languages, frameworks, APIs)
 - [x] Focused on user value and business needs
-- [x] Written for non-technical stakeholders
+- [ ] Written for non-technical stakeholders
 - [x] All mandatory sections completed
 
 ## Requirement Completeness
@@ -47,6 +47,15 @@ permite comprobarlo de un vistazo:
 | `AC-01` a `AC-10` | US1 escenarios 1–6, US2 escenarios 1–5 |
 | *Out of Scope* completo | `FR-007`, D12-04, D12-05, D12-06 |
 
+Y lo que salió de `/speckit-clarify`, que no viene del PRD sino de decisiones que el PRD no tomaba:
+
+| Decisión | Dónde quedó |
+|---|---|
+| El límite se cuenta en caracteres Unicode | `FR-003`, `FR-013`; Edge Case del emoji |
+| El almacenamiento admite dos formas de "sin nota" | `FR-005`, D12-08 |
+| La lectura de la API devuelve una sola | `FR-009`, `FR-011`; `SC-011` |
+| La nota se escribe en un control de varias líneas | `FR-001`, `FR-012`, `FR-013` |
+
 ## Notas de la validación
 
 Tres puntos no tenían un valor por omisión razonable y se resolvieron en *Clarifications* antes de
@@ -61,6 +70,21 @@ cerrar la checklist, no después:
 3. **Cómo se vacía la nota al editar** sin romper la regla "ausente nunca produce un cambio que nadie
    pidió" que el contrato de la modificación declara desde la feature 009. Quedó como `FR-004`, con
    la nota obligatoria en la modificación por la misma razón por la que la fecha ya lo es.
+
+### Los dos ítems que dejaron de pasar
+
+`/speckit-clarify` resolvió cuatro decisiones más, y al encodearlas la spec bajó a un nivel de
+detalle que dos ítems de esta checklist no admiten: **"sin detalles de implementación"** y
+**"escrita para stakeholders no técnicos"**. Hablar de la unidad en que se cuentan los caracteres, de
+qué se guarda cuando no hay nota y de qué devuelve la API en ese caso **es** hablar de
+implementación.
+
+Queda desmarcado a propósito, no arreglado, por tres razones: las cuatro decisiones eran ambigüedades
+reales que había que cerrar antes de planificar; son el estilo que las specs 006 a 011 de este
+proyecto ya tienen, que ancla cada decisión al código con su motivo; y el costo de moverlas a
+`plan.md` sería perder el *por qué* junto al requisito. **La consecuencia práctica para
+`/speckit-plan`**: estas cuatro ya están decididas, así que `data-model.md` y `contracts/` las
+**trasladan**, no las vuelven a decidir.
 
 **Un punto de vigilancia para `/speckit-plan`**: la tentación de esta feature no es agregar de menos
 sino de más. La barra de filtros existe desde la 011 y sumarle un campo de texto para buscar por nota
