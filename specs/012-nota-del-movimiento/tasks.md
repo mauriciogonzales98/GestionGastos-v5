@@ -163,8 +163,8 @@ por la base.
 columna de la nota ([D-10](./research.md)). Lo que queda acá es la única verificación que no se puede
 hacer antes de que exista la restricción.
 
-- [ ] T034 [US3] Correr `./backend/verificar-monedas.sh` y exigir **verde**: la restricción nueva no cambia el resultado de la barrera que siembra el catálogo con SQL puro. Es el único acoplamiento real de esta historia con el resto del proyecto, y está previsto —siembra con `XTS`, tres letras—, pero **previsto no es verificado**: la barrera agrega una moneda a la base de verdad y es la única forma de comprobar que la restricción no la rechaza. Exige los **dos árboles limpios** (`git status --short` vacío), así que commitear antes
-- [ ] T035 [VERIFY] [US3] Puerta del backend, con su salida
+- [X] T034 [US3] Correr `./backend/verificar-monedas.sh` y exigir **verde**: la restricción nueva no cambia el resultado de la barrera que siembra el catálogo con SQL puro. Es el único acoplamiento real de esta historia con el resto del proyecto, y está previsto —siembra con `XTS`, tres letras—, pero **previsto no es verificado**: la barrera agrega una moneda a la base de verdad y es la única forma de comprobar que la restricción no la rechaza. Exige los **dos árboles limpios** (`git status --short` vacío), así que commitear antes
+- [X] T035 [VERIFY] [US3] Puerta del backend, con su salida
 
 ---
 
@@ -176,10 +176,10 @@ escrita en un documento.
 **Por qué acá y no dentro de una historia**: no sirve a ninguna de las tres. Verifica una propiedad del
 conjunto ya construido, así que no tiene sentido antes ([D-13](./research.md)).
 
-- [ ] T036 [TEST] Crear `backend/GestionGastos.Api.Tests/Integracion/BarreraDeLaNotaTests.cs`: inspeccionar el SQL de la consulta del listado y exigir que la nota **aparezca en la proyección** y **nunca en el filtro** (`FR-007`, `SC-007`, [D-09](./research.md)). Va junto a `BarreraDeAislamientoTests` y `BarreraDelDesgloseTests`, que son las dos que ya inspeccionan SQL — **ninguna carpeta nueva**. La afirmación es más fina que la del desglose, que busca una palabra que no debe aparecer en ningún lado: acá la palabra **tiene** que aparecer, en un lugar y no en el otro
-- [ ] T037 Crear `backend/verificar-nota.sh` con bit de ejecución `100755`, con la forma de las seis que ya existen: le agrega a la consulta del listado el acotado por nota, exige el **rojo**, restaura y exige el **verde**. Es el Principio V — una barrera que nunca se vio fallar no es una barrera— y acá pesa el doble, porque una afirmación de ausencia hecha inspeccionando texto informa verde tanto cuando es cierta como cuando la inspección dejó de mirar
-- [ ] T038 Correr `./backend/verificar-nota.sh` y mostrar la salida completa: el rojo con el acotado puesto y el verde después de restaurar. Si el rojo no aparece, la barrera no sirve y el que está mal es el test de T036
-- [ ] T039 [VERIFY] Puerta del backend, con su salida
+- [X] T036 [TEST] Crear `backend/GestionGastos.Api.Tests/Integracion/BarreraDeLaNotaTests.cs`: inspeccionar el SQL de la consulta del listado y exigir que la nota **aparezca en la proyección** y **nunca en el filtro** (`FR-007`, `SC-007`, [D-09](./research.md)). Va junto a `BarreraDeAislamientoTests` y `BarreraDelDesgloseTests`, que son las dos que ya inspeccionan SQL — **ninguna carpeta nueva**. La afirmación es más fina que la del desglose, que busca una palabra que no debe aparecer en ningún lado: acá la palabra **tiene** que aparecer, en un lugar y no en el otro
+- [X] T037 Crear `backend/verificar-nota.sh` con bit de ejecución `100755`, con la forma de las seis que ya existen: le agrega a la consulta del listado el acotado por nota, exige el **rojo**, restaura y exige el **verde**. Es el Principio V — una barrera que nunca se vio fallar no es una barrera— y acá pesa el doble, porque una afirmación de ausencia hecha inspeccionando texto informa verde tanto cuando es cierta como cuando la inspección dejó de mirar
+- [X] T038 Correr `./backend/verificar-nota.sh` y mostrar la salida completa: el rojo con el acotado puesto y el verde después de restaurar. Si el rojo no aparece, la barrera no sirve y el que está mal es el test de T036
+- [X] T039 [VERIFY] Puerta del backend, con su salida
 
 ---
 
@@ -188,8 +188,8 @@ conjunto ya construido, así que no tiene sentido antes ([D-13](./research.md)).
 **Purpose**: `AC-10` pide una medición que **nunca existió**. Hay tres tests de rendimiento y ninguno
 mide el listado.
 
-- [ ] T040 [TEST] Crear `backend/GestionGastos.Api.Tests/Rendimiento/RendimientoListadoTests.cs`: 1000 movimientos **con nota**, 100 ejecuciones, p95 por debajo de 2000 ms (`NFR-003`, `PRD:AC-10`, [D-11](./research.md)). Las notas se siembran **no vacías y de largo realista**: sembrarlas sin nota mediría la consulta de antes de esta feature y daría verde sin ejercitar la columna nueva — el mismo error que la 009 evitó al exigir dos monedas en el sembrado del resumen. Las fechas salen de `SembradoDeRendimiento`, que las ancla al año de la fecha que recibe (la lección de FIX-004). **Mide la respuesta de la API, no el navegador**, y el nombre y la documentación del test lo dicen: medir la pantalla exigiría la dependencia que `NFR-005` prohíbe
-- [ ] T041 Correr `dotnet test backend/` (en local corren todos; en CI éste queda fuera por `--filter "FullyQualifiedName!~Rendimiento"`) y mostrar **el número real** del p95. **Este test nace en verde**: el resumen agrupa las mismas 1000 filas en 6 ms, así que el listado con una columna de texto más debería quedar en el mismo orden de magnitud. Si diera cerca del techo, el que está mal es el diseño y no el techo
+- [X] T040 [TEST] Crear `backend/GestionGastos.Api.Tests/Rendimiento/RendimientoListadoTests.cs`: 1000 movimientos **con nota**, 100 ejecuciones, p95 por debajo de 2000 ms (`NFR-003`, `PRD:AC-10`, [D-11](./research.md)). Las notas se siembran **no vacías y de largo realista**: sembrarlas sin nota mediría la consulta de antes de esta feature y daría verde sin ejercitar la columna nueva — el mismo error que la 009 evitó al exigir dos monedas en el sembrado del resumen. Las fechas salen de `SembradoDeRendimiento`, que las ancla al año de la fecha que recibe (la lección de FIX-004). **Mide la respuesta de la API, no el navegador**, y el nombre y la documentación del test lo dicen: medir la pantalla exigiría la dependencia que `NFR-005` prohíbe
+- [X] T041 Correr `dotnet test backend/` (en local corren todos; en CI éste queda fuera por `--filter "FullyQualifiedName!~Rendimiento"`) y mostrar **el número real** del p95. **Este test nace en verde**: el resumen agrupa las mismas 1000 filas en 6 ms, así que el listado con una columna de texto más debería quedar en el mismo orden de magnitud. Si diera cerca del techo, el que está mal es el diseño y no el techo
 
 ---
 
