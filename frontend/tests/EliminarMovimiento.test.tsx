@@ -48,6 +48,7 @@ const EL_GASTO: Movimiento = {
   categoriaNombre: 'Comida',
   monedaCodigo: 'ARS',
   fecha: '2026-09-01',
+  nota: '',
 };
 
 const EL_INGRESO: Movimiento = {
@@ -58,6 +59,7 @@ const EL_INGRESO: Movimiento = {
   categoriaNombre: 'Sueldo',
   monedaCodigo: 'ARS',
   fecha: '2026-09-02',
+  nota: '',
 };
 
 beforeEach(() => {

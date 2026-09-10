@@ -167,6 +167,10 @@ describe('FormularioMovimiento', () => {
       categoriaId: 1,
       monedaId: 1,
       fecha: HOY,
+      // La nota entra con la feature 012 y va vacía porque este caso no toca el campo. Aparece acá
+      // justamente porque este test compara la forma completa: un campo nuevo que nadie decidió
+      // mandar tiene que romperlo.
+      nota: '',
     });
   });
 });

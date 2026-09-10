@@ -34,6 +34,22 @@ public class Movimiento
     /// <summary>Sin hora ni zona horaria (FR-003, D-02).</summary>
     public DateOnly Fecha { get; set; }
 
+    /// <summary>
+    /// La nota descriptiva, de hasta 120 caracteres Unicode (RF-33, feature 012).
+    ///
+    /// **Es descriptiva, no clasificatoria**: no se busca, no se filtra, no se agrupa y no entra en
+    /// ningún total ni en el desglose. Por eso su columna **no tiene índice** — un índice acá sólo
+    /// serviría para buscar por ella, y dejarlo puesto "por si acaso" serviría el camino que
+    /// `FR-007` evita. Lo que ese requisito protege es que la categoría siga siendo el único eje de
+    /// análisis: una nota libre que se pudiera filtrar se vuelve una segunda taxonomía informal
+    /// —"alquiler", "Alquiler", "alq"— que el sistema no entiende.
+    ///
+    /// Anulable, y **es la primera columna de texto anulable del modelo**. La ausencia de valor y la
+    /// cadena vacía significan las dos "sin nota" y el esquema admite las dos: quien normaliza es la
+    /// lectura, en `MovimientoDto`, que es el único punto por el que pasan todas (`FR-011`).
+    /// </summary>
+    public string? Nota { get; set; }
+
     public Categoria? Categoria { get; set; }
 
     public Moneda? Moneda { get; set; }

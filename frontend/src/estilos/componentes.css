@@ -116,3 +116,19 @@
   height: 1rem;
   background-color: var(--color-barra);
 }
+
+/* La columna de la nota (feature 012).
+ *
+ * `max-width` y no `width`: una nota corta no tiene por qué ocupar el ancho del caso peor. El tope
+ * existe para que una nota de 120 caracteres no estire la tabla hasta volver ilegibles las seis
+ * columnas que identifican al movimiento — el ancho que sobra lo absorbe el envoltorio desplazable
+ * de `.c-listado-movimientos__desborde`, que está puesto desde la feature 011 para exactamente esto.
+ *
+ * Los saltos de línea se colapsan como cualquier espacio en blanco, que es el comportamiento por
+ * omisión y acá es el deseado: la nota se guarda con sus saltos y se lee en una sola línea visual,
+ * porque el salto no tiene significado de presentación (`FR-012`). Por eso no se declara
+ * `white-space`: el valor por omisión ya hace lo correcto, y fijarlo sugeriría que hubo que elegir.
+ */
+.c-listado-movimientos__nota {
+  max-width: 16rem;
+}

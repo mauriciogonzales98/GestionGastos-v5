@@ -31,6 +31,7 @@ const EN_PESOS: Movimiento = {
   categoriaNombre: 'Comida',
   monedaCodigo: 'ARS',
   fecha: '2026-09-02',
+  nota: '',
 };
 
 beforeEach(() => {
@@ -178,6 +179,9 @@ describe('VentanaDeEdicion', () => {
         categoriaId: 1,
         monedaId: 2,
         fecha: '2026-09-02',
+        // Obligatoria al editar (`FR-004`): viaja siempre, y acá sin cambios porque este caso sólo
+        // toca la moneda. Si no viajara, vaciarla sería imposible de expresar.
+        nota: '',
       }),
     );
 

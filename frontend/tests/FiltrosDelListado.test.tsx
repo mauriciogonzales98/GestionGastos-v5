@@ -40,6 +40,7 @@ const UN_GASTO: Movimiento = {
   categoriaNombre: 'Comida',
   monedaCodigo: 'ARS',
   fecha: '2026-09-10',
+  nota: '',
 };
 
 beforeEach(() => {

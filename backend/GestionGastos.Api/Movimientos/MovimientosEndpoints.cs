@@ -78,6 +78,11 @@ public static class MovimientosEndpoints
                 MonedaId = moneda!.Id,
                 CategoriaId = categoria!.Id,
                 Fecha = fecha,
+
+                // Recortada, y la cadena vacía se guarda como ausencia de valor. El recorte es D-03:
+                // el valor guardado es el que se ve, porque una nota de sólo espacios que se guardara
+                // tal cual produciría un movimiento que se ve sin nota y que sin embargo tiene una.
+                Nota = ValidacionDelMovimiento.NotaNormalizada(peticion.Nota),
             };
 
             contexto.Movimientos.Add(movimiento);
@@ -90,7 +95,8 @@ public static class MovimientosEndpoints
                 categoria.Id,
                 categoria.Nombre,
                 moneda.Codigo,
-                movimiento.Fecha);
+                movimiento.Fecha,
+                movimiento.Nota);
 
             // El Location apunta a la lectura individual, que existe desde FEAT-001b. Hasta
             // entonces este Created iba sin encabezado, porque la URL habría dado un 404 y un
@@ -136,7 +142,8 @@ public static class MovimientosEndpoints
                     m.CategoriaId,
                     m.Categoria!.Nombre,
                     m.Moneda!.Codigo,
-                    m.Fecha))
+                    m.Fecha,
+                    m.Nota))
                 .ToListAsync();
 
             // Arreglo vacío si no hay movimientos en el mes: NO es un 404 (FR-012).
@@ -163,7 +170,8 @@ public static class MovimientosEndpoints
                     m.CategoriaId,
                     m.Categoria!.Nombre,
                     m.Moneda!.Codigo,
-                    m.Fecha))
+                    m.Fecha,
+                    m.Nota))
                 .FirstOrDefaultAsync();
 
             return movimiento is null ? NoExiste() : Results.Ok(movimiento);
@@ -240,6 +248,10 @@ public static class MovimientosEndpoints
             movimiento.CategoriaId = categoria!.Id;
             movimiento.Fecha = peticion.Fecha!.Value;
 
+            // La nota es obligatoria en la edición, así que esto NUNCA es "dejarla como estaba": lo
+            // que llegó es lo que queda, y vaciarla es pedirlo explícitamente (FR-004).
+            movimiento.Nota = ValidacionDelMovimiento.NotaNormalizada(peticion.Nota);
+
             // Sólo si se pidió una. Sin esto, `moneda` en null pisaría la que tenía.
             if (moneda is not null)
             {
@@ -259,7 +271,8 @@ public static class MovimientosEndpoints
                 categoria.Id,
                 categoria.Nombre,
                 monedaFinal.Codigo,
-                movimiento.Fecha));
+                movimiento.Fecha,
+                movimiento.Nota));
         });
 
         // DELETE /api/movimientos/{id} — la eliminación (FR-006).

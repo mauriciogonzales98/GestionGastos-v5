@@ -52,11 +52,19 @@ cruzar. Después de la migración, la base lo rechaza.
 |---|---|---|
 | La semilla de la migración `Inicial` | `ARS`, `USD` | ✅ |
 | `verificar-monedas.sh` | `XTS` (ISO 4217 lo reserva para pruebas) | ✅ |
-| Los tests (`CatalogoDeMonedas`) | `XCA`, `XCE`, `XCT`, `XED`, `XEL`, `XMV`, `XPF`, `XSC`, `EUR` | ✅ |
+| Los tests (`CatalogoDeMonedas`) | `XCA`, `XCD`, `XCE`, `XCT`, `XED`, `XEL`, `XMV`, `XPF`, `XSC`, `EUR` | ✅ |
+| Los tests, **tres casos que NO cumplían** | `XF1`, `XF2`, `XR1` | ❌ → corregidos a `XFA`, `XFB`, `XRA` |
 
-**Los doce son tres letras**, así que la migración se aplica sobre datos válidos y ninguna barrera
-existente cambia de resultado. Era el único acoplamiento real de este cambio con el resto del
-proyecto, y está cerrado antes de empezar.
+**Corregido durante la implementación.** Este documento afirmaba que los doce códigos sembrados eran
+tres letras; eran quince y tres llevaban un dígito. La comprobación original buscó un patrón de *tres
+caracteres alfanuméricos*, que no podía distinguir una letra de un dígito — una verificación que no
+podía fallar. Los tres casos se descubrieron cuando la migración puso en rojo `FiltrosDelListadoTests`
+y `ResumenDelPeriodoTests`, que es donde la barrera tenía que avisar.
+
+Los códigos de fixture son arbitrarios, así que se corrigieron ellos y **no se aflojó la restricción**:
+el requisito dice tres letras. Y deja una conclusión que vale más que el error: **D11-02 no era una
+deuda teórica** — había códigos inválidos en los fixtures del proyecto desde la feature 009, en verde,
+porque el `char(3)` sólo miraba el largo.
 
 ---
 

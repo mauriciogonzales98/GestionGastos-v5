@@ -62,6 +62,7 @@ const MOVIMIENTOS: Movimiento[] = [
     categoriaNombre: 'Comida',
     monedaCodigo: 'ARS',
     fecha: '2026-09-01',
+    nota: '',
   },
 ];
 

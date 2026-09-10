@@ -94,6 +94,10 @@ export function ListadoMovimientos({
                 el catálogo abierto a monedas agregadas como dato, apoyar la distinción en él es
                 apoyarla en algo que nadie controla. El código viene en el movimiento. */}
               <th scope="col">Moneda</th>
+              {/* La nota va entre la moneda y las acciones: es la columna más ancha y la menos
+                  urgente de leer, así que se la pone después de todo lo que identifica al movimiento
+                  y antes de los botones. */}
+              <th scope="col">Nota</th>
               {/* Sin texto visible: la columna de acciones no nombra nada, y el botón de cada fila ya
                 se anuncia solo. `scope="col"` igual, para que la tabla siga siendo regular. */}
               <th scope="col">
@@ -112,6 +116,18 @@ export function ListadoMovimientos({
                   {formatearMonto(m.monto, m.monedaCodigo, decimalesDe(monedas, m.monedaCodigo))}
                 </td>
                 <td>{m.monedaCodigo}</td>
+                {/* Sin relleno cuando está vacía: ni un guion, ni "sin nota" (`FR-005`). Es un estado
+                    normal —la mayoría de los movimientos no tiene nota, y los de antes de la feature
+                    012 tampoco—, y un relleno convertiría lo habitual en algo que parece faltar.
+
+                    No hace falta ningún condicional porque la API nunca devuelve null: "sin nota" es
+                    la cadena vacía, normalizada en el borde del servidor (`FR-011`), y una cadena
+                    vacía no pinta nada.
+
+                    El texto va entero, escapado por el framework como cualquier otro (`NFR-001`): es
+                    la única entrada de texto libre de la aplicación y ésta es la pantalla donde
+                    aterriza. Nada de `dangerouslySetInnerHTML` acá, nunca. */}
+                <td className="c-listado-movimientos__nota">{m.nota}</td>
                 <td>
                   {confirmando === m.id ? (
                     <>

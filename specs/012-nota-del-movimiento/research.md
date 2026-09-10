@@ -317,6 +317,48 @@ test modificado que no esté acá se justifica o se revierte.
 | 6 | `frontend/tests/Accesibilidad.test.tsx` | Deriva los controles del árbol montado, así que cubre el campo nuevo sola. **Se toca sólo si la lista de superficies necesita el dato nuevo**; si pasa en verde sin cambios, no se toca | `FR-008` |
 | 7 | `backend/.../Movimientos/` (tests de alta y edición existentes) | El DTO suma un campo; los casos que construyen peticiones completas lo incluyen | `FR-002`, `FR-004` |
 
+### Las cuatro filas que la implementación tuvo que agregar
+
+Se descubrieron corriendo `tsc` y la suite, no leyendo el código, y se anotan acá porque la regla de
+esta tabla es que **agregar una fila cuesta nombrar el requisito**. Las cuatro tienen la misma causa y
+ninguna cambia lo que su test afirma sobre el comportamiento:
+
+| # | Test | Por qué se tocó | Requisito |
+|---|---|---|---|
+| 8 | `frontend/tests/EliminarMovimiento.test.tsx` | Construye literales de tipo `Movimiento`, y `nota` pasó a ser un campo **requerido** del contrato: sin ella el literal no compila | `FR-009` |
+| 9 | `frontend/tests/FiltrosDelListado.test.tsx` | Lo mismo | `FR-009` |
+| 10 | `frontend/tests/PantallaMovimientos.test.tsx` | Lo mismo, en literales y en el valor que devuelve el doble del cliente | `FR-009` |
+| 11 | `frontend/tests/FormularioMovimiento.test.tsx` | Compara **la forma completa** de lo que sale del formulario —a propósito, para atrapar un campo de más que nadie decidió mandar—, así que el campo nuevo lo pone en rojo por diseño, igual que el test de teclado | `FR-002` |
+| 12 | `backend/.../Integracion/FiltrosDelListadoTests.cs` | Sembraba el catálogo con los códigos `XF1` y `XF2`, que **son tres caracteres pero no tres letras**: la restricción de `FR-010` los rechaza. Los códigos de fixture son arbitrarios —sólo necesitan ser distintos entre sí— así que pasan a `XFA` y `XFB`. El requisito no se afloja: era el fixture el que estaba mal | `FR-010` |
+| 13 | `backend/.../Integracion/ResumenDelPeriodoTests.cs` | Lo mismo, con `XR1` → `XRA` | `FR-010` |
+
+### La afirmación de este documento que estaba equivocada
+
+D-10 y [data-model.md](./data-model.md) decían que **los doce códigos que el proyecto siembra son tres
+letras**, y que por eso `FR-010` no podía romper nada. Eran **quince**, y **tres no lo eran**: `XF1`,
+`XF2` y `XR1`. El error no fue de lectura sino de método — la comprobación se hizo buscando códigos con
+un patrón de *tres caracteres alfanuméricos*, que por construcción no podía distinguir una letra de un
+dígito. Una verificación que no puede fallar no verifica nada, que es exactamente lo que este proyecto
+le exige a sus barreras y lo que no se le exigió a esta comprobación.
+
+**Lo que el error deja como información útil**: D11-02 no era una deuda teórica. Había códigos
+inválidos en los fixtures del propio proyecto, pasando en verde, desde la feature 009 — y el `char(3)`
+no los atrapaba porque el largo nunca fue el problema.
+
+**Cómo se comprueba bien**, y es lo que `MonedaCodigoEsquemaTests` hace ahora: se le pregunta a la base
+cuáles incumplen, con la misma expresión regular que la restricción, en vez de buscar en el código los
+que uno espera encontrar.
+
+**Lo que estas cuatro filas confirman, y es la razón de tener la tabla**: el único test que se tocó por
+algo que no sea una consecuencia mecánica del contrato es el de teclado, que estaba previsto. **Ningún
+test de `Resumenes/`, de aislamiento, de categorías ni del dashboard se tocó ni se puso en rojo**, que
+es lo que `NFR-002` predecía: la nota no entra en la consulta que agrupa.
+
+**Lo que habría que haber previsto al escribir la tabla**: que un campo requerido nuevo en el contrato
+obliga a tocar *todo* literal de ese tipo en los tests. Es la clase de consecuencia que se ve en un
+segundo con `tsc` y no se ve leyendo; la tabla de la próxima feature que agregue un campo al contrato
+debería nacer contando esos literales.
+
 **Lo que NO se toca, y es la parte importante de la tabla**: ningún test de `Resumenes/`, ninguno de
 `Rendimiento/` salvo el nuevo, ninguno de aislamiento, ninguno de `Categorias/` y ninguno de la
 pantalla de dashboard. Si alguno de ésos se pusiera en rojo, **el que está mal es el código de esta

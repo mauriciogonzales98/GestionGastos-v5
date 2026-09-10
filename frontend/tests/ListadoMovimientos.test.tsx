@@ -13,6 +13,7 @@ const MOVIMIENTOS: Movimiento[] = [
     categoriaNombre: 'Sueldo',
     monedaCodigo: 'ARS',
     fecha: '2026-08-20',
+    nota: '',
   },
   {
     id: 1,
@@ -22,6 +23,7 @@ const MOVIMIENTOS: Movimiento[] = [
     categoriaNombre: 'Comida',
     monedaCodigo: 'ARS',
     fecha: '2026-08-10',
+    nota: '',
   },
 ];
 
@@ -39,6 +41,7 @@ const MISMO_MONTO_DOS_MONEDAS: Movimiento[] = [
     categoriaNombre: 'Comida',
     monedaCodigo: 'USD',
     fecha: '2026-09-04',
+    nota: '',
   },
   {
     id: 3,
@@ -48,6 +51,7 @@ const MISMO_MONTO_DOS_MONEDAS: Movimiento[] = [
     categoriaNombre: 'Comida',
     monedaCodigo: 'ARS',
     fecha: '2026-09-04',
+    nota: '',
   },
 ];
 
@@ -69,6 +73,9 @@ describe('ListadoMovimientos', () => {
       'Categoría',
       'Monto',
       'Moneda',
+      // La nota entra con la feature 012, entre la moneda y las acciones: es la columna más ancha y
+      // la menos urgente de leer (`FR-006`).
+      'Nota',
       'Acciones',
     ]);
     // scope="col" es lo que permite a un lector de pantalla anunciar la columna de cada celda.
@@ -195,6 +202,7 @@ describe('ListadoMovimientos — la escala del monto FR-019', () => {
     categoriaNombre: 'Comida',
     monedaCodigo: 'JPY',
     fecha: '2026-09-01',
+    nota: '',
   };
 
   it('una moneda sin centavos se muestra sin centavos FR-019', () => {

@@ -21,13 +21,16 @@ public static class ValidacionDelMovimiento
     /// <summary>El techo de FR-004b. Entra exacto en decimal(11,2).</summary>
     public const decimal MontoMaximo = 999_999_999.99m;
 
+    /// <summary>El techo de la nota (RF-33). Entra exacto en varchar(120).</summary>
+    public const int NotaMaxima = 120;
+
     /// <summary>Valida el alta.</summary>
     public static Dictionary<string, string[]> Validar(
         NuevoMovimientoDto peticion,
         Categoria? categoria,
         Moneda? moneda,
         out TipoMovimiento tipo) =>
-        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, peticion.MonedaId, moneda, out tipo);
+        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, peticion.MonedaId, moneda, peticion.Nota, out tipo);
 
     /// <summary>Valida la edición. Mismas reglas y mismas claves de error que el alta (FR-003).</summary>
     public static Dictionary<string, string[]> Validar(
@@ -35,7 +38,7 @@ public static class ValidacionDelMovimiento
         Categoria? categoria,
         Moneda? moneda,
         out TipoMovimiento tipo) =>
-        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, peticion.MonedaId, moneda, out tipo);
+        Validar(peticion.Tipo, peticion.Monto, peticion.CategoriaId, categoria, peticion.MonedaId, moneda, peticion.Nota, out tipo);
 
     private static Dictionary<string, string[]> Validar(
         string? tipoTexto,
@@ -44,6 +47,7 @@ public static class ValidacionDelMovimiento
         Categoria? categoria,
         int? monedaId,
         Moneda? moneda,
+        string? nota,
         out TipoMovimiento tipo)
     {
         var errores = new Dictionary<string, string[]>(StringComparer.Ordinal);
@@ -57,8 +61,56 @@ public static class ValidacionDelMovimiento
         ValidarMonto(monto, errores);
         ValidarCategoria(categoriaId, categoria, tipoValido, tipo, errores);
         ValidarMoneda(monedaId, moneda, errores);
+        ValidarNota(nota, errores);
 
         return errores;
+    }
+
+    /// <summary>
+    /// La nota: hasta 120 **caracteres Unicode**, medidos después de recortar (RF-33, feature 012).
+    ///
+    /// **Se cuentan code points y no `Length`, y ésa es la decisión** (D-02). `string.Length` cuenta
+    /// unidades UTF-16: un emoji fuera del BMP vale 2, así que una nota de 120 emoji se rechazaría por
+    /// "superar los 120 caracteres" cuando la persona escribió exactamente 120 — un mensaje que no se
+    /// puede entender ni corregir. `varchar(120)` en utf8mb4 cuenta caracteres, así que contar así es
+    /// además acordar con el esquema: lo que esta validación acepta entra siempre en la columna.
+    ///
+    /// **Se mide después de recortar** (D-03). Midiendo antes, 120 caracteres con un espacio a cada
+    /// lado se rechazarían — y una vez guardados entran exactos.
+    ///
+    /// **Ausente no es un error**: significa "sin nota" en el alta y es la forma explícita de vaciarla
+    /// en la edición. Que la edición EXIJA el campo es una regla del contrato, no de la validación: un
+    /// cuerpo que lo omite deserializa con `Fecha` nula y muere antes de llegar acá, igual que hoy.
+    ///
+    /// El mensaje **no repite la nota**. Es la única entrada de texto libre de la aplicación, y
+    /// devolver el valor lo haría viajar de vuelta y aparecer donde termine el mensaje.
+    /// </summary>
+    private static void ValidarNota(string? nota, Dictionary<string, string[]> errores)
+    {
+        if (nota is null)
+        {
+            return;
+        }
+
+        if (nota.Trim().EnumerateRunes().Count() > NotaMaxima)
+        {
+            errores["nota"] = [$"La nota no puede superar los {NotaMaxima} caracteres."];
+        }
+    }
+
+    /// <summary>
+    /// La nota lista para guardar: recortada, y la cadena vacía convertida en ausencia de valor.
+    ///
+    /// Las dos formas significan "sin nota" y el esquema admite las dos, así que elegir una acá no
+    /// cambia lo que la API devuelve —eso lo normaliza `MovimientoDto`, que es el único punto por el
+    /// que pasan todas las lecturas (D-04)—. Se elige la ausencia de valor porque es la que un
+    /// movimiento de antes de esta feature ya tiene: así el estado "sin nota" se escribe igual venga
+    /// de donde venga.
+    /// </summary>
+    public static string? NotaNormalizada(string? nota)
+    {
+        var recortada = nota?.Trim();
+        return string.IsNullOrEmpty(recortada) ? null : recortada;
     }
 
     /// <summary>

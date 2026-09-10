@@ -26,6 +26,7 @@ const DEL_20: Movimiento = {
   categoriaNombre: 'Transporte',
   monedaCodigo: 'ARS',
   fecha: '2026-08-20',
+  nota: '',
 };
 
 const DEL_10: Movimiento = {
@@ -36,6 +37,7 @@ const DEL_10: Movimiento = {
   categoriaNombre: 'Comida',
   monedaCodigo: 'ARS',
   fecha: '2026-08-10',
+  nota: '',
 };
 
 beforeEach(() => {
@@ -87,6 +89,7 @@ describe('PantallaMovimientos', () => {
     const usuario = userEvent.setup();
     vi.mocked(cliente.crearMovimiento).mockResolvedValue({
       id: 9,
+      nota: '',
       tipo: 'gasto',
       monto: 1250.5,
       categoriaId: 1,
