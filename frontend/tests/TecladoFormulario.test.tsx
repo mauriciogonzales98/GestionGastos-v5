@@ -106,4 +106,46 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
       expect.objectContaining({ tipo: 'gasto', monto: 800, categoriaId: 1 }),
     );
   });
+
+  /**
+   * `FR-007` y `PRD-06:AC-09` (feature 011): **el foco sale del formulario y no queda atrapado.**
+   *
+   * Es la otra mitad de `AC-55`, la que el test de arriba no cubre: recorrerlo entero verifica que
+   * se pueda entrar y llegar al final, no que se pueda salir. Una trampa de foco —un manejador que
+   * devuelve el foco al primer campo cuando llega al último— deja a quien navega con teclado
+   * girando en el formulario sin poder alcanzar el resto de la página, y desde el mouse es
+   * invisible.
+   *
+   * Se verifica **por la ausencia de trampa**: después del último control del formulario, el foco
+   * está en algo que no pertenece al formulario. Cuál sea ese algo es del orden del documento y va
+   * a cambiar con cada control que se agregue debajo; que ya no esté adentro, no.
+   */
+  it('el foco sale del formulario sin quedar atrapado FR-007 PRD-06:AC-09', async () => {
+    const usuario = userEvent.setup();
+    render(
+      <PantallaMovimientos
+        hoy="2026-08-23"
+        email="ana@ejemplo.com"
+        categorias={CATEGORIAS}
+        monedas={MONEDAS}
+        errorDelCatalogo={null}
+        errorDelCatalogoDeMonedas={null}
+        onCerrarSesion={() => {}}
+        onGestionarCategorias={() => {}}
+        onVerDashboard={() => {}}
+        onSesionVencida={() => {}}
+      />,
+    );
+
+    const registrar = await screen.findByRole('button', { name: 'Registrar' });
+    const formulario = registrar.closest('form');
+    expect(formulario).not.toBeNull();
+
+    registrar.focus();
+    expect(document.activeElement).toBe(registrar);
+
+    await usuario.tab();
+
+    expect(formulario!.contains(document.activeElement)).toBe(false);
+  });
 });

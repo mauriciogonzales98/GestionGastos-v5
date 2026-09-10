@@ -71,9 +71,9 @@ export interface CategoriaEditada {
  * catálogo —cuál propongo—, y viaja como la respuesta ya calculada y no como el dato con el que
  * calcularla. Es el mismo criterio que `esPropia` en `Categoria`.
  *
- * `decimales` NO viaja, aunque la columna existe: hoy no lo consume nadie. El formato regional del
- * monto es el ticket 6, y un campo que nadie usa es un dato que salió a la red sin que nadie lo
- * decidiera.
+ * `decimales` **viaja desde la feature 011**, que es el ticket 6. Hasta acá no salía a la red porque
+ * no lo consumía nadie —un campo que nadie usa es un dato que salió sin que nadie lo decidiera— y
+ * ahora tiene consumidor: `formatearMonto`, que muestra cada monto en la escala de su moneda.
  */
 export interface Moneda {
   id: number;
@@ -83,6 +83,15 @@ export interface Moneda {
   simbolo: string;
   /** Exactamente una del catálogo la tiene en `true` (RF-25). */
   esPredeterminada: boolean;
+  /**
+   * Cuántos decimales usa esta moneda. 0 a 255 en el esquema; en la práctica 0, 2 o 3.
+   *
+   * **Le gana a lo que `Intl` deduzca del código ISO** (D-08). Si la deducción mandara, agregar al
+   * catálogo una moneda cuya escala no coincida con la asignada a su código produciría montos
+   * redondeados a una escala que nadie eligió, en silencio. `PRD:RF-32` dice que la moneda es un
+   * dato: éste es el dato.
+   */
+  decimales: number;
 }
 
 /** Un movimiento tal como lo devuelven el alta y el listado: la misma forma en los dos. */

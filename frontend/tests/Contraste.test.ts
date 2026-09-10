@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COLORES_DEL_DASHBOARD, relacionDeContraste } from '../src/ui/contraste';
+import { relacionDeContraste } from '../src/ui/contraste';
 
 /**
  * `PRD:AC-13` y `NFR-003`: contraste AA en el dashboard.
@@ -10,9 +10,12 @@ import { COLORES_DEL_DASHBOARD, relacionDeContraste } from '../src/ui/contraste'
  * tiene que dar POR DEBAJO del umbral, no sabríamos si la función distingue o si devuelve un número
  * grande siempre.
  *
- * **Alcance honesto**: D-04 deja al dashboard sin paleta categórica, y el proyecto no tiene paleta
- * en absoluto —`estilos/base.css` dice que colores y tipografía son del ticket 6—. Así que lo que
- * hay para medir acá es poco. Este verificador nace chico y queda listo para cuando haya más.
+ * **Este archivo prueba la CUENTA; la paleta la mide `tests/Paleta.test.ts`** (D-01 de la feature
+ * 011). Hasta la 010 medía las dos cosas, porque los colores vivían en `ui/contraste.ts` y eran
+ * cuatro. Ahora la paleta se declara en `estilos/base.css` y se mide leyendo ese archivo, que es lo
+ * que cierra la deuda D10-07: el aviso que este mismo comentario daba —"el día que el ticket 6
+ * declare un gris para el texto, este bloque va a seguir en verde midiendo negro sobre blanco"— era
+ * exactamente el motivo para mover la medición, y está movida.
  */
 describe('relacionDeContraste — el verificador, antes que lo verificado', () => {
   it('negro sobre blanco da el máximo posible, 21:1', () => {
@@ -54,44 +57,5 @@ describe('relacionDeContraste — el verificador, antes que lo verificado', () =
   it('acepta las tres formas en que un color puede estar escrito', () => {
     expect(relacionDeContraste('#000', '#fff')).toBeCloseTo(21, 1);
     expect(relacionDeContraste('rgb(0, 0, 0)', '#ffffff')).toBeCloseTo(21, 1);
-  });
-});
-
-/**
- * **Qué mide este bloque y qué no** (hallazgo 6 de la revisión del PR #25).
- *
- * Mide los **valores declarados** en `COLORES_DEL_DASHBOARD`, no los que el navegador termina
- * pintando. Para `barra` y `rielDeLaBarra` es lo mismo: el componente los baja a variables CSS, así
- * que lo declarado es lo aplicado. Para `texto` y `fondo` **no**: son los valores por defecto del
- * navegador escritos a mano, y ningún selector los pone.
- *
- * O sea que el día que el ticket 6 declare un gris para el texto en `base.css`, este bloque va a
- * seguir en verde midiendo negro sobre blanco. La salida es que esa paleta consuma estas mismas
- * constantes, como ya hace la barra — hasta entonces, esto es un piso, no una garantía. Queda
- * anotado como deuda D10-07.
- */
-describe('los colores DECLARADOS del dashboard cumplen AA PRD:AC-13', () => {
-  it('el texto normal llega a 4,5:1 contra su fondo', () => {
-    expect(
-      relacionDeContraste(COLORES_DEL_DASHBOARD.texto, COLORES_DEL_DASHBOARD.fondo),
-    ).toBeGreaterThanOrEqual(4.5);
-  });
-
-  /**
-   * La barra es un componente de interfaz, no texto: el umbral es 3:1.
-   *
-   * Es lo que `NFR-003` fija, y es lo que distingue a una barra visible de una que se pierde contra
-   * su propio riel para quien tiene baja visión.
-   */
-  it('la barra llega a 3:1 contra el fondo sobre el que se dibuja', () => {
-    expect(
-      relacionDeContraste(COLORES_DEL_DASHBOARD.barra, COLORES_DEL_DASHBOARD.rielDeLaBarra),
-    ).toBeGreaterThanOrEqual(3);
-  });
-
-  it('el riel de la barra se distingue del fondo de la página', () => {
-    expect(
-      relacionDeContraste(COLORES_DEL_DASHBOARD.rielDeLaBarra, COLORES_DEL_DASHBOARD.fondo),
-    ).toBeGreaterThanOrEqual(1.1);
   });
 });

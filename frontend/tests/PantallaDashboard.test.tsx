@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PantallaDashboard } from '../src/dashboard/PantallaDashboard';
-import { LA_INESPERADA, MONEDAS } from './monedas.fixture';
+import { LA_INESPERADA, MONEDAS, SIN_CENTAVOS } from './monedas.fixture';
 import { EN_PESOS, RESUMEN, SIN_MOVIMIENTOS } from './resumen.fixture';
 
 vi.mock('../src/api/cliente', () => ({
@@ -378,5 +378,44 @@ describe('PantallaDashboard — los dos errores no se pisan', () => {
     expect(
       screen.queryByText(/la fecha de inicio no puede ser posterior/i),
     ).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * `FR-019` — el dashboard muestra cada monto en la escala de su moneda.
+ *
+ * Tercera y última de las pantallas que muestran plata. Que las tres tomen la escala del mismo lado
+ * es lo que hace que no puedan discrepar (D-08).
+ */
+describe('PantallaDashboard — la escala del monto FR-019', () => {
+  it('una moneda sin centavos se muestra sin centavos FR-019', async () => {
+    vi.mocked(cliente.obtenerResumen).mockResolvedValue({
+      desde: '2026-09-01',
+      hasta: '2026-09-30',
+      monedas: [
+        {
+          monedaId: SIN_CENTAVOS.id,
+          monedaCodigo: SIN_CENTAVOS.codigo,
+          totalIngresado: 5000,
+          totalGastado: 1250,
+          balance: 3750,
+          gastosPorCategoria: [{ categoriaId: 1, categoriaNombre: 'Comida', total: 1250 }],
+        },
+      ],
+    });
+
+    render(
+      <PantallaDashboard
+        monedas={[...MONEDAS, SIN_CENTAVOS]}
+        onVolver={() => {}}
+        onSesionVencida={() => {}}
+      />,
+    );
+
+    await screen.findByRole('region', { name: /resumen del período/i });
+
+    for (const texto of screen.getAllByText(/1\.250|5\.000|3\.750/)) {
+      expect(texto.textContent).not.toMatch(/\d,\d/);
+    }
   });
 });

@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ResumenDelPeriodo } from '../src/resumen/ResumenDelPeriodo';
 import { construirMoneda, EN_PESOS, RESUMEN, SIN_MOVIMIENTOS } from './resumen.fixture';
+import { SIN_CENTAVOS } from './monedas.fixture';
 
 /**
  * FR-002 y FR-009: lo ingresado, lo gastado y el balance de cada moneda.
@@ -115,5 +116,38 @@ describe('ResumenDelPeriodo — sin ninguna moneda que mostrar', () => {
     render(<ResumenDelPeriodo resumen={{ ...RESUMEN, monedas: [] }} />);
 
     expect(screen.getByText(/2026-09-01/)).toBeVisible();
+  });
+});
+
+/**
+ * `FR-019` — el resumen muestra cada monto en la escala de su moneda.
+ *
+ * Segunda de las tres pantallas que muestran plata. El catálogo baja desde la pantalla hasta el
+ * monto, atravesando `ResumenDelPeriodo`, `TotalesDeUnaMoneda` y `GastosPorCategoria`: si se
+ * cortara en cualquiera de los tres, este test se pone en rojo.
+ */
+describe('ResumenDelPeriodo — la escala del monto FR-019', () => {
+  const EN_YENES = {
+    desde: '2026-09-01',
+    hasta: '2026-09-30',
+    monedas: [
+      {
+        monedaId: SIN_CENTAVOS.id,
+        monedaCodigo: SIN_CENTAVOS.codigo,
+        totalIngresado: 5000,
+        totalGastado: 1250,
+        balance: 3750,
+        gastosPorCategoria: [{ categoriaId: 1, categoriaNombre: 'Comida', total: 1250 }],
+      },
+    ],
+  };
+
+  it('una moneda sin centavos se muestra sin centavos, en los totales y en el desglose FR-019', () => {
+    render(<ResumenDelPeriodo resumen={EN_YENES} monedas={[SIN_CENTAVOS]} />);
+
+    // Ni un solo monto con coma decimal: los tres totales y la fila del desglose.
+    for (const texto of screen.getAllByText(/1\.250|5\.000|3\.750/)) {
+      expect(texto.textContent).not.toMatch(/\d,\d/);
+    }
   });
 });

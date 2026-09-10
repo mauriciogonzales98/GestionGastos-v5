@@ -89,6 +89,34 @@ describe('VentanaDeEdicion', () => {
    * llegara vacío, quien corrige la moneda tendría que reescribir el monto, y un dígito de menos
    * convierte una corrección en un dato falso.
    */
+  /**
+   * `FR-009` (feature 011): **la ventana atrapa el foco, y lo atrapa la plataforma.**
+   *
+   * D-07 de la feature 005 eligió un `<dialog>` nativo abierto con `showModal()` en vez de un
+   * `<div role="dialog">` con el foco manejado a mano, porque la plataforma ya trae lo que una modal
+   * necesita: el foco atrapado adentro, el cierre con `Escape`, el fondo inerte. Sin algo que lo
+   * afirme, un refactor puede deshacer esa decisión sin que nada se ponga en rojo.
+   *
+   * **Lo que se verifica es que se usó `showModal()` y no `show()` ni el atributo `open`**, que es
+   * exactamente lo que separa una modal de un panel flotante. No se verifica el recorrido con Tab:
+   * happy-dom no modela la inercia del fondo —se comprobó ejecutándolo, los controles de atrás
+   * siguen alcanzables en el DOM de prueba—, así que un test que "recorriera con Tab" acá estaría
+   * verificando el entorno y no la aplicación. Es la misma limitación que D9-07 anotó para `Escape`,
+   * y se resuelve igual: el recorrido real es el paso 2 del quickstart.
+   */
+  it('se abre como modal, que es lo que atrapa el foco FR-009', async () => {
+    const comoModal = vi.spyOn(HTMLDialogElement.prototype, 'showModal');
+    const aSecas = vi.spyOn(HTMLDialogElement.prototype, 'show');
+
+    await abrir();
+
+    expect(comoModal).toHaveBeenCalled();
+    expect(aSecas).not.toHaveBeenCalled();
+
+    comoModal.mockRestore();
+    aSecas.mockRestore();
+  });
+
   it('se abre con el monto, la categoría, la moneda y la fecha del movimiento AC-10', async () => {
     await abrir();
 
@@ -175,7 +203,7 @@ describe('VentanaDeEdicion', () => {
    * Escenario, y es el caso de uso central de esta historia: el listado está acotado a Dólar, la
    * persona abre una fila y le corrige la moneda a Pesos — que es exactamente para lo que la
    * ventana existe. Al guardar, la fila se reemplaza en su lugar y queda visible **bajo un control
-   * que dice "Ver sólo la moneda: Dólar"**. El listado muestra algo que él mismo declara estar
+   * que dice "Acotar por moneda: Dólar"**. El listado muestra algo que él mismo declara estar
    * filtrando.
    *
    * Sacarla en silencio tampoco alcanza: la persona corrigió algo y necesita saber que salió bien.
@@ -190,7 +218,8 @@ describe('VentanaDeEdicion', () => {
 
     // El listado, acotado a dólares, trae el movimiento que está en dólares.
     vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([{ ...EN_PESOS, monedaCodigo: 'USD' }]);
-    await usuario.selectOptions(screen.getByLabelText('Ver sólo la moneda'), '2');
+    await usuario.selectOptions(screen.getByLabelText('Acotar por moneda'), '2');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
     await waitFor(() => expect(screen.getByRole('cell', { name: 'USD' })).toBeInTheDocument());
 
     const fila = within(screen.getByRole('table', { name: /movimientos del mes/i })).getAllByRole(

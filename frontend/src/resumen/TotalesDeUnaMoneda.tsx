@@ -1,9 +1,15 @@
 import type { ResumenPorMoneda } from '../api/tipos';
-import { formatearMonto } from '../ui/formatearMonto';
+import type { Moneda } from '../api/tipos';
+import { decimalesDe, formatearMonto } from '../ui/formatearMonto';
 import { GastosPorCategoria } from './GastosPorCategoria';
 
 export interface PropsTotalesDeUnaMoneda {
   moneda: ResumenPorMoneda;
+  /**
+   * El catálogo, para la escala de cada monto (`FR-019`). Opcional: sin él se cae en lo que `Intl`
+   * deduzca del código ISO, que es lo que se hacía hasta la feature 011.
+   */
+  monedas?: Moneda[];
 }
 
 /**
@@ -17,7 +23,7 @@ export interface PropsTotalesDeUnaMoneda {
  * para que un período vacío devuelva ceros, y esconder acá la que está en cero se leería como si
  * esa moneda no existiera en el catálogo (FR-009).
  */
-export function TotalesDeUnaMoneda({ moneda }: PropsTotalesDeUnaMoneda) {
+export function TotalesDeUnaMoneda({ moneda, monedas }: PropsTotalesDeUnaMoneda) {
   return (
     <section className="l-pila c-totales-moneda" aria-label={`Totales en ${moneda.monedaCodigo}`}>
       <h3>{moneda.monedaCodigo}</h3>
@@ -25,21 +31,43 @@ export function TotalesDeUnaMoneda({ moneda }: PropsTotalesDeUnaMoneda) {
       <dl className="l-fila">
         <div>
           <dt>Ingresado</dt>
-          <dd>{formatearMonto(moneda.totalIngresado, moneda.monedaCodigo)}</dd>
+          <dd>
+            {formatearMonto(
+              moneda.totalIngresado,
+              moneda.monedaCodigo,
+              decimalesDe(monedas, moneda.monedaCodigo),
+            )}
+          </dd>
         </div>
         <div>
           <dt>Gastado</dt>
-          <dd>{formatearMonto(moneda.totalGastado, moneda.monedaCodigo)}</dd>
+          <dd>
+            {formatearMonto(
+              moneda.totalGastado,
+              moneda.monedaCodigo,
+              decimalesDe(monedas, moneda.monedaCodigo),
+            )}
+          </dd>
         </div>
         <div>
           <dt>Balance</dt>
           {/* Un balance negativo se muestra negativo. Un mes en rojo es exactamente la información
               que alguien necesita ver, así que no se recorta a cero ni se presenta como un error. */}
-          <dd data-testid="balance">{formatearMonto(moneda.balance, moneda.monedaCodigo)}</dd>
+          <dd data-testid="balance">
+            {formatearMonto(
+              moneda.balance,
+              moneda.monedaCodigo,
+              decimalesDe(monedas, moneda.monedaCodigo),
+            )}
+          </dd>
         </div>
       </dl>
 
-      <GastosPorCategoria gastos={moneda.gastosPorCategoria} monedaCodigo={moneda.monedaCodigo} />
+      <GastosPorCategoria
+        gastos={moneda.gastosPorCategoria}
+        monedaCodigo={moneda.monedaCodigo}
+        monedas={monedas}
+      />
     </section>
   );
 }

@@ -207,15 +207,25 @@ export function darDeBajaCategoria(id: number): Promise<void> {
 }
 
 /**
- * Lo que se puede acotar del listado desde esta pantalla.
+ * Lo que se puede acotar del listado.
  *
- * **Sólo la moneda.** El servidor acota también por categoría y por rango de fechas desde
- * FEAT-001b, y esos dos no tienen control en la interfaz: la barra de filtros nunca se construyó.
- * Es la deuda D9-01 de esta feature, y este tipo es donde va a crecer cuando se salde.
+ * **Los cuatro, desde la feature 011.** El servidor acota por categoría y por rango de fechas desde
+ * FEAT-001b y por moneda desde la 009; hasta acá sólo la moneda tenía control en la interfaz. La
+ * barra de filtros que faltaba era la deuda D9-01, y este tipo es donde dijo que iba a crecer.
+ *
+ * Las tres reglas del período —los dos extremos juntos o ninguno, el rango invertido rechazado, el
+ * mes en curso por omisión— **no se replican acá**: viven en `Dominio/PeriodoPedido.cs`, que es el
+ * único intérprete, y lo que llega de vuelta cuando el rango no cierra es su mensaje.
  */
 export interface AcotadoDelListado {
   /** `null` o ausente = todas las monedas. */
   monedaId?: number | null;
+  /** `null` o ausente = todas las categorías (`PRD:RF-17`). */
+  categoriaId?: number | null;
+  /** `YYYY-MM-DD`, incluido. Va junto con `hasta` o no va ninguno (`PRD:RF-18`). */
+  desde?: string | null;
+  /** `YYYY-MM-DD`, incluido. */
+  hasta?: string | null;
 }
 
 export function obtenerMovimientos(acotado: AcotadoDelListado = {}): Promise<Movimiento[]> {
@@ -225,6 +235,19 @@ export function obtenerMovimientos(acotado: AcotadoDelListado = {}): Promise<Mov
   const parametros = new URLSearchParams();
   if (acotado.monedaId != null) {
     parametros.set('monedaId', String(acotado.monedaId));
+  }
+  if (acotado.categoriaId != null) {
+    parametros.set('categoriaId', String(acotado.categoriaId));
+  }
+
+  // La cadena vacía tampoco se manda: el servidor entiende la AUSENCIA de los dos extremos como
+  // "el mes en curso", y un `desde=` vacío lo obligaría a interpretar una cadena vacía como fecha.
+  // Medio rango sí se manda tal cual, para que lo rechace él con su mensaje (FR-018).
+  if (acotado.desde) {
+    parametros.set('desde', acotado.desde);
+  }
+  if (acotado.hasta) {
+    parametros.set('hasta', acotado.hasta);
   }
 
   const consulta = parametros.size === 0 ? '' : `?${parametros}`;
@@ -287,6 +310,24 @@ export function editarMovimiento(id: number, cambio: MovimientoEditado): Promise
  * una constante del cliente lo garantiza más fuerte que confiar en que el servidor no divida ese
  * texto en dos algún día.
  */
+/**
+ * Elimina un movimiento propio (`PRD:RF-15`, FR-010).
+ *
+ * **Es el único endpoint de la API que existía sin cliente.** `DELETE /api/movimientos/{id}` está
+ * desde FEAT-001b, probado y acotado por cuenta; lo que faltaba era la pantalla, y es lo que la
+ * feature 011 agrega.
+ *
+ * Tiene la forma de `darDeBajaCategoria` —pasa por `pedirSinCuerpo`, que ya sabe tratar un `204` y
+ * convertir un `401` en `ErrorDeSesion`— con una diferencia que importa: **acá el `404` sí puede
+ * llegar**, y no se interpreta. El servidor responde lo mismo si el movimiento no existe, si es de
+ * otra cuenta o si ya se eliminó, y eso no es comodidad: un `403` sobre lo ajeno confirmaría que
+ * ese identificador existe, y como son contiguos permitiría contar los movimientos de otra cuenta
+ * sin ver ninguno. Distinguirlos desde acá sería deshacer esa decisión.
+ */
+export function eliminarMovimiento(id: number): Promise<void> {
+  return pedirSinCuerpo(`/api/movimientos/${id}`, { method: 'DELETE' });
+}
+
 export function crearCuenta(nueva: NuevaCuenta): Promise<void> {
   return pedirSinCuerpo('/api/cuentas', {
     method: 'POST',
