@@ -31,7 +31,7 @@ const EN_PESOS: Movimiento = {
   categoriaNombre: 'Comida',
   monedaCodigo: 'ARS',
   fecha: '2026-09-02',
-  nota: '',
+  nota: 'viaje al aeropuerto',
 };
 
 beforeEach(() => {
@@ -58,6 +58,20 @@ async function renderizar() {
 }
 
 /** Abre la ventana desde la fila del listado y devuelve el `userEvent` en uso. */
+/** Abre la ventana sobre un movimiento concreto, para los casos que necesitan otro contenido. */
+async function abrirCon(movimiento: Movimiento) {
+  vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([movimiento]);
+  const usuario = userEvent.setup();
+  await renderizar();
+
+  const fila = within(screen.getByRole('table', { name: /movimientos del mes/i })).getAllByRole(
+    'row',
+  )[1];
+  await usuario.click(within(fila).getByRole('button', { name: 'Editar' }));
+
+  return usuario;
+}
+
 async function abrir() {
   const usuario = userEvent.setup();
   await renderizar();
@@ -179,9 +193,10 @@ describe('VentanaDeEdicion', () => {
         categoriaId: 1,
         monedaId: 2,
         fecha: '2026-09-02',
-        // Obligatoria al editar (`FR-004`): viaja siempre, y acá sin cambios porque este caso sólo
-        // toca la moneda. Si no viajara, vaciarla sería imposible de expresar.
-        nota: '',
+        // Obligatoria al editar (`FR-004`): viaja siempre, y acá **con el valor que el movimiento
+        // ya tenía**, porque este caso sólo toca la moneda. Que viaje sin cambiar es justamente lo
+        // que impide que corregir la moneda borre la nota.
+        nota: 'viaje al aeropuerto',
       }),
     );
 
@@ -240,5 +255,48 @@ describe('VentanaDeEdicion', () => {
     );
 
     expect(screen.queryByRole('cell', { name: 'ARS' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * `FR-004`: la ventana **trae la nota que el movimiento ya tenía**, con sus saltos intactos.
+   *
+   * Sin esto, abrir la ventana para corregir el monto borraría la nota: el campo arrancaría vacío y,
+   * como la nota viaja siempre en la edición, ese vacío se guardaría como un vaciado explícito. Es el
+   * fallo más caro que esta feature podía tener — se pierde algo que la persona escribió, sin avisar,
+   * en la pantalla que se abre para arreglar otra cosa.
+   */
+  it('trae la nota que el movimiento ya tenía FR-004', async () => {
+    await abrir();
+    const ventana = screen.getByRole('dialog');
+
+    expect(within(ventana).getByLabelText('Nota')).toHaveValue('viaje al aeropuerto');
+  });
+
+  /**
+   * `FR-004` y `PRD:AC-06`: vaciar la nota manda el vaciado, y no "la que ya tenía".
+   */
+  it('vaciar la nota manda el vaciado explícito AC-06', async () => {
+    const usuario = await abrir();
+    const ventana = screen.getByRole('dialog');
+
+    await usuario.clear(within(ventana).getByLabelText('Nota'));
+    await usuario.click(within(ventana).getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() =>
+      expect(vi.mocked(cliente.editarMovimiento)).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ nota: '' }),
+      ),
+    );
+  });
+
+  /**
+   * `FR-012`: los saltos de línea vuelven **intactos** al reabrir. Lo guardado es lo que se escribió.
+   */
+  it('los saltos de línea de la nota vuelven intactos FR-012', async () => {
+    await abrirCon({ ...EN_PESOS, nota: 'primera\nsegunda' });
+    const ventana = screen.getByRole('dialog');
+
+    expect(within(ventana).getByLabelText('Nota')).toHaveValue('primera\nsegunda');
   });
 });

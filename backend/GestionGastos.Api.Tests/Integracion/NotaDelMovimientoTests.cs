@@ -287,12 +287,148 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         return true;
     }
 
-    /// <summary>Registra un gasto sin nota y devuelve su id.</summary>
-    private static async Task<long> RegistrarAsync(HttpClient cliente)
+    /// <summary>
+    /// PRD:AC-05 — la edición cambia la nota, y el listado muestra la nueva sin la anterior.
+    /// </summary>
+    [Fact]
+    public async Task La_Edicion_Cambia_La_Nota_AC05()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var id = await RegistrarAsync(cuenta.Cliente, "viaje al areopuerto");
+
+        using var edicion = await cuenta.Cliente.PutAsJsonAsync(
+            new Uri($"/api/movimientos/{id}", UriKind.Relative),
+            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota = "viaje al aeropuerto" });
+
+        Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
+        using var json = JsonDocument.Parse(await edicion.Content.ReadAsStringAsync());
+        Assert.Equal("viaje al aeropuerto", json.RootElement.GetProperty("nota").GetString());
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Equal("viaje al aeropuerto", (await contexto.Movimientos.SingleAsync()).Nota);
+    }
+
+    /// <summary>
+    /// PRD:AC-06 — la nota se **vacía**, y las dos formas explícitas sirven (FR-004).
+    ///
+    /// Éste es el criterio que obligó a que la nota sea obligatoria en la edición. Si ausente
+    /// significara "la que ya tenía", vaciarla exigiría un valor centinela que el contrato tendría que
+    /// inventar; si significara "sin nota", un cliente que no la manda borraría en silencio lo que la
+    /// persona escribió. Con el campo exigido, `null` y la cadena vacía son las dos la forma explícita
+    /// de pedir el vaciado, y omitirlo no es una opción.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task La_Edicion_Vacia_La_Nota_AC06(string? vacia)
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var id = await RegistrarAsync(cuenta.Cliente, "algo que resultó no importar");
+
+        using var edicion = await cuenta.Cliente.PutAsJsonAsync(
+            new Uri($"/api/movimientos/{id}", UriKind.Relative),
+            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota = vacia });
+
+        Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
+        using var json = JsonDocument.Parse(await edicion.Content.ReadAsStringAsync());
+        Assert.Equal(string.Empty, json.RootElement.GetProperty("nota").GetString());
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Null((await contexto.Movimientos.SingleAsync()).Nota);
+    }
+
+    /// <summary>
+    /// Una nota de 121 caracteres en la edición **no altera nada** del movimiento (PRD:AC-03).
+    ///
+    /// No alcanza con que devuelva 400: lo que hay que verificar es que el movimiento quede **entero**
+    /// como estaba. La validación corre antes de tocar la base, así que un rechazo no puede dejar a
+    /// medias ni el monto, ni la categoría, ni la fecha, ni la nota anterior.
+    /// </summary>
+    [Fact]
+    public async Task Una_Nota_Larga_En_La_Edicion_No_Altera_Nada_AC03()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var id = await RegistrarAsync(cuenta.Cliente, "la original");
+
+        using var edicion = await cuenta.Cliente.PutAsJsonAsync(
+            new Uri($"/api/movimientos/{id}", UriKind.Relative),
+            new
+            {
+                tipo = "ingreso",
+                monto = 99999m,
+                categoriaId = 8,
+                fecha = "2026-01-01",
+                nota = new string('a', 121),
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, edicion.StatusCode);
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        var fila = await contexto.Movimientos.SingleAsync();
+        Assert.Equal("la original", fila.Nota);
+        Assert.Equal(1200m, fila.Monto);
+        Assert.Equal(1, fila.CategoriaId);
+        Assert.Equal(new DateOnly(2026, 9, 10), fila.Fecha);
+    }
+
+    /// <summary>
+    /// **NFR-002 y PRD:AC-07** — agregar, cambiar y borrar la nota deja el resumen con los mismos
+    /// números.
+    ///
+    /// **Nace en verde y eso es información, no un defecto**: la nota no entra en la consulta que
+    /// agrupa, así que no hay nada que pueda moverse. Vale por el día que alguien la agregue a esa
+    /// consulta — el mismo daño silencioso, y por el mismo mecanismo, que `verificar-desglose.sh`
+    /// vigila para `categoria.activa`: el resumen de un mes ya cerrado pasaría a dar otro número sin
+    /// que nadie tocara un movimiento.
+    ///
+    /// Vive acá y no en `ResumenDelPeriodoTests` aunque afirme algo sobre el resumen: los tests del
+    /// resumen están fuera del presupuesto de D-12, y lo que este caso prueba es una propiedad de la
+    /// nota.
+    /// </summary>
+    [Fact]
+    public async Task La_Nota_No_Mueve_Ningun_Total_Del_Resumen_AC07()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cliente = cuenta.Cliente;
+        var id = await RegistrarAsync(cliente);
+
+        var antes = await ResumenAsync(cliente);
+
+        // Las tres operaciones sobre la nota, una tras otra.
+        foreach (var nota in new[] { "una nota", "otra nota", "" })
+        {
+            using var edicion = await cliente.PutAsJsonAsync(
+                new Uri($"/api/movimientos/{id}", UriKind.Relative),
+                new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota });
+
+            Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
+            Assert.Equal(antes, await ResumenAsync(cliente));
+        }
+    }
+
+    /// <summary>El resumen entero como texto: si algún número se moviera, la comparación lo dice.</summary>
+    private static async Task<string> ResumenAsync(HttpClient cliente)
+    {
+        using var respuesta = await cliente.GetAsync(new Uri("/api/resumen", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        return await respuesta.Content.ReadAsStringAsync();
+    }
+
+    /// <summary>Registra un gasto —con nota o sin ella— y devuelve su id.</summary>
+    private static async Task<long> RegistrarAsync(HttpClient cliente, string? nota = null)
     {
         using var alta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10" });
+            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota });
 
         Assert.Equal(HttpStatusCode.Created, alta.StatusCode);
         using var json = JsonDocument.Parse(await alta.Content.ReadAsStringAsync());
