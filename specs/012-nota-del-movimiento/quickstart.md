@@ -21,6 +21,24 @@ verifica la suite.
 
 ## Lo que ningún test cubre
 
+> **Estado tras la implementación (2026-09-10): no hay navegador en el entorno.** Ninguna de las cinco
+> comprobaciones a mano se ejecutó en un navegador — no hay Chrome, Chromium ni Firefox instalados, y
+> traer uno es la dependencia que `NFR-005` no admite. Lo que sí cambió respecto de lo previsto es que
+> **tres de los cinco pasos quedaron cubiertos por tests automatizados** durante la implementación, así
+> que la deuda real es más chica de lo que este archivo anticipaba:
+>
+> | Paso | Estado |
+> |---|---|
+> | 1 · Los 360 px medidos de verdad | **Sin ejecutar** → **D12-01** |
+> | 2 · El camino rápido con un solo Tab más | **Cubierto**: `TecladoFormulario.test.tsx` enumera el orden de tabulación y ahora incluye el control nuevo entre la fecha y el botón |
+> | 3 · El campo con un lector de pantalla | **Sin ejecutar** → **D12-07**. Los tests verifican que la tripleta esté armada; que se *escuche* bien no lo pueden verificar |
+> | 4 · Un movimiento de antes de la migración | **Cubierto**, y mejor que a mano: `Las_Cuatro_Rutas_No_Distinguen_Las_Dos_Formas_De_Sin_Nota_FR011` escribe la fila sin valor con SQL —que es lo que un movimiento previo a la migración tiene— y exige que las cuatro rutas devuelvan lo mismo |
+> | 5 · Los saltos de línea de ida y vuelta | **Cubierto**: un test en el listado y otro en la ventana de edición |
+>
+> Quedan dos, y los dos son los que necesitan ojos o un lector de pantalla de verdad. Es lo que
+> **D12-01** y **D12-07** ya anotaban.
+
+
 ### 1 · La columna nueva a 360 px, medida de verdad
 
 Con el navegador a 360 px de ancho, en el listado:

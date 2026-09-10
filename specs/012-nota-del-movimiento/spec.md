@@ -419,6 +419,36 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
 
 | D12-08 | **Una sola representación de "sin nota" garantizada por el esquema** | Decisión tomada en *Clarifications*: la columna admite tanto la ausencia de valor como la cadena vacía, y no se normaliza al escribir. El costo es que la invariante de `FR-005` pasa a depender de la lectura en vez del almacenamiento, y lo que la sostiene es `FR-011` con su test en lugar de una restricción. Es una deuda **aceptada a sabiendas, no un descuido**: queda anotada para que el día que aparezca un camino de lectura nuevo se sepa que hay una invariante que no se cumple sola | Quien decida normalizar al escribir, si alguna vez el test de `FR-011` resulta insuficiente |
 
+### Estado al cierre (2026-09-10)
+
+Confirmado contra lo que la implementación realmente dejó, no contra lo que la tabla anticipaba:
+
+| # | Estado | Qué cambió respecto de lo previsto |
+|---|---|---|
+| D12-01 | **Abierta** | Sin cambios en el fondo, pero **más chica**: de los cinco pasos a mano del quickstart, tres quedaron cubiertos por tests durante la implementación. Lo que sigue sin ejecutar son los 360 px medidos y el lector de pantalla — no hay navegador en el entorno |
+| D12-02 | **Abierta** | Sin cambios. El fallo apareció una vez en la corrida completa (87,6 ms contra un techo de 50) y pasó aislado y en la corrida siguiente. Es exactamente lo que D9-08 describe desde la feature 009 |
+| D12-03 | **Abierta** | Sin cambios. Sigue siendo una decisión de producto |
+| D12-04 | **Abierta**, y ahora **verificada** | Era una intención escrita; ahora hay una barrera que la sostiene. `verificar-nota.sh` impide que el listado acote por la nota y que el resumen la agrupe. Lo que queda abierto es el catálogo de etiquetas, que necesita su propia decisión de producto |
+| D12-05 | **Abierta** | Sin cambios |
+| D12-06 | **Abierta** | Sin cambios, y con una precisión que la implementación agregó: los saltos de línea **sí** existen en el dato (`FR-012`) y no significan nada en la presentación. Darles significado sigue fuera de alcance |
+| D12-07 | **Abierta** | Absorbe además el paso 3 del quickstart, el del lector de pantalla |
+| D12-08 | **Abierta, y es la única que esta feature creó** | Sin cambios: el esquema admite dos representaciones de "sin nota" y lo que sostiene la invariante es `FR-011` con su test sobre las cuatro rutas. Se aceptó a sabiendas |
+
+**Ninguna deuda se descubrió durante la implementación**: las ocho estaban anotadas antes de escribir
+la primera línea. Lo que sí apareció fueron **tres errores propios**, corregidos y anotados donde
+correspondía en vez de en esta tabla, porque no son deuda sino defectos que ya no existen:
+
+1. **Una verificación mal hecha** en [research.md](./research.md) D-10 y
+   [data-model.md](./data-model.md): la comprobación de que los códigos de moneda sembrados eran tres
+   letras buscó un patrón de tres caracteres *alfanuméricos*, que por construcción no distingue una
+   letra de un dígito. Eran quince códigos, no doce, y tres llevaban dígito. Los puso en rojo la
+   migración.
+2. **Un test que contaminaba la base compartida**: mientras `MonedaCodigoEsquemaTests` estaba en rojo,
+   sus `INSERT` entraban y las filas inválidas quedaban. Ahora limpia en un `finally`.
+3. **Cuatro tests de US2 que nacieron verdes** porque su código de producción se escribió junto con el
+   de US1. Se comprobó que detectan desarmando el código a propósito y exigiendo el rojo, que es lo
+   que el Principio V le exige a una barrera y lo que corresponde cuando el orden TDD se desordenó.
+
 **Lo que esta feature salda**: **D11-02** (`FR-010`, el `CHECK` de tres letras sobre
 `moneda.codigo`, que venía de la 009 como D9-09 y de la 010 como D10-03) y **D11-07** (la nota
 descriptiva, que es el ticket entero).
