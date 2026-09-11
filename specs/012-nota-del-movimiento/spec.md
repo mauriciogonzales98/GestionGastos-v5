@@ -278,8 +278,9 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
 - **FR-005**: Un movimiento enviado con la nota vacía queda **sin nota**, y el listado lo muestra sin
   texto de relleno y sin ningún error (`PRD:FR-05`, `PRD:AC-02`). Una nota de sólo espacios es una
   nota vacía, y los espacios de los extremos se recortan (Edge Cases). **"Sin nota" es un solo estado
-  para quien lo mira, y el almacenamiento admite dos formas de representarlo** (Clarifications): de
-  ahí `FR-011`.
+  para quien lo mira y, desde `FR-014`, también un solo estado en el almacenamiento.** Cuando esta
+  spec se escribió el esquema admitía dos formas de representarlo y lo que sostenía la invariante era
+  la lectura (`FR-011`); eso era la deuda D12-08, saldada en la rama `014`.
 - **FR-006**: El listado DEBE mostrar la nota de cada movimiento **junto al movimiento al que
   pertenece**, como una columna más de la tabla, con el texto completo presente para quien lo lee con
   un lector de pantalla (`PRD:FR-02`, Clarifications).
@@ -297,12 +298,15 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
   **D11-02**, saldada en la migración que esta feature abre por otro motivo. **No** se agrega
   validación de aplicación sobre el catálogo: el catálogo se administra como dato y nadie lo escribe
   desde la aplicación (`PRD:RF-32`, Clarifications).
-- **FR-011**: La **lectura de la API** DEBE tratar la ausencia de valor y la cadena vacía exactamente
-  igual, devolviendo siempre la cadena vacía, y eso DEBE estar fijado por un test y no confiado a la
-  disciplina de quien escriba la próxima consulta. Es lo que mantiene en pie `FR-005` dado que el
-  esquema no elige una sola representación, y está puesto **en el borde de la API a propósito**: es el
-  único punto por el que pasan todas las lecturas, así que la pantalla recibe una sola forma de "sin
-  nota" y no tiene que saber que existieron dos.
+- **FR-011**: La **lectura de la API** DEBE devolver siempre la cadena vacía cuando el movimiento no
+  tiene nota —nunca un nulo—, y eso DEBE estar fijado por un test y no confiado a la disciplina de
+  quien escriba la próxima consulta. Está puesto **en el borde de la API a propósito**: es el único
+  punto por el que pasan todas las lecturas, así que la pantalla recibe una sola forma de "sin nota".
+  **Perdió una mitad al saldarse D12-08**: hasta `FR-014` este requisito era además lo único que
+  mantenía en pie `FR-005`, porque el esquema admitía dos representaciones y esta lectura las
+  igualaba. Ahora la cadena vacía no es representable en la tabla, esa mitad la garantiza el
+  almacenamiento, y lo que queda acá es el contrato de `FR-009`: el campo viaja siempre y nunca es
+  nulo.
 - **FR-012**: La nota se escribe en un control de **varias líneas**, así que los saltos de línea son
   representables y **se conservan tal como se escribieron**. En el listado la nota se muestra en una
   sola línea visual: el salto **no tiene significado de presentación**, porque el formato dentro de la
@@ -311,6 +315,12 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
   darle significado sería construir el formato que el PRD excluye.
 - **FR-013**: El salto de línea **cuenta como un carácter** para el límite de `FR-003`, igual que
   cualquier otro. No se descuenta ni se trata de forma especial.
+- **FR-014**: El **esquema** DEBE admitir una sola representación de "sin nota" —la ausencia de
+  valor— rechazando la cadena vacía. Salda la deuda **D12-08** y va en el esquema y no en el código
+  a propósito: la aplicación ya normalizaba al escribir desde esta feature
+  (`ValidacionDelMovimiento.NotaNormalizada`), así que lo que faltaba no era normalizar sino
+  **garantizar**. El camino por el que el segundo estado podía entrar es justamente el que no pasa
+  por la aplicación, y una restricción de esquema es lo único que lo alcanza.
 
 ### Non-Functional Requirements
 
@@ -454,6 +464,36 @@ correspondía en vez de en esta tabla, porque no son deuda sino defectos que ya 
 descriptiva, que es el ticket entero).
 
 **Con esto el plan DISC-001 queda sin tickets pendientes.**
+
+### Cierre de D12-08 (2026-09-11, rama `014`)
+
+Era la única deuda que esta feature **creó**, y la única que nació aceptada a sabiendas: las
+*Clarifications* decidieron que el esquema no eligiera entre `NULL` y `''`, y anotaron el costo para
+el día que apareciera un camino de lectura nuevo.
+
+**Lo que faltaba no era normalizar al escribir: eso ya se hacía.**
+`ValidacionDelMovimiento.NotaNormalizada` convierte la cadena vacía y los espacios en ausencia de
+valor desde esta misma feature, así que la aplicación ya escribía una sola forma. Lo que no existía
+era algo que lo **garantizara**. El cierre es entonces una restricción de esquema,
+`ck_movimiento_nota_sin_cadena_vacia` (`FR-014`), con el mismo patrón con el que esta feature cerró
+D11-02 sobre `moneda.codigo`: un `CHECK` y un test de esquema contra SQL directo, que es el único
+camino por el que el daño podía entrar.
+
+**La migración normaliza antes de restringir.** MySQL se niega a agregar un `CHECK` que las filas
+existentes ya incumplen, así que sin el `UPDATE` previo la migración sería inaplicable sobre
+cualquier base que tuviera un `''` guardado. No se conoce ninguna —la API nunca pudo escribirlo—, y
+va precisamente por eso: lo que esta migración cierra es el camino que no pasa por la aplicación, que
+es el mismo que pudo haber dejado una fila antes de hoy.
+
+**Y le sacó una mitad a un test, que es la parte que conviene no pasar por alto.**
+`Las_Cuatro_Rutas_No_Distinguen_Las_Dos_Formas_De_Sin_Nota_FR011` forzaba `nota = ''` con SQL para
+comprobar que las dos representaciones salían iguales. Con la restricción ese `UPDATE` ya no escribe
+una fila: lo rechaza la base. La premisa del test dejó de existir, así que pasó a llamarse
+`Las_Cuatro_Rutas_Devuelven_La_Cadena_Vacia_Sin_Nota_FR011` y verifica lo que sigue siendo cierto y
+sigue haciendo falta —`FR-009`: el campo viaja siempre y nunca es nulo, por las cuatro rutas—. La
+mitad que perdió no se perdió: se mudó a `NotaSinCadenaVaciaEsquemaTests`, donde es una restricción
+verificada en vez de una igualdad confiada a la disciplina. Es exactamente el canje que D12-08
+pedía.
 
 ## Dependencies
 

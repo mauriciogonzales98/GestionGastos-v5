@@ -59,10 +59,19 @@ public record MovimientoDto(
     /// La nota, **siempre presente y nunca nula**: "sin nota" es la cadena vacía.
     ///
     /// **Acá está la única normalización de lectura de la feature, y está acá a propósito** (D-04).
-    /// El esquema admite DOS representaciones de "sin nota" —la ausencia de valor y la cadena vacía— y
-    /// no normaliza al escribir, que fue una decisión tomada a sabiendas y anotada como deuda D12-08.
-    /// Lo que sostiene la invariante de `FR-005` es entonces la lectura, y este tipo es el único punto
-    /// por el que pasan TODAS las lecturas: se construye en cuatro lugares distintos de
+    /// Traduce la forma que tiene "sin nota" en el almacenamiento —la ausencia de valor— a la que el
+    /// contrato promete: la cadena vacía, siempre presente y nunca nula (`FR-009`).
+    ///
+    /// **Esto cambió de papel al saldarse D12-08, y conviene saber cuál es el de ahora.** Hasta esa
+    /// deuda el esquema admitía DOS representaciones de "sin nota" y esta coalescencia era lo único
+    /// que sostenía la invariante de `FR-005`: dos filas guardadas distinto se veían iguales sólo
+    /// porque pasaban por acá. Desde `ck_movimiento_nota_sin_cadena_vacia` (`FR-014`) la cadena vacía
+    /// **no es representable** en la tabla, así que la invariante la garantiza el almacenamiento y
+    /// esta línea ya no la carga sola. Sigue haciendo falta igual, y por su motivo original: `NULL`
+    /// no puede salir en una respuesta que promete un campo siempre presente.
+    ///
+    /// Este tipo es además el único punto por el que pasan TODAS las lecturas: se construye en cuatro
+    /// lugares distintos de
     /// <see cref="MovimientosEndpoints"/> —el alta, el listado, la consulta individual y la edición—
     /// y los cuatro heredan la regla sin escribirla. El quinto lugar que aparezca también.
     ///
@@ -74,9 +83,9 @@ public record MovimientoDto(
     /// **Por qué funciona también en las dos rutas que son `IQueryable`**: EF Core traduce una
     /// proyección a un tipo que no es una entidad seleccionando las columnas y llamando al
     /// constructor EN MEMORIA, así que este inicializador corre igual. No es una suposición cómoda —
-    /// `NotaDelMovimientoTests.Las_Cuatro_Rutas_No_Distinguen_Las_Dos_Formas_De_Sin_Nota_FR011`
+    /// `NotaDelMovimientoTests.Las_Cuatro_Rutas_Devuelven_La_Cadena_Vacia_Sin_Nota_FR011`
     /// recorre las cuatro contra una fila guardada sin valor, y si EF alguna vez materializara de otra
-    /// forma se pone en rojo en vez de dejar pasar dos formas de lo mismo.
+    /// forma se pone en rojo en vez de dejar salir un nulo.
     /// </summary>
     public string Nota { get; init; } = Nota ?? string.Empty;
 }

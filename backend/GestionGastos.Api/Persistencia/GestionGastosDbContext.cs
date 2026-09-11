@@ -170,7 +170,18 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
 
         modelBuilder.Entity<Movimiento>(e =>
         {
-            e.ToTable("movimiento", t => t.HasCheckConstraint("ck_movimiento_monto_positivo", "monto > 0"));
+            // El segundo CHECK es la deuda D12-08, y lo que fija es que "sin nota" tenga **una sola**
+            // forma en el almacenamiento: la ausencia de valor. La aplicación ya escribía sólo esa
+            // —`ValidacionDelMovimiento.NotaNormalizada` convierte la cadena vacía desde la feature
+            // 012—, así que esto no cambia ningún camino de escritura: lo garantiza. Sin él, un
+            // INSERT con SQL puro o el próximo camino que se olvide de normalizar crea el segundo
+            // estado que FR-005 dice que no existe, y la invariante queda dependiendo de que nadie
+            // se olvide (FR-014).
+            e.ToTable("movimiento", t =>
+            {
+                t.HasCheckConstraint("ck_movimiento_monto_positivo", "monto > 0");
+                t.HasCheckConstraint("ck_movimiento_nota_sin_cadena_vacia", "nota IS NULL OR nota <> ''");
+            });
             e.HasKey(m => m.Id);
             e.Property(m => m.Id).HasColumnName("id");
             e.Property(m => m.UsuarioId).HasColumnName("usuario_id").IsRequired();

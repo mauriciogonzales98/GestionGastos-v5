@@ -146,41 +146,43 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>
-    /// **FR-011** — las cuatro rutas que devuelven un movimiento no distinguen las dos formas de
-    /// "sin nota".
+    /// **FR-011** — las cuatro rutas que devuelven un movimiento devuelven la cadena vacía, y nunca
+    /// un nulo, cuando el movimiento no tiene nota.
     ///
-    /// Éste es el test delicado de la feature, y el motivo está escrito para que nadie lo ablande: el
-    /// almacenamiento admite **dos** representaciones de la ausencia —sin valor y la cadena vacía— y
-    /// no normaliza al escribir. Si este test usara una fila cualquiera sin nota, pasaría en verde
-    /// desde antes de que exista la normalización y no verificaría nada. Por eso **escribe las dos
-    /// representaciones explícitamente con SQL**, que es la única forma de producir la fila sin valor:
-    /// por la API no se puede, porque la API ya normaliza.
+    /// **Este test perdió una mitad al saldarse D12-08, y el motivo importa.** Antes verificaba que
+    /// las **dos** representaciones de "sin nota" —ausencia de valor y cadena vacía— salieran iguales
+    /// por las cuatro rutas, porque el esquema admitía las dos y la igualdad la sostenía la lectura.
+    /// Desde `ck_movimiento_nota_sin_cadena_vacia` (`FR-014`) la cadena vacía **no es representable**
+    /// en la tabla: forzarla con SQL ya no escribe una fila, la rechaza la base. Esa mitad se fue a
+    /// <see cref="NotaSinCadenaVaciaEsquemaTests"/>, donde ahora es una restricción verificada en vez
+    /// de una igualdad confiada a la disciplina.
+    ///
+    /// Lo que queda sigue haciendo falta, y es `FR-009`: el campo viaja **siempre** y nunca es nulo.
+    /// La fila se fuerza a `nota = NULL` con SQL porque por la API no se puede —la API ya normaliza—
+    /// y sin eso el test pasaría en verde contra una fila que nunca tuvo el estado que interesa.
     ///
     /// Las cuatro rutas se recorren de verdad y no por muestreo: `MovimientoDto` se construye en
     /// cuatro lugares distintos de los endpoints, y la normalización vive en el tipo precisamente para
     /// que los cuatro la hereden (D-04). Si alguna devolviera null, este test lo dice y nombra cuál.
     /// </summary>
     [Fact]
-    public async Task Las_Cuatro_Rutas_No_Distinguen_Las_Dos_Formas_De_Sin_Nota_FR011()
+    public async Task Las_Cuatro_Rutas_Devuelven_La_Cadena_Vacia_Sin_Nota_FR011()
     {
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         var cliente = cuenta.Cliente;
 
-        // Ruta 1 — el alta. Se registran dos movimientos y después se fuerza cada representación
-        // con SQL: `nota = NULL` en uno y `nota = ''` en el otro.
+        // Ruta 1 — el alta. Se registra un movimiento y después se fuerza con SQL la única
+        // representación de "sin nota" que el esquema admite: `nota = NULL`.
         var sinValor = await RegistrarAsync(cliente);
-        var cadenaVacia = await RegistrarAsync(cliente);
 
         await using (var contexto = _baseDeDatos.CrearContexto())
         {
             await contexto.Database.ExecuteSqlInterpolatedAsync(
                 $"UPDATE movimiento SET nota = NULL WHERE id = {sinValor}");
-            await contexto.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE movimiento SET nota = '' WHERE id = {cadenaVacia}");
 
-            // Las dos formas están de verdad en la base: si el alta hubiera normalizado al escribir,
+            // La fila está de verdad sin valor en la base: si el alta hubiera guardado otra cosa,
             // este test no estaría probando lo que dice.
             var nulos = await contexto.Database
                 .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM movimiento WHERE nota IS NULL")
@@ -188,7 +190,7 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
             Assert.Equal(1, nulos);
         }
 
-        // Ruta 2 — el listado. Las dos filas salen iguales.
+        // Ruta 2 — el listado.
         using (var listado = await cliente.GetAsync(new Uri("/api/movimientos", UriKind.Relative)))
         {
             using var json = JsonDocument.Parse(await listado.Content.ReadAsStringAsync());
