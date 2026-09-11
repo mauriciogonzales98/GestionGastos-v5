@@ -25,8 +25,14 @@ namespace GestionGastos.Api.Tests.Integracion;
 ///
 /// **Es más fina que la del desglose, y de ahí su dificultad.** `BarreraDelDesgloseTests` puede
 /// exigir que la palabra `activa` no aparezca en ningún lugar del SQL. Acá no: la nota **tiene** que
-/// aparecer, porque el listado la muestra. Lo que no puede es aparecer en el `WHERE`. Así que la
-/// afirmación es "está en la proyección y no en el filtro", y las dos mitades importan.
+/// aparecer, porque el listado la muestra. Lo que no puede es aparecer en el `WHERE` ni en el
+/// `ORDER BY`. Así que la afirmación es "está en la proyección, y no en el filtro ni en el orden", y
+/// las tres partes importan.
+///
+/// **La del orden faltaba hasta la revisión del PR #29**, y es la mejor ilustración de por qué una
+/// comprobación así necesita que se la vea fallar: el recorte que aísla el `WHERE` corta justamente en
+/// el `ORDER BY`, así que ordenar por la nota caía en el fragmento descartado y la barrera informaba
+/// verde. Cubría dos tercios de `FR-007` afirmando cubrirlo entero.
 /// </summary>
 [Collection(BaseDeDatosSuite.Nombre)]
 public class BarreraDeLaNotaTests(BaseDeDatosFixture baseDeDatos)
@@ -64,6 +70,21 @@ public class BarreraDeLaNotaTests(BaseDeDatosFixture baseDeDatos)
             "Si aparece la necesidad real de agrupar por algo más fino que la categoría, se resuelve " +
             "con un catálogo de etiquetas y su decisión de producto, no estirando la nota.\n\nSQL:\n" +
             sql);
+
+        // **La tercera mitad, y faltaba.** `FR-007` dice que la nota no participa de ningún acotado,
+        // ORDEN ni total, y esta barrera sólo miraba el acotado: el recorte de `DondeDe` corta
+        // justamente en el `ORDER BY`, así que un `.ThenBy(m => m.Nota)` dejaba la columna en el
+        // fragmento descartado y la barrera pasaba en verde. Lo encontró la revisión del PR #29, y se
+        // comprobó desarmándolo: el listado ordenaba por la nota y los dos casos de arriba pasaban.
+        //
+        // Ordenar por la nota no crea una taxonomía como la crea filtrar, pero la convierte en un eje
+        // de navegación, que es el primer paso hacia lo mismo.
+        Assert.False(
+            NombraLaNota(OrdenDe(sql)),
+            "El listado empezó a ordenar por la nota.\n\n" +
+            "`FR-007` no prohíbe sólo filtrar: dice que la nota no participa de ningún acotado, ORDEN " +
+            "ni total. El orden del listado es por fecha y, para desempatar, por id — eso es `D-04` de " +
+            "la feature 001 y no tiene nada que ver con lo que la nota dice.\n\nSQL:\n" + sql);
     }
 
     /// <summary>
@@ -134,6 +155,23 @@ public class BarreraDeLaNotaTests(BaseDeDatosFixture baseDeDatos)
 
         var fin = sql.IndexOf("ORDER BY", inicio, StringComparison.OrdinalIgnoreCase);
         return fin < 0 ? sql[inicio..] : sql[inicio..fin];
+    }
+
+    /// <summary>
+    /// La parte del SQL que **ordena**: desde el `ORDER BY` hasta el final.
+    ///
+    /// Es el fragmento que <see cref="DondeDe"/> descarta, y por eso existe: mientras nadie lo
+    /// miraba, ordenar por la nota era invisible para esta barrera.
+    ///
+    /// A diferencia del `WHERE`, el `ORDER BY` **puede no estar** —una consulta sin orden es legítima,
+    /// aunque el listado siempre lo pida (D-04 de la feature 001)—, así que su ausencia devuelve vacío
+    /// en vez de fallar. Lo que sí fallaría ruidosamente es que el listado dejara de ordenar, y eso lo
+    /// cubren los tests del listado, no esta barrera.
+    /// </summary>
+    private static string OrdenDe(string sql)
+    {
+        var inicio = sql.IndexOf("ORDER BY", StringComparison.OrdinalIgnoreCase);
+        return inicio < 0 ? string.Empty : sql[inicio..];
     }
 
     /// <summary>

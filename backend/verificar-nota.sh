@@ -26,8 +26,13 @@
 # listado la muestra, y lo que no puede es aparecer en el WHERE. Una comprobación que distingue dónde
 # aparece algo tiene una manera más de romperse en silencio que una que sólo pregunta si aparece.
 #
-# El script desarma la protección de dos formas —el acotado en el listado y el agrupamiento en el
-# resumen—, exige el ROJO en cada una, restaura y exige el verde.
+# El script desarma la protección de TRES formas —el acotado en el listado, el orden del listado y el
+# agrupamiento del resumen—, exige el ROJO en cada una, restaura y exige el verde.
+#
+# La del orden se agregó tras la revisión del PR #29, y es la que prueba el punto de este script mejor
+# que ninguna: hasta entonces la barrera cubría dos tercios de FR-007 afirmando cubrirlo entero, porque
+# el recorte que aísla el WHERE corta justamente en el ORDER BY. Ordenar por la nota caía en el
+# fragmento descartado y el test informaba verde. Se descubrió desarmándolo.
 #
 # Recompila con el archivo modificado, así que va DESPUÉS de los tests: invalidaría su --no-build.
 
@@ -67,14 +72,14 @@ exigir_que_compile() {
   fi
 }
 
-echo "== 1/4 · sin desarmar nada, la barrera tiene que estar en verde"
+echo "== 1/5 · sin desarmar nada, la barrera tiene que estar en verde"
 if ! correr_tests > /dev/null 2>&1; then
   echo "ERROR: la barrera ya falla sin tocar nada. Arreglá eso antes de medirla." >&2
   exit 1
 fi
 echo "   verde, como se esperaba"
 
-echo "== 2/4 · con el listado acotando por la nota tiene que ponerse en ROJO"
+echo "== 2/5 · con el listado acotando por la nota tiene que ponerse en ROJO"
 # Se le cuela el acotado en `DeLaCuenta`, al lado de los que ya están, que es exactamente donde lo
 # escribiría alguien que viene de agregar el acotado por moneda y sigue el patrón de la línea de
 # arriba. No hace falta que el parámetro exista: se filtra contra un literal, que es lo que alguien
@@ -96,7 +101,28 @@ fi
 echo "   rojo, como se esperaba"
 restaurar
 
-echo "== 3/4 · con el resumen agrupando por la nota tiene que ponerse en ROJO"
+echo "== 3/5 · con el listado ORDENANDO por la nota tiene que ponerse en ROJO"
+# El desarme que faltaba. Se le agrega un desempate por nota al orden del listado, que es donde lo
+# escribiría alguien que quiere "agrupar visualmente las notas parecidas" sin darse cuenta de que eso
+# es clasificar. FR-007 prohíbe el orden además del acotado, y hasta el PR #29 nadie lo verificaba.
+perl -0pi -e 's/(\.OrderByDescending\(m => m\.Fecha\))/$1\n            .ThenBy(m => m.Nota)/' "$CONSULTA"
+grep -q 'ThenBy(m => m.Nota)' "$CONSULTA" || {
+  echo "ERROR: no se pudo colar el orden por la nota en la consulta del listado." >&2
+  echo "       El script quedó mirando un código que ya no existe: actualizá verificar-nota.sh." >&2
+  exit 1
+}
+exigir_que_compile
+
+if correr_tests > /dev/null 2>&1; then
+  echo "ERROR: el listado ordena por la nota y la barrera pasó igual." >&2
+  echo "       Es el agujero que la revisión del PR #29 encontró: el recorte del WHERE corta en el" >&2
+  echo "       ORDER BY, así que ordenar por la nota queda en el fragmento que nadie mira." >&2
+  exit 1
+fi
+echo "   rojo, como se esperaba"
+restaurar
+
+echo "== 4/5 · con el resumen agrupando por la nota tiene que ponerse en ROJO"
 # El otro desarme, y no es el mismo caso: acá la nota entra en el GROUP BY del resumen. El daño es
 # silencioso —dos movimientos de la misma categoría con notas distintas dejan de sumar juntos, y el
 # resumen de un mes ya cerrado da otro número— y lo detecta la otra mitad de la barrera, la que
@@ -118,7 +144,7 @@ fi
 echo "   rojo, como se esperaba"
 restaurar
 
-echo "== 4/4 · restaurado tiene que volver al verde"
+echo "== 5/5 · restaurado tiene que volver al verde"
 exigir_que_compile
 if ! correr_tests > /dev/null 2>&1; then
   echo "ERROR: se restauró la consulta y la barrera sigue en rojo." >&2
@@ -128,6 +154,6 @@ fi
 echo "   verde de nuevo"
 
 echo
-echo "Barrera de la nota: EN PIE. Sabe detectar las dos formas de que la nota empiece a clasificar:"
-echo "que el listado acote por ella y que el resumen la agrupe. La nota describe; la categoría"
-echo "clasifica (PRD:RF-33, FR-007)."
+echo "Barrera de la nota: EN PIE. Sabe detectar las TRES formas de que la nota empiece a clasificar:"
+echo "que el listado acote por ella, que el listado la ordene y que el resumen la agrupe. La nota"
+echo "describe; la categoría clasifica (PRD:RF-33, FR-007)."
