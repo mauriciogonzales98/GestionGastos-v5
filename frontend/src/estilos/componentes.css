@@ -119,16 +119,25 @@
 
 /* La columna de la nota (feature 012).
  *
- * `max-width` y no `width`: una nota corta no tiene por qué ocupar el ancho del caso peor. El tope
- * existe para que una nota de 120 caracteres no estire la tabla hasta volver ilegibles las seis
- * columnas que identifican al movimiento — el ancho que sobra lo absorbe el envoltorio desplazable
- * de `.c-listado-movimientos__desborde`, que está puesto desde la feature 011 para exactamente esto.
+ * **No declara ancho, y eso es la decisión.** La regla de arriba le da a toda celda de esta tabla
+ * `white-space: nowrap`, así que la nota no se parte en varias líneas: se lee en una sola línea
+ * visual, que es lo que `FR-012` pide —el salto de línea se conserva en el dato y no significa nada
+ * en la presentación—. Con el texto sin poder cortarse, el ancho de la columna lo decide su
+ * contenido: una nota larga hace la columna larga, y **el ancho que sobra lo absorbe el envoltorio
+ * desplazable** de `.c-listado-movimientos__desborde`, que está puesto desde la feature 011
+ * exactamente para esto.
  *
- * Los saltos de línea se colapsan como cualquier espacio en blanco, que es el comportamiento por
- * omisión y acá es el deseado: la nota se guarda con sus saltos y se lee en una sola línea visual,
- * porque el salto no tiene significado de presentación (`FR-012`). Por eso no se declara
- * `white-space`: el valor por omisión ya hace lo correcto, y fijarlo sugeriría que hubo que elegir.
+ * Hubo acá un `max-width: 16rem` con un comentario que decía que impedía que una nota de 120
+ * caracteres estirara la tabla. **No impedía nada**: con `nowrap` heredado, el ancho mínimo del
+ * contenido supera cualquier `max-width`, y en `table-layout: auto` —el que está en uso— el
+ * `max-width` de una celda no limita el ancho usado. La regla era inerte y el comentario describía
+ * mal la cascada; lo encontró la revisión del PR #29. Se borra en vez de arreglarse porque la
+ * alternativa —`white-space: normal` para que el tope funcione— pondría la nota en varias líneas y
+ * eso contradice `FR-012`, que es una decisión de producto y no un arreglo de CSS.
+ *
+ * Lo que esto deja abierto, y queda anotado en **D12-01**: a 360 px una nota larga empuja las seis
+ * columnas que identifican al movimiento fuera de la vista, y hay que desplazarse para volver a
+ * verlas. La página no desborda —eso lo garantiza el envoltorio— pero si la lectura a 360 px resulta
+ * incómoda en un navegador de verdad, la salida es acotar la columna **y** cambiar `FR-012`, con los
+ * dos cambios juntos y no uno solo.
  */
-.c-listado-movimientos__nota {
-  max-width: 16rem;
-}

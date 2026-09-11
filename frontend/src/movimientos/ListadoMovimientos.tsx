@@ -127,7 +127,11 @@ export function ListadoMovimientos({
                     El texto va entero, escapado por el framework como cualquier otro (`NFR-001`): es
                     la única entrada de texto libre de la aplicación y ésta es la pantalla donde
                     aterriza. Nada de `dangerouslySetInnerHTML` acá, nunca. */}
-                <td className="c-listado-movimientos__nota">{m.nota}</td>
+                {/* Sin clase propia: no tiene estilo que no comparta con las demás celdas.
+                    Tuvo una con un `max-width` que resultó inerte —el `nowrap` de la regla de `td`
+                    impide que el tope funcione— y `ClasesConRegla` fue lo que obligó a elegir entre
+                    darle regla o quitarla, en vez de dejar una clase huérfana. */}
+                <td>{m.nota}</td>
                 <td>
                   {confirmando === m.id ? (
                     <>
