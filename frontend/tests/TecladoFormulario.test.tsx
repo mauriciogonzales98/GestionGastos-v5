@@ -22,6 +22,7 @@ beforeEach(() => {
   vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([]);
   vi.mocked(cliente.crearMovimiento).mockResolvedValue({
     id: 1,
+    nota: '',
     tipo: 'gasto',
     monto: 800,
     categoriaId: 1,
@@ -95,6 +96,20 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
 
     await usuario.tab();
     expect(document.activeElement).toBe(screen.getByLabelText('Fecha'));
+
+    // La nota entra acá con la feature 012, ÚLTIMA del formulario y antes del botón. `AC-55` no
+    // cambió de exigencia —el formulario se recorre entero con Tab y se envía con Enter sobre el
+    // botón— y ahora tiene un control más que recorrer.
+    //
+    // Es un control de VARIAS LÍNEAS, así que Enter dentro de él inserta un salto en vez de enviar.
+    // Eso no rompe `AC-55`: el envío con Enter se verifica sobre el botón, unas líneas más abajo, que
+    // es el camino que este test siempre usó. Lo que sí dejó de ser cierto es el comentario de
+    // `CamposDelMovimiento` que decía que el envío salía "desde cualquier campo", y se corrigió ahí.
+    //
+    // Que ponerlo al final sea deliberado se lee justo acá: quien no usa la nota paga exactamente un
+    // Tab más y ningún dato más, que es lo que mantiene intacto el camino rápido de carga.
+    await usuario.tab();
+    expect(document.activeElement).toBe(screen.getByLabelText('Nota'));
 
     await usuario.tab();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Registrar' }));

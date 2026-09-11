@@ -84,6 +84,10 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
                     "categoriaId" => 1,
                     "monedaId" => moneda.Id,
                     "fecha" => "2026-08-23",
+                    // La nota entra con la feature 012. Se ejercita con un valor NO vacío: con la
+                    // cadena vacía, la API devolvería "" tanto si la guardó como si ignoró el campo,
+                    // y la barrera aprobaría un campo que no llega.
+                    "nota" => "viaje al aeropuerto",
                     _ => throw new InvalidOperationException(
                         $"El contrato declara el campo `{campo}` de NuevoMovimiento y este test no sabe " +
                         "con qué valor ejercitarlo. Agregalo acá: un campo del contrato sin ejercitar " +
@@ -105,6 +109,7 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
             Assert.Equal(77.77m, json.RootElement.GetProperty("monto").GetDecimal());
             Assert.Equal(1, json.RootElement.GetProperty("categoriaId").GetInt32());
             Assert.Equal("2026-08-23", json.RootElement.GetProperty("fecha").GetString());
+            Assert.Equal("viaje al aeropuerto", json.RootElement.GetProperty("nota").GetString());
 
             // La moneda se comprueba por su CÓDIGO, que es lo que la respuesta devuelve. Es la
             // mitad que convierte "la API aceptó el campo" en "la API lo usó": sin esto, un
@@ -199,6 +204,7 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
                     "categoriaId" => 2,
                     "monedaId" => moneda.Id,
                     "fecha" => "2026-08-11",
+                    "nota" => "nota corregida",
                     _ => throw new InvalidOperationException(
                         $"El contrato declara el campo `{campo}` de MovimientoEditado y este test no " +
                         "sabe con qué valor ejercitarlo. Agregalo acá: un campo del contrato sin " +
@@ -217,6 +223,7 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
             Assert.Equal(88.88m, json.RootElement.GetProperty("monto").GetDecimal());
             Assert.Equal(2, json.RootElement.GetProperty("categoriaId").GetInt32());
             Assert.Equal("2026-08-11", json.RootElement.GetProperty("fecha").GetString());
+            Assert.Equal("nota corregida", json.RootElement.GetProperty("nota").GetString());
 
             // El movimiento nació en la predeterminada y la edición pidió otra: si la API ignorara
             // el campo, todo lo demás daría igual y el 200 saldría lo mismo.

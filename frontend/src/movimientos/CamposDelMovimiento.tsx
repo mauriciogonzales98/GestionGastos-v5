@@ -10,6 +10,8 @@ export interface ValoresDelMovimiento {
   categoriaId: number;
   monedaId: number | null;
   fecha: string;
+  /** Hasta 120 caracteres Unicode. La cadena vacía es "sin nota" (`FR-005`). */
+  nota: string;
 }
 
 export interface PropsCamposDelMovimiento {
@@ -33,16 +35,35 @@ type Errores = Record<string, string[]>;
  * Los campos que tienen un lugar donde mostrar su error. Cualquier clave de `errors` fuera de esta
  * lista no tiene dónde ir, así que cae en la región general en vez de perderse.
  */
-const CAMPOS_CON_LUGAR = ['tipo', 'monto', 'categoriaId', 'monedaId', 'fecha'];
+const CAMPOS_CON_LUGAR = ['tipo', 'monto', 'categoriaId', 'monedaId', 'fecha', 'nota'];
 
 /** El techo de FR-004b. Igual que en el servidor: la validación de cliente no lo relaja. */
 const MONTO_MAXIMO = 999_999_999.99;
+
+/** El techo de la nota (RF-33). Igual que en el servidor. */
+const NOTA_MAXIMA = 120;
+
+/**
+ * Cuántos **caracteres Unicode** tiene, no cuántas unidades UTF-16.
+ *
+ * `.length` cuenta unidades UTF-16: un emoji fuera del BMP vale 2, así que una nota de 120 emoji daría
+ * 240 y se rechazaría por superar un límite que la persona cumplió exactamente. El servidor cuenta
+ * code points y la columna es `varchar(120)` en utf8mb4, que también cuenta caracteres: las tres capas
+ * tienen que acordar qué significa 120, o la pantalla rechaza algo que el servidor acepta — o peor,
+ * deja pasar algo que el servidor rechaza con un mensaje que no se puede entender.
+ *
+ * El operador de propagación itera por code points, así que esto es la biblioteca estándar y no una
+ * dependencia: `NFR-005` no admite ninguna nueva.
+ */
+function caracteres(texto: string): number {
+  return [...texto].length;
+}
 
 /**
  * Las mismas reglas que aplica el servidor, adelantadas para no gastar un viaje. El servidor
  * vuelve a validar igual: esto es comodidad, no la barrera.
  */
-function validar(monto: string, categoriaId: string): Errores {
+function validar(monto: string, categoriaId: string, nota: string): Errores {
   const errores: Errores = {};
   const valor = Number(monto);
 
@@ -56,6 +77,13 @@ function validar(monto: string, categoriaId: string): Errores {
 
   if (categoriaId === '') {
     errores.categoriaId = ['Elegí una categoría.'];
+  }
+
+  // Se mide sobre el valor RECORTADO, igual que el servidor: 120 caracteres con un espacio a cada
+  // lado entran, porque lo que se guarda es lo recortado. Medir antes de recortar rechazaría algo
+  // que, una vez guardado, cumple el límite.
+  if (caracteres(nota.trim()) > NOTA_MAXIMA) {
+    errores.nota = [`La nota no puede superar los ${NOTA_MAXIMA} caracteres.`];
   }
 
   return errores;
@@ -74,9 +102,13 @@ function validar(monto: string, categoriaId: string): Errores {
  * Las diferencias reales son tres y ninguna toca las reglas: los valores iniciales, la etiqueta del
  * botón, y si al guardar se limpia todo para encadenar otra carga.
  *
- * Es un `<form>` real con `<button type="submit">`: el envío con Enter desde cualquier campo lo
- * hace el navegador solo, y reimplementarlo con handlers de tecla sería romper algo que ya
- * funciona (AC-55).
+ * Es un `<form>` real con `<button type="submit">`: el envío con Enter lo hace el navegador solo, y
+ * reimplementarlo con handlers de tecla sería romper algo que ya funciona (AC-55).
+ *
+ * **Decía "desde cualquier campo" y dejó de ser cierto con la feature 012**: el campo de la nota es
+ * un control de varias líneas, y ahí Enter inserta un salto de línea, que es lo que corresponde. El
+ * recorrido completo con Tab y el envío con Enter sobre el botón —que es lo que `AC-55` pide y lo
+ * que su test verifica— siguen funcionando igual.
  */
 export function CamposDelMovimiento({
   categorias,
@@ -93,6 +125,7 @@ export function CamposDelMovimiento({
   const [categoriaId, setCategoriaId] = useState(iniciales?.categoriaId?.toString() ?? '');
   const [monedaId, setMonedaId] = useState(iniciales?.monedaId?.toString() ?? '');
   const [fecha, setFecha] = useState(iniciales?.fecha ?? hoy);
+  const [nota, setNota] = useState(iniciales?.nota ?? '');
   const [errores, setErrores] = useState<Errores>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -178,7 +211,7 @@ export function CamposDelMovimiento({
   async function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
 
-    const delCliente = validar(monto, seleccionVigente);
+    const delCliente = validar(monto, seleccionVigente, nota);
     if (Object.keys(delCliente).length > 0) {
       setErrores(delCliente);
       setErrorGeneral(null);
@@ -196,6 +229,9 @@ export function CamposDelMovimiento({
         categoriaId: Number(seleccionVigente),
         monedaId: monedaVigente === '' ? null : Number(monedaVigente),
         fecha,
+        // Recortada: el valor que se manda es el que se va a ver. No se recorta mientras se escribe
+        // —eso borraría el espacio que alguien acaba de poner entre dos palabras—, sino al enviar.
+        nota: nota.trim(),
       });
     } catch (error) {
       // Nada se traga: un error de validación se enruta a sus campos y cualquier otro se muestra
@@ -223,6 +259,7 @@ export function CamposDelMovimiento({
     // defecto es el del catálogo.
     setMonedaId('');
     setFecha(hoy);
+    setNota('');
 
     // El foco vuelve por código al primer campo (FR-014). Es lo que permite encadenar cargas sin
     // tocar el mouse, y la otra mitad de lo que AC-55 verifica.
@@ -310,6 +347,33 @@ export function CamposDelMovimiento({
       <CampoConError campo="fecha" etiqueta="Fecha" error={errores.fecha?.[0]}>
         {(props) => (
           <input {...props} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        )}
+      </CampoConError>
+
+      {/* La nota va ÚLTIMA, y eso es la decisión (D-07 de la feature 012): es el único campo
+          opcional del formulario, así que ponerlo al final deja intacto el camino rápido de carga —
+          quien no lo usa tabula hasta el botón como antes, con un paso más y ningún dato más.
+
+          Es un control de varias líneas porque con 120 caracteres ver la nota entera sin desplazar
+          vale más que tipearla en una línea. `PRD:AC-55` no cambia: el formulario se sigue
+          recorriendo entero con Tab y enviándose con Enter sobre el botón. Lo que sí cambia es que
+          Enter DENTRO de este campo inserta un salto en vez de enviar, que es lo que cualquiera
+          espera de un control de varias líneas — y la razón por la que el comentario de arriba ya no
+          puede decir "desde cualquier campo".
+
+          Los saltos que se escriban se conservan tal como están (`FR-012`): no se transforman al
+          guardar, porque eso cambiaría en silencio lo que la persona escribió, y no significan nada
+          en la presentación, porque el formato dentro de la nota está fuera de alcance. */}
+      <CampoConError campo="nota" etiqueta="Nota" error={errores.nota?.[0]}>
+        {(props) => (
+          <textarea
+            {...props}
+            rows={2}
+            value={nota}
+            onChange={(e) => setNota(e.target.value)}
+            // Sin `maxLength`: cortar lo que se pega deja a la persona sin saber que se perdió texto.
+            // El límite se dice con un mensaje, no truncando en silencio.
+          />
         )}
       </CampoConError>
 

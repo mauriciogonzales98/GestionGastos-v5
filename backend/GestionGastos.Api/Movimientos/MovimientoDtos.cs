@@ -23,12 +23,18 @@ namespace GestionGastos.Api.Movimientos;
 /// selector. Es el mismo motivo por el que todos los campos de este DTO son anulables.
 /// </param>
 /// <param name="Fecha">Día del movimiento. Ausente o null = hoy.</param>
+/// <param name="Nota">
+/// La nota descriptiva, hasta 120 caracteres Unicode. **Opcional**: ausente, null y la cadena vacía
+/// significan los tres lo mismo —sin nota— y se tiene que poder registrar un movimiento sin tocar el
+/// campo (`PRD:AC-09`). Es además la compatibilidad hacia atrás del contrato, igual que `MonedaId`.
+/// </param>
 public record NuevoMovimientoDto(
     string? Tipo,
     decimal? Monto,
     int? CategoriaId,
     int? MonedaId,
-    DateOnly? Fecha);
+    DateOnly? Fecha,
+    string? Nota);
 
 /// <summary>
 /// Un movimiento como lo ve el cliente. Es la misma forma en el alta y en el listado: devolver el
@@ -46,7 +52,34 @@ public record MovimientoDto(
     int CategoriaId,
     string CategoriaNombre,
     string MonedaCodigo,
-    DateOnly Fecha);
+    DateOnly Fecha,
+    string? Nota)
+{
+    /// <summary>
+    /// La nota, **siempre presente y nunca nula**: "sin nota" es la cadena vacía.
+    ///
+    /// **Acá está la única normalización de lectura de la feature, y está acá a propósito** (D-04).
+    /// El esquema admite DOS representaciones de "sin nota" —la ausencia de valor y la cadena vacía— y
+    /// no normaliza al escribir, que fue una decisión tomada a sabiendas y anotada como deuda D12-08.
+    /// Lo que sostiene la invariante de `FR-005` es entonces la lectura, y este tipo es el único punto
+    /// por el que pasan TODAS las lecturas: se construye en cuatro lugares distintos de
+    /// <see cref="MovimientosEndpoints"/> —el alta, el listado, la consulta individual y la edición—
+    /// y los cuatro heredan la regla sin escribirla. El quinto lugar que aparezca también.
+    ///
+    /// Escribir la coalescencia en las cuatro proyecciones sería igual de correcto hoy y es
+    /// exactamente la forma del problema que se está evitando: cuatro lugares que tienen que estar de
+    /// acuerdo. Es el mismo argumento por el que `DeLaCuenta` es privado en `MovimientosConsulta` y
+    /// por el que hay una sola `ValidacionDelMovimiento` para el alta y la edición.
+    ///
+    /// **Por qué funciona también en las dos rutas que son `IQueryable`**: EF Core traduce una
+    /// proyección a un tipo que no es una entidad seleccionando las columnas y llamando al
+    /// constructor EN MEMORIA, así que este inicializador corre igual. No es una suposición cómoda —
+    /// `NotaDelMovimientoTests.Las_Cuatro_Rutas_No_Distinguen_Las_Dos_Formas_De_Sin_Nota_FR011`
+    /// recorre las cuatro contra una fila guardada sin valor, y si EF alguna vez materializara de otra
+    /// forma se pone en rojo en vez de dejar pasar dos formas de lo mismo.
+    /// </summary>
+    public string Nota { get; init; } = Nota ?? string.Empty;
+}
 
 /// <summary>
 /// Lo que llega al modificar un movimiento (RF-14).
@@ -72,9 +105,25 @@ public record MovimientoDto(
 /// <param name="CategoriaId">Categoría elegida, del mismo tipo que el movimiento.</param>
 /// <param name="MonedaId">Moneda del catálogo. Ausente o null = la que el movimiento ya tenía.</param>
 /// <param name="Fecha">Día del movimiento. Obligatoria.</param>
+/// <param name="Nota">
+/// La nota descriptiva, hasta 120 caracteres Unicode. **OBLIGATORIA acá y opcional en el alta**, que
+/// es la misma asimetría que <paramref name="Fecha"/> y por el mismo motivo: *ausente nunca puede
+/// producir un cambio que nadie pidió*.
+///
+/// Si ausente significara "la que ya tenía", no habría forma de vaciarla sin inventar un valor
+/// centinela; si significara "sin nota", un cliente que no la manda borraría en silencio lo que la
+/// persona escribió. Exigirla saca las dos trampas (`FR-004`).
+///
+/// **Sigue siendo `string?` en el DTO y `null` se RECHAZA**, con la clave `nota`, en el handler del
+/// PUT — igual que `Fecha`. En JSON no hay forma de distinguir "vino null" de "no vino", así que
+/// aceptar `null` como vaciado dejaba la omisión indistinguible del vaciado explícito: mientras eso
+/// fue así, un cuerpo sin la clave borraba la nota en silencio con un 200. Vaciarla es mandar la
+/// cadena vacía, que es además lo que la API devuelve para un movimiento sin nota.
+/// </param>
 public record MovimientoEditadoDto(
     string? Tipo,
     decimal? Monto,
     int? CategoriaId,
     int? MonedaId,
-    DateOnly? Fecha);
+    DateOnly? Fecha,
+    string? Nota);

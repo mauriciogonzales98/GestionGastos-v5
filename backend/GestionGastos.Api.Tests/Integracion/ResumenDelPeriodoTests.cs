@@ -494,7 +494,7 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
-        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XR1", async moneda =>
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XRA", async moneda =>
         {
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
