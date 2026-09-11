@@ -64,9 +64,14 @@ public static class CategoriasConsulta
     /// <summary>
     /// Una categoría del ámbito por identificador, **activa o no**.
     ///
-    /// Es la que usan el renombre y la baja para decidir qué responder, y por eso no filtra por
-    /// `activa`: la baja es idempotente (D-06), así que darle de baja a algo ya dado de baja tiene
-    /// que encontrarlo para poder responder `204` en vez de `404`.
+    /// **La usan cuatro llamadores, y conviene saberlo antes de tocarla**: el renombre y la baja de
+    /// categorías, y —desde que se saldó D7-05— el alta y la edición de movimientos, que buscan por
+    /// acá la categoría con la que clasificar. Los dos primeros deciden qué responder; los dos
+    /// segundos le agregan su propia condición sobre `activa` en el sitio donde llaman.
+    ///
+    /// No filtra por `activa` ella misma, y por eso: la baja es idempotente (D-06), así que darle
+    /// de baja a algo ya dado de baja tiene que encontrarlo para poder responder `204` en vez de
+    /// `404`. Quien necesite sólo las activas lo pide donde llama.
     ///
     /// Devuelve también las predefinidas, que la cuenta VE. Distinguir "no se puede tocar" de "no
     /// existe" es justamente lo que separa el `403` del `404` (FR-008, FR-013, D-06), y esa
