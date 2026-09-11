@@ -393,7 +393,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
 
         return [.. Directory
             .EnumerateFiles(raiz, "*.cs", SearchOption.AllDirectories)
-            .Where(archivo => !EstaEnMigraciones(raiz, archivo))
+            .Where(archivo => !EsCodigoGenerado(raiz, archivo))
             .Where(archivo => Relativa(raiz, archivo) != canal)
             .Where(archivo => Relativa(raiz, archivo) != DeclaracionDelDbSet)
             .Where(archivo => UsaElDbSet(
@@ -475,11 +475,28 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
             TimeSpan.FromSeconds(5)));
 
     /// <summary>
-    /// `Migrations/` queda fuera: lo genera EF, nadie lo escribe a mano, y no consulta movimientos
-    /// en nombre de ninguna cuenta. Es la misma excepción que hace la barrera del linter.
+    /// Las carpetas de código GENERADO, que quedan fuera del escaneo.
+    ///
+    /// `Migrations/` lo genera EF, nadie lo escribe a mano, y no consulta en nombre de ninguna
+    /// cuenta. Es la misma excepción que hace la barrera del linter.
+    ///
+    /// `obj/` y `bin/` son la misma clase de cosa y estaban adentro por descuido: el recorrido es
+    /// sobre la carpeta del proyecto entera, así que barría también los `.cs` que deja la
+    /// compilación. Hoy son tres y ninguno nombra un `DbSet`, así que la barrera estaba verde por
+    /// suerte y no por construcción. **Comprobado**: un archivo con `contexto.Categorias` adentro
+    /// de `obj/Debug/` la ponía en rojo, y el mensaje pedía mover al canal código que nadie
+    /// escribió y nadie puede mover. El escenario que lo vuelve real es
+    /// `dotnet ef dbcontext optimize` —el modelo compilado, que es el paso de rendimiento estándar
+    /// de EF— y ese día la única salida visible sería apagar la barrera.
     /// </summary>
-    private static bool EstaEnMigraciones(string raiz, string archivo) =>
-        Path.GetRelativePath(raiz, archivo).Replace('\\', '/').StartsWith("Migrations/", StringComparison.Ordinal);
+    private static bool EsCodigoGenerado(string raiz, string archivo)
+    {
+        var relativa = Path.GetRelativePath(raiz, archivo).Replace('\\', '/');
+
+        return relativa.StartsWith("Migrations/", StringComparison.Ordinal)
+            || relativa.StartsWith("obj/", StringComparison.Ordinal)
+            || relativa.StartsWith("bin/", StringComparison.Ordinal);
+    }
 
     /// <summary>
     /// La carpeta de `GestionGastos.Api`, encontrada subiendo desde el binario de los tests.
