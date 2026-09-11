@@ -328,9 +328,13 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         var tipo = tipoForzado ?? (categoriaId == Sueldo ? "ingreso" : "gasto");
         var texto = fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
+        // `nota` viaja siempre: es obligatoria al editar desde la feature 012, por el mismo motivo que
+        // `fecha` — ausente significaría "sin nota" y una edición que no la menciona borraría en
+        // silencio lo que la persona escribió. Va vacía porque estos movimientos no tienen nota, así
+        // que el cuerpo manda su valor actual, igual que ya hacía con el monto y la categoría.
         object cuerpo = propietarioEnElCuerpo is { } ajeno
-            ? new { tipo, monto, categoriaId, fecha = texto, usuarioId = ajeno }
-            : new { tipo, monto, categoriaId, fecha = texto };
+            ? new { tipo, monto, categoriaId, fecha = texto, nota = "", usuarioId = ajeno }
+            : new { tipo, monto, categoriaId, fecha = texto, nota = "" };
 
         using var respuesta = await cuenta.Cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{id}", UriKind.Relative), cuerpo);

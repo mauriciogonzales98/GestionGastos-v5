@@ -48,7 +48,14 @@ public class MonedaCodigoEsquemaTests(BaseDeDatosFixture baseDeDatos)
 
         // El `finally` limpia **aunque la aserción falle**, y eso no es ceremonia: mientras este test
         // esté en rojo —o sea, antes de que exista la restricción— el INSERT ENTRA, y la fila
-        // inválida queda en la base. Sin esta limpieza, el rojo de este test contamina al de abajo,
+        // inválida queda en la base.
+        //
+        // **La comparación es sensible a mayúsculas, y eso no es detalle: sin el CAST este DELETE
+        // destruye el catálogo.** `codigo` usa `utf8mb4_0900_ai_ci`, así que `codigo = 'ars'` alcanza
+        // al `ARS` REAL de la semilla. Pasó de verdad durante la revisión del PR #29: un caso de
+        // prueba con un código en minúsculas borró `ARS`, el alta se quedó sin moneda predeterminada
+        // y cuatro tests de contrato sin relación con esto empezaron a dar 500. El síntoma apareció
+        // lejísimos de la causa. Sin esta limpieza, el rojo de este test contamina al de abajo,
         // que enumera el catálogo entero, y encima deja filas que la propia migración no podría
         // aplicar. Se descubrió corriéndolo: el Principio IV dice que ningún test puede depender de
         // lo que dejó otro, y un test que sólo limpia cuando pasa lo incumple justo cuando importa.
@@ -59,7 +66,7 @@ public class MonedaCodigoEsquemaTests(BaseDeDatosFixture baseDeDatos)
                     $"INSERT INTO moneda (codigo, nombre, simbolo, decimales, es_predeterminada) VALUES ({codigo}, 'Invalida', '¤', 2, 0)"));
 
             var filas = await contexto.Database
-                .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM moneda WHERE codigo = {codigo}")
+                .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM moneda WHERE CAST(codigo AS BINARY) = CAST({codigo} AS BINARY)")
                 .SingleAsync();
 
             Assert.Equal(0, filas);
@@ -67,7 +74,7 @@ public class MonedaCodigoEsquemaTests(BaseDeDatosFixture baseDeDatos)
         finally
         {
             await contexto.Database.ExecuteSqlInterpolatedAsync(
-                $"DELETE FROM moneda WHERE codigo = {codigo}");
+                $"DELETE FROM moneda WHERE CAST(codigo AS BINARY) = CAST({codigo} AS BINARY)");
         }
     }
 
@@ -96,22 +103,77 @@ public class MonedaCodigoEsquemaTests(BaseDeDatosFixture baseDeDatos)
 
         Assert.Empty(queIncumplen);
 
+        // **Y la semilla está intacta: exactamente una predeterminada** (`RF-25`).
+        //
+        // Se agregó tras la revisión del PR #29, donde una limpieza de test insensible a mayúsculas
+        // borró `ARS` del catálogo. El daño no se vio acá: se vio como cuatro 500 en tests de contrato
+        // que no tienen nada que ver, porque el alta hace `SingleAsync(m => m.EsPredeterminada)` y sin
+        // predeterminada lanza. Esta comprobación existe para que ese daño se vea **donde ocurre**.
+        var predeterminadas = await contexto.Database
+            .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM moneda WHERE es_predeterminada = 1")
+            .SingleAsync();
+
+        Assert.Equal(1, predeterminadas);
+
         // Y una moneda nueva con un código válido entra. `XCD` es del rango que ISO 4217 deja para
         // usos no monetarios, así que no colisiona con una moneda real.
         const string Codigo = "XCD";
         await contexto.Database.ExecuteSqlInterpolatedAsync(
-            $"DELETE FROM moneda WHERE codigo = {Codigo}");
+            $"DELETE FROM moneda WHERE CAST(codigo AS BINARY) = CAST({Codigo} AS BINARY)");
 
         await contexto.Database.ExecuteSqlInterpolatedAsync(
             $"INSERT INTO moneda (codigo, nombre, simbolo, decimales, es_predeterminada) VALUES ({Codigo}, 'Moneda valida', '¤', 2, 0)");
 
         var filas = await contexto.Database
-            .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM moneda WHERE codigo = {Codigo}")
+            .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM moneda WHERE CAST(codigo AS BINARY) = CAST({Codigo} AS BINARY)")
             .SingleAsync();
 
         Assert.Equal(1, filas);
 
         await contexto.Database.ExecuteSqlInterpolatedAsync(
-            $"DELETE FROM moneda WHERE codigo = {Codigo}");
+            $"DELETE FROM moneda WHERE CAST(codigo AS BINARY) = CAST({Codigo} AS BINARY)");
+    }
+
+    /// <summary>
+    /// Un código en **minúsculas se acepta**, y es una decisión y no un descuido.
+    ///
+    /// La revisión del PR #29 propuso apretar la restricción a mayúsculas, porque ISO 4217 define los
+    /// códigos así. Se descartó con la evidencia: el motivo por el que esta restricción existe —D11-02,
+    /// antes D9-09— es que un código que `Intl` no entiende llegue hasta `formatearMonto`, e **`Intl`
+    /// interpreta los códigos sin distinguir mayúsculas**: `ars` y `ARS` dan los dos el mismo formato.
+    /// Un código en minúsculas no es el caso que la restricción viene a atrapar.
+    ///
+    /// Y expresarlo costaría caro: `codigo` usa una colación insensible a mayúsculas, así que
+    /// `REGEXP '^[A-Z]{3}$'` aceptaría `ars` igual — haría falta un `COLLATE` explícito dentro del
+    /// CHECK, o sea una dependencia del nombre de una colación a cambio de nada.
+    ///
+    /// Este test existe para que la decisión quede medida y no haya que volver a discutirla: si alguien
+    /// aprieta la restricción, esto se pone en rojo y lo manda a leer el porqué.
+    /// </summary>
+    [Fact]
+    public async Task Un_Codigo_En_Minusculas_Se_Acepta_Porque_Intl_No_Distingue_FR010()
+    {
+        await using var contexto = _baseDeDatos.CrearContexto();
+
+        const string Codigo = "xcz";
+        await contexto.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM moneda WHERE CAST(codigo AS BINARY) = CAST({Codigo} AS BINARY)");
+
+        try
+        {
+            await contexto.Database.ExecuteSqlInterpolatedAsync(
+                $"INSERT INTO moneda (codigo, nombre, simbolo, decimales, es_predeterminada) VALUES ({Codigo}, 'Minusculas', '¤', 2, 0)");
+
+            var filas = await contexto.Database
+                .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM moneda WHERE CAST(codigo AS BINARY) = CAST({Codigo} AS BINARY)")
+                .SingleAsync();
+
+            Assert.Equal(1, filas);
+        }
+        finally
+        {
+            await contexto.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM moneda WHERE CAST(codigo AS BINARY) = CAST({Codigo} AS BINARY)");
+        }
     }
 }

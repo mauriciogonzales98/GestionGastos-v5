@@ -231,7 +231,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
             using var edicion = await cliente.PutAsJsonAsync(
                 new Uri($"/api/movimientos/{id}", UriKind.Relative),
-                new { tipo = "gasto", monto = 321.99m, categoriaId = 3, monedaId = moneda.Id, fecha = "2026-09-02" });
+                new { tipo = "gasto", monto = 321.99m, categoriaId = 3, monedaId = moneda.Id, fecha = "2026-09-02", nota = "" });
 
             Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
 
@@ -290,7 +290,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
             using var edicion = await cliente.PutAsJsonAsync(
                 new Uri($"/api/movimientos/{id}", UriKind.Relative),
-                new { tipo = "gasto", monto = 100m, categoriaId = 1, monedaId = moneda.Id, fecha = "2026-09-04" });
+                new { tipo = "gasto", monto = 100m, categoriaId = 1, monedaId = moneda.Id, fecha = "2026-09-04", nota = "" });
 
             Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
 
@@ -331,7 +331,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
             using var edicion = await cliente.PutAsJsonAsync(
                 new Uri($"/api/movimientos/{id}", UriKind.Relative),
-                new { tipo = "gasto", monto = 20m, categoriaId = 1, fecha = "2026-09-04" });
+                new { tipo = "gasto", monto = 20m, categoriaId = 1, fecha = "2026-09-04", nota = "" });
 
             Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
 
@@ -374,7 +374,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
         using var edicion = await cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{id}", UriKind.Relative),
-            new { tipo = "gasto", monto = 999m, categoriaId = 2, monedaId = inexistente, fecha = "2026-09-05" });
+            new { tipo = "gasto", monto = 999m, categoriaId = 2, monedaId = inexistente, fecha = "2026-09-05", nota = "" });
 
         Assert.Equal(HttpStatusCode.BadRequest, edicion.StatusCode);
 

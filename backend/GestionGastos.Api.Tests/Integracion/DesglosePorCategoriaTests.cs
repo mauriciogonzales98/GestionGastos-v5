@@ -164,6 +164,9 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
                 monto = 900m,
                 categoriaId = Transporte,
                 fecha = Temprano.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                // Obligatoria al editar desde la feature 012, igual que `fecha`. Vacía: es el valor
+                // que este movimiento ya tiene, así que la edición sigue cambiando sólo la categoría.
+                nota = "",
             }))
         {
             Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);

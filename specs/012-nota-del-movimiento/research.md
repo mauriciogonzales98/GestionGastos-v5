@@ -270,6 +270,38 @@ es más honesta que dos migraciones de las cuales una existe sólo por prolijida
 
 ---
 
+## D-10b · El `CHECK` admite minúsculas, y se midió antes de decidirlo
+
+**Decisión**: la restricción queda en `[A-Za-z]{3}`. La revisión del PR #29 propuso apretarla a
+`[A-Z]{3}` porque ISO 4217 define los códigos en mayúsculas, y la propuesta **se descartó con la
+evidencia en la mano**, por dos razones independientes:
+
+1. **No cierra nada.** El motivo por el que esta deuda existe —D11-02, antes D9-09— es que un código
+   que `Intl` no entiende llegue hasta `formatearMonto`. Medido: `Intl` formatea `ars`, `ARS` y `aRs`
+   exactamente igual, porque interpreta los códigos sin distinguir mayúsculas. Un código en minúsculas
+   **no es el caso** que la restricción viene a atrapar.
+2. **Costaría cablear una colación en el esquema.** `moneda.codigo` usa `utf8mb4_0900_ai_ci`, que es
+   insensible a mayúsculas, así que `REGEXP '^[A-Z]{3}$'` acepta `ars` igual — comprobado. Expresarlo
+   exigiría un `COLLATE utf8mb4_0900_as_cs` dentro del `CHECK`: una dependencia del nombre de una
+   colación, a cambio de nada.
+
+`MonedaCodigoEsquemaTests.Un_Codigo_En_Minusculas_Se_Acepta_Porque_Intl_No_Distingue_FR010` fija la
+decisión para que no haya que volver a discutirla: si alguien aprieta la restricción, se pone en rojo y
+lo manda a leer el porqué.
+
+**Lo que este intento dejó como hallazgo aparte, y es el más caro de la revisión**: al probar el caso
+de minúsculas, el `finally` del test hacía `DELETE FROM moneda WHERE codigo = 'ars'` — y con la
+colación insensible **eso alcanzó al `ARS` real de la semilla**. El catálogo quedó sin moneda
+predeterminada, el alta empezó a lanzar en `SingleAsync(m => m.EsPredeterminada)` y **cuatro tests de
+contrato sin ninguna relación con la nota empezaron a dar 500**. El síntoma apareció lejísimos de la
+causa.
+
+Las dos correcciones: las limpiezas de ese archivo comparan con `CAST(... AS BINARY)`, y el test del
+catálogo pasa a exigir además la invariante de la semilla —exactamente una predeterminada (`RF-25`)—
+para que un daño así se vea **donde ocurre** y no como un 500 en otro archivo.
+
+---
+
 ## D-11 · El test de rendimiento del listado mide la respuesta de la API, y se dice
 
 **Decisión**: `RendimientoListadoTests`, nuevo, midiendo el endpoint del listado con 1000 movimientos
@@ -331,6 +363,28 @@ ninguna cambia lo que su test afirma sobre el comportamiento:
 | 11 | `frontend/tests/FormularioMovimiento.test.tsx` | Compara **la forma completa** de lo que sale del formulario —a propósito, para atrapar un campo de más que nadie decidió mandar—, así que el campo nuevo lo pone en rojo por diseño, igual que el test de teclado | `FR-002` |
 | 12 | `backend/.../Integracion/FiltrosDelListadoTests.cs` | Sembraba el catálogo con los códigos `XF1` y `XF2`, que **son tres caracteres pero no tres letras**: la restricción de `FR-010` los rechaza. Los códigos de fixture son arbitrarios —sólo necesitan ser distintos entre sí— así que pasan a `XFA` y `XFB`. El requisito no se afloja: era el fixture el que estaba mal | `FR-010` |
 | 13 | `backend/.../Integracion/ResumenDelPeriodoTests.cs` | Lo mismo, con `XR1` → `XRA` | `FR-010` |
+
+### Las cinco filas que agregó la revisión del PR #29
+
+Apretar el contrato —exigir `nota` en la edición, hallazgo 1 de la revisión— tiene un radio mecánico
+que hay que declarar: **todo test que haga un PUT tiene que mandar el campo**, igual que ya manda
+`fecha` por el mismo motivo. Los cinco archivos mandan la cadena vacía, que es el valor que esos
+movimientos ya tienen, así que ninguno cambia lo que afirma:
+
+| # | Test | Por qué se tocó | Requisito |
+|---|---|---|---|
+| 14 | `backend/.../Integracion/EdicionDeMovimientoTests.cs` | Su helper arma el cuerpo del PUT | `FR-004` |
+| 15 | `backend/.../Integracion/MonedaElegidaTests.cs` | Cuatro cuerpos de PUT | `FR-004` |
+| 16 | `backend/.../Integracion/ValidacionMovimientoTests.cs` | Un cuerpo de PUT | `FR-004` |
+| 17 | `backend/.../Integracion/DesglosePorCategoriaTests.cs` | Un cuerpo de PUT | `FR-004` |
+| 18 | `backend/.../Integracion/CategoriasPropiasTests.cs` | Un cuerpo de PUT | `FR-004` |
+
+**El presupuesto terminó en 18 filas contra las 7 previstas**, y el patrón de las once agregadas es
+uno solo: **un campo obligatorio nuevo en una petición toca todos los tests que construyen esa
+petición, y un campo requerido nuevo en una respuesta toca todos los literales de ese tipo.** Ninguna
+de las once cambia una aserción. Es la clase de consecuencia que se ve en segundos con `tsc` o con un
+build y no se ve leyendo el código — la tabla de la próxima feature que toque el contrato debería
+nacer contándolos.
 
 ### La afirmación de este documento que estaba equivocada
 

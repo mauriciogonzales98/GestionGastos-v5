@@ -15,6 +15,11 @@ namespace GestionGastos.Api.Movimientos;
 ///
 /// La clave de cada error es el nombre del campo de la petición: es lo que permite al frontend
 /// poner el mensaje al lado de su control en vez de volcar un texto suelto.
+///
+/// **Además de validar, normaliza la nota** (<see cref="NotaNormalizada"/>), y el nombre de la clase
+/// anuncia una sola de las dos cosas. Están juntas a propósito: las dos recortan los espacios de los
+/// extremos, y separarlas obligaría a escribir ese criterio dos veces — que es peor que un nombre
+/// incompleto. Si aparece un tercer llamador, ahí sí conviene moverla.
 /// </summary>
 public static class ValidacionDelMovimiento
 {
@@ -78,9 +83,16 @@ public static class ValidacionDelMovimiento
     /// **Se mide después de recortar** (D-03). Midiendo antes, 120 caracteres con un espacio a cada
     /// lado se rechazarían — y una vez guardados entran exactos.
     ///
-    /// **Ausente no es un error**: significa "sin nota" en el alta y es la forma explícita de vaciarla
-    /// en la edición. Que la edición EXIJA el campo es una regla del contrato, no de la validación: un
-    /// cuerpo que lo omite deserializa con `Fecha` nula y muere antes de llegar acá, igual que hoy.
+    /// **Ausente no es un error ACÁ, y eso no significa que se acepte.** En el alta, ausente significa
+    /// "sin nota" y es correcto. En la edición **se rechaza**, con la clave `nota`, y el chequeo vive en
+    /// el handler del PUT junto al de `Fecha` — porque es una regla de la edición y no del movimiento,
+    /// que es el mismo reparto que tiene la fecha.
+    ///
+    /// Acá hubo un comentario que afirmaba que un cuerpo sin la nota "deserializa con `Fecha` nula y
+    /// muere antes de llegar acá". Era falso en los dos tramos: omitir la nota no tiene relación con
+    /// `Fecha`, y el cuerpo llegaba, pasaba y **borraba la nota en silencio con un 200**. Lo encontró la
+    /// revisión del PR #29, y lo peligroso no era el error sino que documentaba una garantía inexistente:
+    /// el próximo en leer el archivo buscando el chequeo faltante iba a concluir que no hacía falta.
     ///
     /// El mensaje **no repite la nota**. Es la única entrada de texto libre de la aplicación, y
     /// devolver el valor lo haría viajar de vuelta y aparecer donde termine el mensaje.

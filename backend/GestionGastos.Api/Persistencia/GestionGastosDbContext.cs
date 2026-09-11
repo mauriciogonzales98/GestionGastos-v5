@@ -100,6 +100,18 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
             // Vive SÓLO en el esquema: no hay validación de aplicación sobre el catálogo. El
             // catálogo se administra como dato (RF-32) y nadie lo escribe desde la aplicación, así
             // que un guardarraíl en el código no tendría llamador.
+            // **Letras, y las minúsculas se admiten a propósito.** La revisión del PR #29 propuso
+            // apretarlo a `[A-Z]{3}` —ISO 4217 define los códigos en mayúsculas— y la propuesta se
+            // descartó con la evidencia en la mano, por dos razones que se suman:
+            //
+            //   1. **No cierra nada.** El motivo de esta deuda (D11-02, antes D9-09) es que un código
+            //      que `Intl` no entiende llegue hasta `formatearMonto`, e `Intl` interpreta los
+            //      códigos sin distinguir mayúsculas: medido, `ars` y `ARS` dan los dos "$ 1.234,50".
+            //      Un código en minúsculas no es el caso que la restricción viene a atrapar.
+            //   2. **Costaría cablear una colación en el esquema.** `codigo` usa
+            //      `utf8mb4_0900_ai_ci`, que es insensible a mayúsculas, así que `REGEXP '^[A-Z]{3}$'`
+            //      acepta `ars` igual; expresarlo exigiría un `COLLATE utf8mb4_0900_as_cs` dentro del
+            //      CHECK. Es una dependencia del nombre de una colación, a cambio de nada.
             e.ToTable("moneda", t => t.HasCheckConstraint(
                 "ck_moneda_codigo_tres_letras",
                 "codigo REGEXP '^[A-Za-z]{3}$'"));
