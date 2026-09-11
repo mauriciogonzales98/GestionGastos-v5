@@ -317,7 +317,7 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
         CuentaDePrueba cuenta, long id, int categoriaId, decimal monto) =>
         cuenta.Cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{id}", UriKind.Relative),
-            new { tipo = "gasto", monto, categoriaId, fecha = "2026-08-23" });
+            new { tipo = "gasto", monto, categoriaId, fecha = "2026-08-23", nota = "" });
 
     private async Task<HttpResponseMessage> EnviarCrudoAsync(string cuerpo)
     {

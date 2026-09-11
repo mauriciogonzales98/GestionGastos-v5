@@ -35,7 +35,7 @@ public static class MonedasEndpoints
             // `CategoriasConsulta.Ofrecibles`.
             var monedas = await contexto.Monedas
                 .OrderBy(m => m.Id)
-                .Select(m => new MonedaDto(m.Id, m.Codigo, m.Nombre, m.Simbolo, m.EsPredeterminada))
+                .Select(m => new MonedaDto(m.Id, m.Codigo, m.Nombre, m.Simbolo, m.EsPredeterminada, m.Decimales))
                 .ToListAsync();
 
             return Results.Ok(monedas);

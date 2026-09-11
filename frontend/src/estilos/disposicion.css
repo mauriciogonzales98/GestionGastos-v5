@@ -3,26 +3,63 @@
  *
  * Nada de clases utilitarias sueltas (`mt-2`, `flex`, `text-right`). Si hace falta una disposición
  * nueva, nace acá con nombre propio y queda disponible para el resto.
+ *
+ * **El objetivo de ancho es 360 px** (FR-003), y de ahí sale casi todo lo que hay acá: las filas se
+ * envuelven en vez de desbordar, y el ancho máximo se declara en `rem` para que escale con la
+ * tipografía en lugar de fijarse en píxeles.
  */
+
+/*
+ * La página. Es el único lugar que pone márgenes exteriores: un `c-` no define el suyo.
+ *
+ * `max-width` y no `width`: en un teléfono el elemento se encoge solo, y por eso el verificador de
+ * anchos deja pasar los `max-width` y no los `width` fijos.
+ */
+main {
+  max-width: var(--ancho-maximo);
+  margin: 0 auto;
+  padding: var(--espacio-grande) var(--espacio);
+}
 
 .l-pila {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--espacio);
+  /* Sin esto, un hijo ancho —la tabla del listado— estira la pila por encima del contenedor y el
+     `overflow-x` del envoltorio no llega a activarse nunca. */
+  min-width: 0;
 }
 
 .l-fila {
   display: flex;
   flex-direction: row;
-  gap: 1rem;
+  gap: var(--espacio);
   align-items: center;
+  /* Se envuelve en vez de desbordar: es lo que hace que la cabecera con cuatro botones y la barra
+     de filtros con tres controles entren a 360 px sin que la página se corra de costado. */
+  flex-wrap: wrap;
 }
 
 /*
  * La cabecera de la pantalla: el título a la izquierda, la cuenta y el cierre de sesión a la
  * derecha. El `margin-left: auto` va sobre el hueco y no sobre el botón: un `c-` no define su
  * propio margen externo.
+ *
+ * **El empuje se apaga cuando la fila se envolvió.** A 360 px los botones caen a una segunda línea
+ * y un `margin-left: auto` ahí dentro los mandaría al borde derecho, separados del título que
+ * encabezan. `@media` por ancho de ventana es lo más cerca que se puede estar de "cuando envolvió"
+ * sin consultas de contenedor.
  */
-.l-cabecera > :nth-child(2) {
-  margin-left: auto;
+@media (width >= 40rem) {
+  .l-cabecera > :nth-child(2) {
+    margin-left: auto;
+  }
+}
+
+/*
+ * La barra de filtros del listado: los tres acotados y su botón, en una fila que se envuelve.
+ * Nace en la feature 011 y es donde la deuda D9-01 se salda.
+ */
+.l-filtros {
+  align-items: end;
 }

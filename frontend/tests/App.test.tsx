@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
@@ -365,7 +365,13 @@ describe('App — el catálogo se comparte entre las dos pantallas', () => {
     await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
 
     // El catálogo de Bruno carga bien: no hay nada que avisar.
-    expect(await screen.findByRole('option', { name: 'Comida' })).toBeInTheDocument();
+    //
+    // Se busca dentro del selector del FORMULARIO: desde la feature 011 la barra de acotado tiene
+    // su propio selector de categoría, así que cada nombre del catálogo aparece dos veces en la
+    // pantalla (FR-014).
+    expect(
+      within(await screen.findByLabelText('Categoría')).getByRole('option', { name: 'Comida' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -407,7 +413,14 @@ describe('App — lo que la sesión se lleva al cerrarse', () => {
     render(<App hoy="2026-08-24" />);
 
     // Ana entra, ve lo suyo y se va.
-    expect(await screen.findByRole('option', { name: 'Psicólogo' })).toBeInTheDocument();
+    // `waitFor` y no `findByLabelText`: la etiqueta existe desde el primer render y el catálogo
+    // llega después, así que buscarla y mirar adentro de una vez llega temprano. Lo que hay que
+    // esperar es la OPCIÓN.
+    await waitFor(() =>
+      expect(
+        within(screen.getByLabelText('Categoría')).getByRole('option', { name: 'Psicólogo' }),
+      ).toBeInTheDocument(),
+    );
     await usuario.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
     await screen.findByRole('button', { name: 'Entrar' });
 
@@ -420,7 +433,7 @@ describe('App — lo que la sesión se lleva al cerrarse', () => {
     await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
 
     await screen.findByRole('heading', { name: 'Mis movimientos' });
-    expect(screen.queryByRole('option', { name: 'Psicólogo' })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('option', { name: 'Psicólogo' })).toEqual([]);
   });
 });
 

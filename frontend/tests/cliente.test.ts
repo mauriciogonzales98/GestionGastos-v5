@@ -7,8 +7,10 @@ import {
   ErrorDelServidor,
   ErrorDeSesion,
   ErrorDeValidacion,
+  eliminarMovimiento,
   iniciarSesion,
   obtenerCategorias,
+  obtenerMovimientos,
   obtenerResumen,
 } from '../src/api/cliente';
 
@@ -166,5 +168,106 @@ describe('cliente HTTP — el resumen del período', () => {
     responderCon('', { status: 401 });
 
     await expect(obtenerResumen()).rejects.toBeInstanceOf(ErrorDeSesion);
+  });
+});
+
+/**
+ * FR-010, FR-013 — el borrado de un movimiento (feature 011).
+ *
+ * `DELETE /api/movimientos/{id}` existía desde FEAT-001b y **nunca tuvo un cliente**: era el único
+ * endpoint de la API sin una línea que lo llamara.
+ */
+describe('cliente HTTP — eliminar un movimiento', () => {
+  function urlYMetodo(): [string, string | undefined] {
+    const llamada = vi.mocked(fetch).mock.calls[0];
+    return [String(llamada[0]), (llamada[1] as RequestInit | undefined)?.method];
+  }
+
+  it('pide DELETE sobre el movimiento y resuelve con un 204 sin cuerpo FR-010', async () => {
+    responderCon('', { status: 204 });
+
+    await expect(eliminarMovimiento(7)).resolves.toBeUndefined();
+
+    expect(urlYMetodo()).toEqual(['/api/movimientos/7', 'DELETE']);
+  });
+
+  it('un 401 sale como ErrorDeSesion, igual que el resto del cliente FR-013', async () => {
+    responderCon('', { status: 401 });
+
+    await expect(eliminarMovimiento(7)).rejects.toBeInstanceOf(ErrorDeSesion);
+  });
+
+  /**
+   * **El 404 se propaga sin interpretarse** (FR-013).
+   *
+   * El servidor responde lo mismo si el movimiento no existe, si es de otra cuenta o si ya se
+   * eliminó, y eso no es comodidad: un 403 sobre lo ajeno confirmaría que ese identificador existe,
+   * y como son contiguos permitiría contar los movimientos de otra cuenta sin ver ninguno.
+   * Distinguirlos desde acá sería deshacer esa decisión.
+   */
+  it('un 404 sale como ErrorDelServidor y el cliente no intenta explicarlo FR-013', async () => {
+    responderCon('', { status: 404 });
+
+    await expect(eliminarMovimiento(7)).rejects.toBeInstanceOf(ErrorDelServidor);
+  });
+});
+
+/**
+ * FR-014 a FR-017 — los cuatro acotados del listado (feature 011).
+ *
+ * Los cuatro parámetros los entiende el servidor desde FEAT-001b; hasta esta feature sólo la moneda
+ * tenía control en la interfaz. Lo que se verifica acá es **qué se le pide al servidor**.
+ */
+describe('cliente HTTP — el acotado del listado', () => {
+  function urlPedida(): string {
+    return String(vi.mocked(fetch).mock.calls[0][0]);
+  }
+
+  it('sin argumentos no manda ningún parámetro FR-015', async () => {
+    responderCon('[]', { status: 200 });
+
+    await obtenerMovimientos();
+
+    // La AUSENCIA de los dos extremos es lo que el servidor entiende como "el mes en curso, que
+    // decido yo". Un `desde=` vacío lo obligaría a interpretar una cadena vacía como fecha.
+    expect(urlPedida()).toBe('/api/movimientos');
+  });
+
+  it('manda los cuatro acotados cuando están FR-014, FR-015, FR-016', async () => {
+    responderCon('[]', { status: 200 });
+
+    await obtenerMovimientos({
+      monedaId: 2,
+      categoriaId: 5,
+      desde: '2026-08-01',
+      hasta: '2026-08-31',
+    });
+
+    expect(urlPedida()).toBe(
+      '/api/movimientos?monedaId=2&categoriaId=5&desde=2026-08-01&hasta=2026-08-31',
+    );
+  });
+
+  it('lo que vale null o cadena vacía no se manda FR-015', async () => {
+    responderCon('[]', { status: 200 });
+
+    await obtenerMovimientos({ monedaId: null, categoriaId: null, desde: '', hasta: '' });
+
+    expect(urlPedida()).toBe('/api/movimientos');
+  });
+
+  /**
+   * **Medio rango sí se manda tal cual** (FR-018).
+   *
+   * La regla de que los dos extremos van juntos o no va ninguno es del servidor, y `PeriodoPedido`
+   * es su único intérprete. Comprobarla acá sería el segundo intérprete: se manda lo que hay y se
+   * muestra el mensaje que vuelve.
+   */
+  it('medio rango se manda para que lo rechace el servidor FR-018', async () => {
+    responderCon('[]', { status: 200 });
+
+    await obtenerMovimientos({ desde: '2026-08-01' });
+
+    expect(urlPedida()).toBe('/api/movimientos?desde=2026-08-01');
   });
 });

@@ -84,7 +84,37 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
 
         modelBuilder.Entity<Moneda>(e =>
         {
-            e.ToTable("moneda");
+            // El CHECK exige TRES LETRAS, no sólo tres caracteres (FR-010 de la feature 012).
+            //
+            // Es la deuda D11-02 —nacida como D9-09 en la 009 y pasada por D10-03— que esperaba a un
+            // ticket que abriera una migración por otro motivo. La 012 la abre para la nota del
+            // movimiento, y con el plan DISC-001 terminándose ahí ya no había un próximo ticket al
+            // que apuntarla.
+            //
+            // El `char(3)` de abajo ya acotaba el LARGO desde la migración Inicial; lo que esto
+            // agrega es que sean letras. Sin él, un `1X2` metido con SQL puro entraba sin protesta,
+            // viajaba en el contrato y llegaba hasta `formatearMonto`, que es el cuarto lugar donde
+            // esta deuda se podía cruzar y la razón por la que esa función tiene un try/catch que la
+            // nombra.
+            //
+            // Vive SÓLO en el esquema: no hay validación de aplicación sobre el catálogo. El
+            // catálogo se administra como dato (RF-32) y nadie lo escribe desde la aplicación, así
+            // que un guardarraíl en el código no tendría llamador.
+            // **Letras, y las minúsculas se admiten a propósito.** La revisión del PR #29 propuso
+            // apretarlo a `[A-Z]{3}` —ISO 4217 define los códigos en mayúsculas— y la propuesta se
+            // descartó con la evidencia en la mano, por dos razones que se suman:
+            //
+            //   1. **No cierra nada.** El motivo de esta deuda (D11-02, antes D9-09) es que un código
+            //      que `Intl` no entiende llegue hasta `formatearMonto`, e `Intl` interpreta los
+            //      códigos sin distinguir mayúsculas: medido, `ars` y `ARS` dan los dos "$ 1.234,50".
+            //      Un código en minúsculas no es el caso que la restricción viene a atrapar.
+            //   2. **Costaría cablear una colación en el esquema.** `codigo` usa
+            //      `utf8mb4_0900_ai_ci`, que es insensible a mayúsculas, así que `REGEXP '^[A-Z]{3}$'`
+            //      acepta `ars` igual; expresarlo exigiría un `COLLATE utf8mb4_0900_as_cs` dentro del
+            //      CHECK. Es una dependencia del nombre de una colación, a cambio de nada.
+            e.ToTable("moneda", t => t.HasCheckConstraint(
+                "ck_moneda_codigo_tres_letras",
+                "codigo REGEXP '^[A-Za-z]{3}$'"));
             e.HasKey(m => m.Id);
             e.Property(m => m.Id).HasColumnName("id");
             e.Property(m => m.Codigo).HasColumnName("codigo").HasColumnType("char(3)").IsRequired();
@@ -154,6 +184,18 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
 
             // `date`: sin hora ni zona horaria (D-02).
             e.Property(m => m.Fecha).HasColumnName("fecha").HasColumnType("date").IsRequired();
+
+            // `varchar(120)` mide EXACTAMENTE el límite de FR-003, no más, y eso es deliberado
+            // (D-01 de la feature 012). En utf8mb4 `varchar(n)` cuenta CARACTERES y no bytes, que es
+            // la misma unidad en la que el requisito cuenta sus 120: una nota que las dos
+            // validaciones aceptan entra siempre, y una que no entra nunca llegó hasta acá. Con la
+            // columna más ancha que el requisito, el día que una validación falle la base aceptaría
+            // la nota larga en silencio y el límite dejaría de existir sin que nada se ponga en
+            // rojo. Es el mismo criterio que `decimal(11,2)` para el techo del monto.
+            //
+            // Anulable y SIN índice. Lo segundo es FR-007: un índice acá sólo serviría para buscar
+            // por la nota, que es exactamente lo que no se hace.
+            e.Property(m => m.Nota).HasColumnName("nota").HasMaxLength(120);
 
             // Sirve al listado de FR-007/FR-008 y al ticket 5 con 10.000 filas (RNF-01).
             // CUIDADO: este índice hace que MySQL devuelva las filas ya ordenadas aunque la

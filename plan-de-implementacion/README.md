@@ -50,15 +50,23 @@ la deuda de infraestructura antes de seguir con features de producto; el mapa de
 `plan-DISC-001.md` los muestra como prerequisitos de todo lo demás. Empezando de cero, el orden
 2→5 puede ir antes del 1: son barreras de calidad que cuanto antes estén, menos trabajo tapan.
 
+| 15 | DISC-001-06 | Maquetación y accesibilidad | `specs/011-maquetacion-filtros-accesibilidad/`, la paleta en `frontend/src/estilos/base.css` con sus verificadores (`ClasesConRegla`, `Paleta`, `AnchoDeLasPantallas`, `Accesibilidad`), el borrado de un movimiento, `frontend/src/movimientos/FiltrosDelListado.tsx` y `frontend/src/periodo/`. **Se amplió respecto de su PRD**, por decisión del usuario: además de la pasada de maquetación y accesibilidad saldó las tres deudas que la 010 le mandaba —**D10-01** (la barra de filtros y la eliminación), **D10-02** (el formato del monto) y **D10-07** (la paleta)—, y con ellas **D8-05**, **D9-01** y **D9-05**. **Estrenó el borrado**: `DELETE /api/movimientos/{id}` existía desde FEAT-001b y era el único endpoint de la API que nunca había tenido un cliente. Y **cerró la mitad que faltaba de D10-10**: el fallo intermitente sin identificar de la 010 apareció con nombre —`RendimientoLimiteTests…AC12`— y pasó a ser D11-03 | `prds/pendientes/prd-DISC-001-06.md` |
+
+| 16 | DISC-001-02 | Nota descriptiva del movimiento | `specs/012-nota-del-movimiento/`, `movimiento.nota` con su migración, el campo de varias líneas en `CamposDelMovimiento.tsx`, la séptima columna del listado y la normalización de lectura en `MovimientoDto`. **Estrenó dos cosas y saldó una deuda vieja**: la séptima barrera del proyecto (`verificar-nota.sh`, que impide que la nota se vuelva un eje de clasificación — `PRD:RF-33`) y la **primera medición del listado** (`RendimientoListadoTests`: no existía ninguna, así que la afirmación de `RNF-01` sobre esa consulta no estaba respaldada por nada; da 17 ms contra un techo de 2000). Y saldó **D11-02** —el `CHECK` de tres letras sobre `moneda.codigo`, que venía de la 009 como D9-09 y de la 010 como D10-03— en la misma migración, que era lo único que le faltaba: **no era una deuda teórica**, había tres códigos inválidos en los fixtures del propio proyecto pasando en verde desde la 009 | `prds/pendientes/prd-DISC-001-02.md` |
+
 ### Pendiente
 
-| Orden | # | Título | PRD |
-|-------|---|--------|-----|
-| 15 | 6 | Maquetación y accesibilidad | `prds/pendientes/prd-DISC-001-06.md` |
-| — | 2 | Nota descriptiva del movimiento | `prds/pendientes/prd-DISC-001-02.md` |
+**Ninguno. El plan DISC-001 está completo.**
 
-`2` no tiene dependencias ni bloquea a nadie: entra en cualquier hueco. El resto es secuencial por
-las razones que están en `plan-DISC-001.md`.
+Los dieciséis tickets del recorrido están implementados y verificados contra el código. Lo que quedó
+abierto son deudas anotadas, no trabajo pendiente del plan, y viven en la tabla *Deuda registrada* de
+la spec de cada feature — la última es
+[`specs/012-nota-del-movimiento/spec.md`](../specs/012-nota-del-movimiento/spec.md).
+
+**Un detalle que conviene saber al leer esas tablas**: hasta la feature 011, cada deuda que no se
+saldaba se le apuntaba a "el próximo ticket". Con el plan terminado **ya no hay próximo ticket**, así
+que las que sigan abiertas necesitan que alguien decida hacerlas — no van a caer solas dentro de otra
+feature.
 
 **El ticket 4b dejó dos cosas sin construir, y están anotadas.** La barra de filtros de categoría y
 fecha y la interfaz de eliminación —la mitad de frontend de FEAT-001b, que salió como feature de

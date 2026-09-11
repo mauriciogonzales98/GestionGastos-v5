@@ -26,6 +26,7 @@ const DEL_20: Movimiento = {
   categoriaNombre: 'Transporte',
   monedaCodigo: 'ARS',
   fecha: '2026-08-20',
+  nota: '',
 };
 
 const DEL_10: Movimiento = {
@@ -36,6 +37,7 @@ const DEL_10: Movimiento = {
   categoriaNombre: 'Comida',
   monedaCodigo: 'ARS',
   fecha: '2026-08-10',
+  nota: '',
 };
 
 beforeEach(() => {
@@ -87,6 +89,7 @@ describe('PantallaMovimientos', () => {
     const usuario = userEvent.setup();
     vi.mocked(cliente.crearMovimiento).mockResolvedValue({
       id: 9,
+      nota: '',
       tipo: 'gasto',
       monto: 1250.5,
       categoriaId: 1,
@@ -174,7 +177,7 @@ describe('PantallaMovimientos', () => {
   it('ofrece las monedas del catálogo más "todas" para acotar FR-010', async () => {
     await renderizar();
 
-    const acotado = screen.getByLabelText('Ver sólo la moneda');
+    const acotado = screen.getByLabelText('Acotar por moneda');
     const opciones = within(acotado).getAllByRole('option');
 
     expect(opciones.map((o) => o.textContent)).toEqual([
@@ -189,7 +192,7 @@ describe('PantallaMovimientos', () => {
   it('ofrece para acotar una moneda agregada al catálogo sólo como dato AC-04', async () => {
     await renderizar([...MONEDAS, LA_INESPERADA]);
 
-    const acotado = screen.getByLabelText('Ver sólo la moneda');
+    const acotado = screen.getByLabelText('Acotar por moneda');
 
     expect(
       within(acotado)
@@ -209,10 +212,15 @@ describe('PantallaMovimientos', () => {
     const usuario = userEvent.setup();
     await renderizar();
 
-    await usuario.selectOptions(screen.getByLabelText('Ver sólo la moneda'), '2');
+    await usuario.selectOptions(screen.getByLabelText('Acotar por moneda'), '2');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
 
     await waitFor(() =>
-      expect(vi.mocked(cliente.obtenerMovimientos)).toHaveBeenLastCalledWith({ monedaId: 2 }),
+      // `objectContaining`: desde la feature 011 el acotado lleva los cuatro campos y se aplican
+      // juntos (D-06). Lo que este caso verifica es la moneda, no la forma entera del objeto.
+      expect(vi.mocked(cliente.obtenerMovimientos)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ monedaId: 2 }),
+      ),
     );
   });
 
@@ -221,12 +229,16 @@ describe('PantallaMovimientos', () => {
     const usuario = userEvent.setup();
     await renderizar();
 
-    const acotado = screen.getByLabelText('Ver sólo la moneda');
+    const acotado = screen.getByLabelText('Acotar por moneda');
     await usuario.selectOptions(acotado, '2');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
     await usuario.selectOptions(acotado, '');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
 
     await waitFor(() =>
-      expect(vi.mocked(cliente.obtenerMovimientos)).toHaveBeenLastCalledWith({ monedaId: null }),
+      expect(vi.mocked(cliente.obtenerMovimientos)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ monedaId: null }),
+      ),
     );
   });
 
@@ -259,9 +271,11 @@ describe('PantallaMovimientos', () => {
 
     await renderizar();
 
-    const acotado = screen.getByLabelText('Ver sólo la moneda');
+    const acotado = screen.getByLabelText('Acotar por moneda');
     await usuario.selectOptions(acotado, '2');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
     await usuario.selectOptions(acotado, '');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
 
     // Ahora sí contesta la de dólares, tarde y fuera de tiempo. `act` deja que su `.then` corra y
     // que React pinte lo que sea que haya pasado: sin eso, la aserción se evalúa antes de que la
@@ -312,17 +326,43 @@ describe('PantallaMovimientos — el resumen del mes en curso', () => {
   });
 
   /**
-   * FR-011b: esta pantalla no tiene control de período.
+   * `010:FR-011b` reformulado por la feature 011, y conviene ver por qué.
    *
-   * El resumen de acá está clavado al mes en curso por decisión de FEAT-001c; elegir qué mirar es
-   * del dashboard. Un control de fechas acá volvería confusas las dos mitades de `FR-012`.
+   * Este test decía *"no ofrece ningún control de período"*, y desde que existe la barra de acotado
+   * del listado eso dejó de ser cierto: `PRD:RF-18` pide un rango de fechas sobre el listado, y ahí
+   * está. **Pero la garantía que el test protegía sigue en pie, y es otra**: el resumen de esta
+   * pantalla está clavado al mes en curso, lo decide el servidor, y ningún control de acá lo mueve.
+   *
+   * La forma vieja verificaba la garantía por la ausencia del control, que era lo único disponible
+   * mientras no hubiera ninguno. Ahora se la verifica de frente: se elige un rango, se aplica, y el
+   * resumen **no se vuelve a pedir con período**. Es más fuerte que lo anterior, no más débil — la
+   * ausencia de un control nunca dijo nada sobre qué pasaría si existiera.
    */
-  it('no ofrece ningún control de período FR-011b', async () => {
+  it('el acotado del listado no mueve el resumen del mes 010:FR-011b FR-016', async () => {
+    const usuario = userEvent.setup();
     await renderizar();
     await screen.findByRole('region', { name: /resumen del mes/i });
+    await waitFor(() => expect(cliente.obtenerResumen).toHaveBeenCalled());
 
-    expect(screen.queryByLabelText(/desde/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/hasta/i)).not.toBeInTheDocument();
+    const pedidosDelResumen = vi.mocked(cliente.obtenerResumen).mock.calls.length;
+
+    // `clear` primero: los campos llegan prefijados con el mes que eligió el servidor (FR-015), así
+    // que escribir encima sin vaciarlos no cambia el valor.
+    await usuario.clear(screen.getByLabelText('Desde'));
+    await usuario.type(screen.getByLabelText('Desde'), '2026-01-01');
+    await usuario.clear(screen.getByLabelText('Hasta'));
+    await usuario.type(screen.getByLabelText('Hasta'), '2026-01-31');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+    // El listado sí se vuelve a pedir, con el rango.
+    await waitFor(() =>
+      expect(cliente.obtenerMovimientos).toHaveBeenCalledWith(
+        expect.objectContaining({ desde: '2026-01-01', hasta: '2026-01-31' }),
+      ),
+    );
+
+    // El resumen NO. Sigue siendo el del mes en curso, decidido por el servidor.
+    expect(vi.mocked(cliente.obtenerResumen).mock.calls.length).toBe(pedidosDelResumen);
   });
 
   it('registrar un movimiento vuelve a pedir el resumen', async () => {

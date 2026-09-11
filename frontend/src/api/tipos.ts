@@ -71,9 +71,9 @@ export interface CategoriaEditada {
  * catálogo —cuál propongo—, y viaja como la respuesta ya calculada y no como el dato con el que
  * calcularla. Es el mismo criterio que `esPropia` en `Categoria`.
  *
- * `decimales` NO viaja, aunque la columna existe: hoy no lo consume nadie. El formato regional del
- * monto es el ticket 6, y un campo que nadie usa es un dato que salió a la red sin que nadie lo
- * decidiera.
+ * `decimales` **viaja desde la feature 011**, que es el ticket 6. Hasta acá no salía a la red porque
+ * no lo consumía nadie —un campo que nadie usa es un dato que salió sin que nadie lo decidiera— y
+ * ahora tiene consumidor: `formatearMonto`, que muestra cada monto en la escala de su moneda.
  */
 export interface Moneda {
   id: number;
@@ -83,6 +83,15 @@ export interface Moneda {
   simbolo: string;
   /** Exactamente una del catálogo la tiene en `true` (RF-25). */
   esPredeterminada: boolean;
+  /**
+   * Cuántos decimales usa esta moneda. 0 a 255 en el esquema; en la práctica 0, 2 o 3.
+   *
+   * **Le gana a lo que `Intl` deduzca del código ISO** (D-08). Si la deducción mandara, agregar al
+   * catálogo una moneda cuya escala no coincida con la asignada a su código produciría montos
+   * redondeados a una escala que nadie eligió, en silencio. `PRD:RF-32` dice que la moneda es un
+   * dato: éste es el dato.
+   */
+  decimales: number;
 }
 
 /** Un movimiento tal como lo devuelven el alta y el listado: la misma forma en los dos. */
@@ -96,6 +105,22 @@ export interface Movimiento {
   monedaCodigo: string;
   /** `YYYY-MM-DD`. Sin hora ni zona horaria. */
   fecha: string;
+  /**
+   * La nota descriptiva del movimiento (RF-33). **Viaja SIEMPRE y nunca es nula**: "sin nota" es la
+   * cadena vacía.
+   *
+   * El almacenamiento admite dos formas de representar la ausencia —sin valor y la cadena vacía— y
+   * **la lectura de la API devuelve una sola**. La normalización ocurre en el borde del servidor, que
+   * es el único punto por el que pasan todas las lecturas, así que esta capa no tiene que saber que
+   * existieron dos (`FR-011`). Una cadena vacía no pinta nada en el listado, así que mostrarla no
+   * necesita ningún condicional.
+   *
+   * **Es descriptiva, no clasificatoria**: no se busca, no se filtra, no se agrupa y no entra en
+   * ningún total. Una nota libre que se pudiera filtrar se vuelve una segunda taxonomía informal
+   * —"alquiler", "Alquiler", "alq"— que el sistema no entiende, y la categoría dejaría de ser el
+   * único eje de análisis. No agregarla a `AcotadoDelListado` es la decisión, no un olvido.
+   */
+  nota: string;
 }
 
 /**
@@ -115,6 +140,14 @@ export interface NuevoMovimiento {
   /** Del catálogo de `Moneda`. Ausente o null = la predeterminada. */
   monedaId?: number | null;
   fecha?: string | null;
+  /**
+   * Hasta 120 caracteres. **Opcional**: ausente, null y la cadena vacía significan los tres lo mismo
+   * —sin nota— y se tiene que poder registrar un movimiento sin tocar el campo (`PRD:AC-09`).
+   *
+   * Que sea opcional no es una comodidad: es la compatibilidad hacia atrás del contrato, igual que
+   * pasó con `monedaId` en la feature 009.
+   */
+  nota?: string | null;
 }
 
 /**
@@ -144,6 +177,21 @@ export interface MovimientoEditado {
   monedaId?: number | null;
   /** `YYYY-MM-DD`. Sin hora ni zona horaria. */
   fecha: string;
+  /**
+   * Hasta 120 caracteres. **OBLIGATORIA acá y opcional al registrar**, que es la misma asimetría que
+   * `fecha` y por el mismo motivo: *ausente nunca puede producir un cambio que nadie pidió*.
+   *
+   * Si ausente significara "la que ya tenía", no habría forma de vaciarla sin inventar un valor
+   * centinela; si significara "sin nota", un cliente que no la manda borraría en silencio lo que la
+   * persona escribió. Exigirla saca las dos trampas (`FR-004`).
+   *
+   * **Es `string` y no `string | null`, y el servidor rechaza las dos ausencias.** Admitir `null`
+   * como forma de vaciar obligaba a distinguir "vino `null`" de "no vino", que en JSON son la misma
+   * cosa del lado del servidor — y mientras esa distinción no existió, omitir el campo borraba la
+   * nota en silencio con un 200. Vaciarla es mandar la cadena vacía, que es además **lo mismo que la
+   * API devuelve** para un movimiento sin nota: se lee y se escribe igual.
+   */
+  nota: string;
 }
 
 /**

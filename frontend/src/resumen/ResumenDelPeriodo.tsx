@@ -1,4 +1,5 @@
 import type { Resumen } from '../api/tipos';
+import type { Moneda } from '../api/tipos';
 import { TotalesDeUnaMoneda } from './TotalesDeUnaMoneda';
 
 export interface PropsResumenDelPeriodo {
@@ -8,6 +9,11 @@ export interface PropsResumenDelPeriodo {
    * persona eligió — son el mismo cálculo pedido de dos maneras, no dos cosas distintas.
    */
   titulo?: string;
+  /**
+   * El catálogo, que baja hasta los montos para que cada uno se muestre en la escala de su moneda
+   * (`FR-019`). Opcional: sin él se cae en lo que `Intl` deduzca del código ISO.
+   */
+  monedas?: Moneda[];
 }
 
 /**
@@ -21,7 +27,11 @@ export interface PropsResumenDelPeriodo {
  * justamente para esto: sin ellos habría que calcular el mes en curso en la zona horaria del
  * navegador, y volverían a existir dos criterios de "hoy".
  */
-export function ResumenDelPeriodo({ resumen, titulo = 'Resumen del mes' }: PropsResumenDelPeriodo) {
+export function ResumenDelPeriodo({
+  resumen,
+  titulo = 'Resumen del mes',
+  monedas,
+}: PropsResumenDelPeriodo) {
   return (
     <section className="l-pila c-resumen" aria-label={titulo}>
       <h2>{titulo}</h2>
@@ -44,7 +54,7 @@ export function ResumenDelPeriodo({ resumen, titulo = 'Resumen del mes' }: Props
         <p>No hay ninguna moneda para mostrar en este período.</p>
       ) : (
         resumen.monedas.map((moneda) => (
-          <TotalesDeUnaMoneda key={moneda.monedaId} moneda={moneda} />
+          <TotalesDeUnaMoneda key={moneda.monedaId} moneda={moneda} monedas={monedas} />
         ))
       )}
     </section>

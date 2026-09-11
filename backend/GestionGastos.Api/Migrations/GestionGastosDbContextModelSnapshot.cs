@@ -215,7 +215,10 @@ namespace GestionGastos.Api.Migrations
                     b.HasIndex("Codigo")
                         .IsUnique();
 
-                    b.ToTable("moneda", (string)null);
+                    b.ToTable("moneda", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_moneda_codigo_tres_letras", "codigo REGEXP '^[A-Za-z]{3}$'");
+                        });
 
                     b.HasData(
                         new
@@ -262,6 +265,11 @@ namespace GestionGastos.Api.Migrations
                     b.Property<decimal>("Monto")
                         .HasColumnType("decimal(11,2)")
                         .HasColumnName("monto");
+
+                    b.Property<string>("Nota")
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("nota");
 
                     b.Property<sbyte>("Tipo")
                         .HasColumnType("tinyint")

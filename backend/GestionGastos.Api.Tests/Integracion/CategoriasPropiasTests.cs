@@ -729,7 +729,7 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
 
     /// <summary>Renombra por la API. Devuelve la respuesta cruda: hay tests que la esperan en rojo.</summary>
     private static Task<HttpResponseMessage> RenombrarAsync(CuentaDePrueba cuenta, int id, string nombre) =>
-        cuenta.Cliente.PutAsJsonAsync(new Uri($"/api/categorias/{id}", UriKind.Relative), new { nombre });
+        cuenta.Cliente.PutAsJsonAsync(new Uri($"/api/categorias/{id}", UriKind.Relative), new { nombre, nota = "" });
 
     private static async Task<CategoriaVista> RenombrarYLeerAsync(CuentaDePrueba cuenta, int id, string nombre)
     {

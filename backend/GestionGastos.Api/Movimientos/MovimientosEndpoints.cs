@@ -78,6 +78,11 @@ public static class MovimientosEndpoints
                 MonedaId = moneda!.Id,
                 CategoriaId = categoria!.Id,
                 Fecha = fecha,
+
+                // Recortada, y la cadena vacía se guarda como ausencia de valor. El recorte es D-03:
+                // el valor guardado es el que se ve, porque una nota de sólo espacios que se guardara
+                // tal cual produciría un movimiento que se ve sin nota y que sin embargo tiene una.
+                Nota = ValidacionDelMovimiento.NotaNormalizada(peticion.Nota),
             };
 
             contexto.Movimientos.Add(movimiento);
@@ -90,7 +95,8 @@ public static class MovimientosEndpoints
                 categoria.Id,
                 categoria.Nombre,
                 moneda.Codigo,
-                movimiento.Fecha);
+                movimiento.Fecha,
+                movimiento.Nota);
 
             // El Location apunta a la lectura individual, que existe desde FEAT-001b. Hasta
             // entonces este Created iba sin encabezado, porque la URL habría dado un 404 y un
@@ -136,7 +142,8 @@ public static class MovimientosEndpoints
                     m.CategoriaId,
                     m.Categoria!.Nombre,
                     m.Moneda!.Codigo,
-                    m.Fecha))
+                    m.Fecha,
+                    m.Nota))
                 .ToListAsync();
 
             // Arreglo vacío si no hay movimientos en el mes: NO es un 404 (FR-012).
@@ -163,7 +170,8 @@ public static class MovimientosEndpoints
                     m.CategoriaId,
                     m.Categoria!.Nombre,
                     m.Moneda!.Codigo,
-                    m.Fecha))
+                    m.Fecha,
+                    m.Nota))
                 .FirstOrDefaultAsync();
 
             return movimiento is null ? NoExiste() : Results.Ok(movimiento);
@@ -228,6 +236,22 @@ public static class MovimientosEndpoints
                 errores["fecha"] = ["Indicá la fecha del movimiento."];
             }
 
+            if (peticion.Nota is null)
+            {
+                // **Obligatoria sólo al editar, y por la misma razón que la fecha**: acá ausente
+                // significaría "sin nota", así que una edición que no la menciona borraría en
+                // silencio lo que la persona escribió.
+                //
+                // Se exige acá y no en `ValidacionDelMovimiento` porque es una regla de la EDICIÓN y
+                // no del movimiento: en el alta, ausente significa "sin nota" y eso es lo correcto.
+                // Es el mismo reparto que tiene `fecha`.
+                //
+                // Vaciar la nota sigue siendo posible y sigue siendo explícito: se manda la cadena
+                // vacía. Lo que no se acepta es OMITIRLA — que es lo que la revisión del PR #29
+                // encontró abierto, con pérdida silenciosa del dato.
+                errores["nota"] = ["Mandá la nota del movimiento, vacía si no tiene."];
+            }
+
             if (errores.Count > 0)
             {
                 return Results.ValidationProblem(errores);
@@ -239,6 +263,10 @@ public static class MovimientosEndpoints
             movimiento.Monto = peticion.Monto!.Value;
             movimiento.CategoriaId = categoria!.Id;
             movimiento.Fecha = peticion.Fecha!.Value;
+
+            // La nota es obligatoria en la edición, así que esto NUNCA es "dejarla como estaba": lo
+            // que llegó es lo que queda, y vaciarla es pedirlo explícitamente (FR-004).
+            movimiento.Nota = ValidacionDelMovimiento.NotaNormalizada(peticion.Nota);
 
             // Sólo si se pidió una. Sin esto, `moneda` en null pisaría la que tenía.
             if (moneda is not null)
@@ -259,7 +287,8 @@ public static class MovimientosEndpoints
                 categoria.Id,
                 categoria.Nombre,
                 monedaFinal.Codigo,
-                movimiento.Fecha));
+                movimiento.Fecha,
+                movimiento.Nota));
         });
 
         // DELETE /api/movimientos/{id} — la eliminación (FR-006).

@@ -230,7 +230,7 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
-        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XF1", async moneda =>
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XFA", async moneda =>
         {
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
@@ -258,7 +258,7 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
-        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XF2", async moneda =>
+        await CatalogoDeMonedas.ConLaMonedaAsync(_baseDeDatos, "XFB", async moneda =>
         {
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);

@@ -63,6 +63,9 @@ export function VentanaDeEdicion({
           // el catálogo todavía no llegó, queda sin elegir y los campos derivan la predeterminada.
           monedaId: monedas.find((m) => m.codigo === movimiento.monedaCodigo)?.id,
           fecha: movimiento.fecha,
+          // La nota que el movimiento ya tenía, con sus saltos intactos: lo guardado es lo que se
+          // escribió (`FR-012`). Sin esto, abrir la ventana a corregir el monto borraría la nota.
+          nota: movimiento.nota,
         }}
         etiquetaDeEnvio="Guardar cambios"
         mensajeDeFallo="No se pudo guardar el cambio. Volvé a intentarlo."
@@ -75,6 +78,11 @@ export function VentanaDeEdicion({
             // Obligatoria al editar: ausente significaría "hoy" y el movimiento saltaría de fecha
             // en silencio. Los campos siempre la traen, así que acá no hay nada que decidir.
             fecha: valores.fecha,
+            // Obligatoria al editar, igual que la fecha y por el mismo motivo: ausente tendría que
+            // significar o "la que ya tenía" —y entonces no habría forma de vaciarla— o "sin nota"
+            // —y entonces esta pantalla borraría en silencio lo que la persona escribió—. Mandarla
+            // siempre deja el vaciado explícito (`FR-004`).
+            nota: valores.nota,
           })
         }
       />
