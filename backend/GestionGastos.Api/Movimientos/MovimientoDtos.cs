@@ -112,8 +112,13 @@ public record MovimientoDto(
 ///
 /// Si ausente significara "la que ya tenía", no habría forma de vaciarla sin inventar un valor
 /// centinela; si significara "sin nota", un cliente que no la manda borraría en silencio lo que la
-/// persona escribió. Exigirla saca las dos trampas: `null` y la cadena vacía son las dos la forma
-/// **explícita** de decir "sin nota", y omitirla no es una opción válida (`FR-004`).
+/// persona escribió. Exigirla saca las dos trampas (`FR-004`).
+///
+/// **Sigue siendo `string?` en el DTO y `null` se RECHAZA**, con la clave `nota`, en el handler del
+/// PUT — igual que `Fecha`. En JSON no hay forma de distinguir "vino null" de "no vino", así que
+/// aceptar `null` como vaciado dejaba la omisión indistinguible del vaciado explícito: mientras eso
+/// fue así, un cuerpo sin la clave borraba la nota en silencio con un 200. Vaciarla es mandar la
+/// cadena vacía, que es además lo que la API devuelve para un movimiento sin nota.
 /// </param>
 public record MovimientoEditadoDto(
     string? Tipo,

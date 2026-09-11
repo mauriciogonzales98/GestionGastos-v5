@@ -183,10 +183,15 @@ export interface MovimientoEditado {
    *
    * Si ausente significara "la que ya tenía", no habría forma de vaciarla sin inventar un valor
    * centinela; si significara "sin nota", un cliente que no la manda borraría en silencio lo que la
-   * persona escribió. Exigirla saca las dos trampas: la cadena vacía y `null` son las dos la forma
-   * **explícita** de decir "sin nota", y omitirla no es una opción válida (`FR-004`).
+   * persona escribió. Exigirla saca las dos trampas (`FR-004`).
+   *
+   * **Es `string` y no `string | null`, y el servidor rechaza las dos ausencias.** Admitir `null`
+   * como forma de vaciar obligaba a distinguir "vino `null`" de "no vino", que en JSON son la misma
+   * cosa del lado del servidor — y mientras esa distinción no existió, omitir el campo borraba la
+   * nota en silencio con un 200. Vaciarla es mandar la cadena vacía, que es además **lo mismo que la
+   * API devuelve** para un movimiento sin nota: se lee y se escribe igual.
    */
-  nota: string | null;
+  nota: string;
 }
 
 /**

@@ -86,9 +86,21 @@ Y para **vaciarla**:
 |---|---|---|
 | `fecha` | hoy | **obligatoria** — ausente significaría "hoy" y el movimiento saltaría de fecha en silencio |
 | `monedaId` | la predeterminada | opcional — ausente significa "la que ya tenía", que no es un cambio |
-| `nota` | sin nota | **obligatoria** — ausente tendría que significar "la que ya tenía" (y entonces no habría forma de vaciarla) o "sin nota" (y entonces un cliente que no la manda borra en silencio) |
+| `nota` | sin nota | **obligatoria, y no admite `null`** — ausente tendría que significar "la que ya tenía" (y entonces no habría forma de vaciarla) o "sin nota" (y entonces un cliente que no la manda borra en silencio). Vaciar es mandar `""` |
 
-`null` y `""` son los dos la forma explícita de decir "sin nota". Lo que no se acepta es **omitirla**.
+**La cadena vacía es la forma de decir "sin nota", y `null` se rechaza igual que la omisión.** En JSON
+no hay forma de distinguir "vino `null`" de "no vino", así que aceptar `null` como vaciado dejaba la
+omisión indistinguible del vaciado explícito — y mientras eso fue así, un cuerpo sin la clave borraba
+la nota en silencio con un `200`. Lo encontró la revisión del PR #29.
+
+Que la forma de vaciar sea `""` tiene además una simetría que `null` no tenía: **es exactamente lo que
+la API devuelve** para un movimiento sin nota. Se lee y se escribe igual.
+
+El rechazo viene con la clave `nota`, como el de `fecha`:
+
+```json
+{ "errors": { "nota": ["Mandá la nota del movimiento, vacía si no tiene."] } }
+```
 
 ---
 

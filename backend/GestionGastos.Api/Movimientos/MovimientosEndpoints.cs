@@ -236,6 +236,22 @@ public static class MovimientosEndpoints
                 errores["fecha"] = ["Indicá la fecha del movimiento."];
             }
 
+            if (peticion.Nota is null)
+            {
+                // **Obligatoria sólo al editar, y por la misma razón que la fecha**: acá ausente
+                // significaría "sin nota", así que una edición que no la menciona borraría en
+                // silencio lo que la persona escribió.
+                //
+                // Se exige acá y no en `ValidacionDelMovimiento` porque es una regla de la EDICIÓN y
+                // no del movimiento: en el alta, ausente significa "sin nota" y eso es lo correcto.
+                // Es el mismo reparto que tiene `fecha`.
+                //
+                // Vaciar la nota sigue siendo posible y sigue siendo explícito: se manda la cadena
+                // vacía. Lo que no se acepta es OMITIRLA — que es lo que la revisión del PR #29
+                // encontró abierto, con pérdida silenciosa del dato.
+                errores["nota"] = ["Mandá la nota del movimiento, vacía si no tiene."];
+            }
+
             if (errores.Count > 0)
             {
                 return Results.ValidationProblem(errores);

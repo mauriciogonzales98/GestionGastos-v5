@@ -213,7 +213,7 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         // que se verifica es que la respuesta no la devuelva como null.
         using (var edicion = await cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{sinValor}", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota = (string?)null }))
+            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota = "" }))
         {
             Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
             using var json = JsonDocument.Parse(await edicion.Content.ReadAsStringAsync());
@@ -316,11 +316,16 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
     /// Éste es el criterio que obligó a que la nota sea obligatoria en la edición. Si ausente
     /// significara "la que ya tenía", vaciarla exigiría un valor centinela que el contrato tendría que
     /// inventar; si significara "sin nota", un cliente que no la manda borraría en silencio lo que la
-    /// persona escribió. Con el campo exigido, `null` y la cadena vacía son las dos la forma explícita
-    /// de pedir el vaciado, y omitirlo no es una opción.
+    /// persona escribió.
+    ///
+    /// **`null` ya no es una forma válida de vaciar**, y la revisión del PR #29 es el motivo: en JSON
+    /// no hay forma de distinguir "vino null" de "no vino", así que aceptarlo dejaba la omisión
+    /// indistinguible del vaciado y el campo quedaba exigido sólo de palabra. Vaciar es mandar la
+    /// cadena vacía — que es además lo que la API devuelve para un movimiento sin nota, así que se lee
+    /// y se escribe igual. El caso de `null` vive ahora en
+    /// <see cref="Omitir_La_Nota_En_La_Edicion_Se_Rechaza_Y_No_La_Borra_FR004"/>, exigiendo el rechazo.
     /// </summary>
     [Theory]
-    [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
     public async Task La_Edicion_Vacia_La_Nota_AC06(string? vacia)
@@ -421,6 +426,52 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         using var respuesta = await cliente.GetAsync(new Uri("/api/resumen", UriKind.Relative));
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         return await respuesta.Content.ReadAsStringAsync();
+    }
+
+    /// <summary>
+    /// **Omitir la nota en la edición se rechaza** (`FR-004`).
+    ///
+    /// Es el agujero que la revisión del PR #29 encontró abierto, y es exactamente el fallo que D-06
+    /// decía estar evitando: el contrato declara la nota obligatoria al editar, pero eso vivía sólo en
+    /// `tipos.ts`. Un cuerpo con `fecha` y sin `nota` deserializaba con `Nota = null`, pasaba la
+    /// validación y **borraba la nota en silencio con un 200**.
+    ///
+    /// El tipo de TypeScript protege al frontend de este proyecto y a nadie más: cualquier otro
+    /// cliente, o una regresión del propio frontend que dejara de mandar el campo, borraba lo que la
+    /// persona había escrito sin un solo aviso. Los tests de `AC-06` no lo veían porque prueban las
+    /// formas EXPLÍCITAS de vaciar —la cadena vacía y `null`—, y la omisión no es ninguna de las dos.
+    ///
+    /// Se exige de la misma forma que `fecha`, que es el precedente del proyecto para este caso: un
+    /// rechazo con la clave del campo, para que la pantalla pueda poner el mensaje al lado de su
+    /// control.
+    /// </summary>
+    [Fact]
+    public async Task Omitir_La_Nota_En_La_Edicion_Se_Rechaza_Y_No_La_Borra_FR004()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var id = await RegistrarAsync(cuenta.Cliente, "lo que la persona escribió");
+
+        // El cuerpo NO lleva la clave `nota`. Todo lo demás está completo, así que nada más puede
+        // provocar el rechazo: si esto pasara, pasaría por el camino equivocado.
+        using var edicion = await cuenta.Cliente.PutAsJsonAsync(
+            new Uri($"/api/movimientos/{id}", UriKind.Relative),
+            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, edicion.StatusCode);
+
+        using (var json = JsonDocument.Parse(await edicion.Content.ReadAsStringAsync()))
+        {
+            Assert.True(
+                json.RootElement.GetProperty("errors").TryGetProperty("nota", out _),
+                "El rechazo tiene que venir con la clave `nota`, como el de `fecha`, o la pantalla no " +
+                "puede poner el mensaje al lado de su control.");
+        }
+
+        // Y lo que importa de verdad: la nota sigue ahí.
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Equal("lo que la persona escribió", (await contexto.Movimientos.SingleAsync()).Nota);
     }
 
     /// <summary>Registra un gasto —con nota o sin ella— y devuelve su id.</summary>
