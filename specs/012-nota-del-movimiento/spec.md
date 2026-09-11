@@ -109,7 +109,8 @@ exactamente el contrabando que hay que no hacer.
   DEBE tratar `NULL` y `''` de la misma forma, y un test DEBE fijarlo. Sin ese test, dos movimientos
   que se ven idénticos en la pantalla pasan a ser distinguibles según cómo se guardaron, que es
   precisamente lo que `FR-005` no quiere. Queda como `FR-005`, `FR-011` y `AC-02`, con su costo
-  anotado en D12-08.
+  anotado en D12-08. **Revertido en la rama `014`**: el esquema sí elige una —la ausencia de valor—
+  y la cadena vacía pasa a ser irrepresentable (`FR-014`). Ver la nota de cierre al pie.
 - P: ¿El campo de la nota es una entrada de una sola línea o un área de texto de varias?
   → R: **Un área de texto de varias líneas.** Con 120 caracteres, ver la nota entera sin desplazar
   vale más que la comodidad de tipearla en una línea. Tres consecuencias, todas encodeadas y ninguna
@@ -420,14 +421,14 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
 | # | Qué queda sin hacer | Por qué | Quién lo hereda |
 |---|---|---|---|
 | D12-01 | **El desborde horizontal a 360 px verificado por medición real**, en un navegador, y con él los pasos a mano del quickstart | Es **D11-01** y arrastra **D10-09**. Esta feature agrega la séptima columna del listado, que es el caso más apretado que la tabla tuvo nunca, y lo verifica igual por **regla** y no por medición: jsdom no maqueta. La restricción de no agregar dependencias sigue cerrando la puerta a un runner de navegador | Quien decida que vale un runner de navegador en el CI |
-| D12-02 | **Revisar el techo de 50 ms de `003:AC-12`** | Es **D9-08**, **D10-04** y **D11-03**. El fallo ya tiene nombre desde la 011 —`RendimientoLimiteTests.El_P95_De_La_Comprobacion_Agrega_Menos_De_Cincuenta_Milisegundos_AC12`—: falla en la corrida completa bajo carga y pasa aislado. No hay nada más que averiguar, hay que decidir el techo, y decidirlo es una decisión de criterio que esta feature no tiene por qué tomar | El ticket que decida si ese techo sigue siendo el correcto |
+| D12-02 | ~~**Revisar el techo de 50 ms de `003:AC-12`**~~ — **SALDADA en la rama `013`** | Es **D9-08**, **D10-04** y **D11-03**. El fallo ya tiene nombre desde la 011 —`RendimientoLimiteTests.El_P95_De_La_Comprobacion_Agrega_Menos_De_Cincuenta_Milisegundos_AC12`—: falla en la corrida completa bajo carga y pasa aislado. No hay nada más que averiguar, hay que decidir el techo, y decidirlo es una decisión de criterio que esta feature no tiene por qué tomar | El ticket que decida si ese techo sigue siendo el correcto |
 | D12-03 | **Ponerle color a las barras del dashboard** | Es **D10-08** y **D11-04**. Sigue siendo una decisión de producto: D-04 de la 010 dejó todas las barras del mismo relleno a propósito, porque las categorías no se codifican por color | Nadie, salvo que producto lo pida |
 | D12-04 | **Buscar, filtrar, agrupar o totalizar por la nota**, y las **etiquetas reutilizables** que serían la forma correcta de hacerlo | Fuera de alcance explícito del PRD, y es *la* restricción que impide que la nota se vuelva una segunda taxonomía informal. Si aparece la necesidad real de totalizar por algo más fino que la categoría, se resuelve con un catálogo de etiquetas, no estirando la nota | Nadie. Necesita una decisión de producto y un ticket propio |
 | D12-05 | **Autocompletado o sugerencias** a partir de notas anteriores | Fuera de alcance explícito: sería la puerta de atrás a la misma taxonomía informal que `PRD:RF-33` evita | Nadie |
 | D12-06 | **Formato dentro de la nota** —negrita, saltos de línea con significado, enlaces que se puedan seguir— y **adjuntar comprobantes** al movimiento | Fuera de alcance explícito del PRD. El formato además chocaría de frente con `NFR-001`, que es el requisito que hace que la nota sea segura | Nadie |
 | D12-07 | **Modo oscuro, temas y cualquier preferencia visual configurable**, y la **auditoría completa de ARIA con lectores de pantalla concretos** | Son **D11-05** y **D11-06**, sin cambios: alcance que nadie pidió, y la dependencia con la que se haría está prohibida | Nadie |
 
-| D12-08 | **Una sola representación de "sin nota" garantizada por el esquema** | Decisión tomada en *Clarifications*: la columna admite tanto la ausencia de valor como la cadena vacía, y no se normaliza al escribir. El costo es que la invariante de `FR-005` pasa a depender de la lectura en vez del almacenamiento, y lo que la sostiene es `FR-011` con su test en lugar de una restricción. Es una deuda **aceptada a sabiendas, no un descuido**: queda anotada para que el día que aparezca un camino de lectura nuevo se sepa que hay una invariante que no se cumple sola | Quien decida normalizar al escribir, si alguna vez el test de `FR-011` resulta insuficiente |
+| D12-08 | ~~**Una sola representación de "sin nota" garantizada por el esquema**~~ — **SALDADA en la rama `014`** | Decisión tomada en *Clarifications*: la columna admite tanto la ausencia de valor como la cadena vacía, y no se normaliza al escribir. El costo es que la invariante de `FR-005` pasa a depender de la lectura en vez del almacenamiento, y lo que la sostiene es `FR-011` con su test en lugar de una restricción. Es una deuda **aceptada a sabiendas, no un descuido**: queda anotada para que el día que aparezca un camino de lectura nuevo se sepa que hay una invariante que no se cumple sola | Quien decida normalizar al escribir, si alguna vez el test de `FR-011` resulta insuficiente |
 
 ### Estado al cierre (2026-09-10)
 
@@ -436,13 +437,13 @@ Confirmado contra lo que la implementación realmente dejó, no contra lo que la
 | # | Estado | Qué cambió respecto de lo previsto |
 |---|---|---|
 | D12-01 | **Abierta** | Sin cambios en el fondo, pero **más chica**: de los cinco pasos a mano del quickstart, tres quedaron cubiertos por tests durante la implementación. Lo que sigue sin ejecutar son los 360 px medidos y el lector de pantalla — no hay navegador en el entorno |
-| D12-02 | **Abierta** | Sin cambios. El fallo apareció una vez en la corrida completa (87,6 ms contra un techo de 50) y pasó aislado y en la corrida siguiente. Es exactamente lo que D9-08 describe desde la feature 009 |
+| D12-02 | **Abierta** | Sin cambios. El fallo apareció una vez en la corrida completa (87,6 ms contra un techo de 50) y pasó aislado y en la corrida siguiente. Es exactamente lo que D9-08 describe desde la feature 009. **Saldada después, en la rama `013`**: ver la nota de cierre al pie |
 | D12-03 | **Abierta** | Sin cambios. Sigue siendo una decisión de producto |
 | D12-04 | **Abierta**, y ahora **verificada** | Era una intención escrita; ahora hay una barrera que la sostiene. `verificar-nota.sh` impide que el listado acote por la nota y que el resumen la agrupe. Lo que queda abierto es el catálogo de etiquetas, que necesita su propia decisión de producto |
 | D12-05 | **Abierta** | Sin cambios |
 | D12-06 | **Abierta** | Sin cambios, y con una precisión que la implementación agregó: los saltos de línea **sí** existen en el dato (`FR-012`) y no significan nada en la presentación. Darles significado sigue fuera de alcance |
 | D12-07 | **Abierta** | Absorbe además el paso 3 del quickstart, el del lector de pantalla |
-| D12-08 | **Abierta, y es la única que esta feature creó** | Sin cambios: el esquema admite dos representaciones de "sin nota" y lo que sostiene la invariante es `FR-011` con su test sobre las cuatro rutas. Se aceptó a sabiendas |
+| D12-08 | **Abierta, y es la única que esta feature creó** | Sin cambios: el esquema admite dos representaciones de "sin nota" y lo que sostiene la invariante es `FR-011` con su test sobre las cuatro rutas. Se aceptó a sabiendas. **Saldada después, en la rama `014`**: ver la nota de cierre al pie |
 
 **Ninguna deuda se descubrió durante la implementación**: las ocho estaban anotadas antes de escribir
 la primera línea. Lo que sí apareció fueron **tres errores propios**, corregidos y anotados donde
@@ -464,6 +465,31 @@ correspondía en vez de en esta tabla, porque no son deuda sino defectos que ya 
 descriptiva, que es el ticket entero).
 
 **Con esto el plan DISC-001 queda sin tickets pendientes.**
+
+### Cierre de D12-02 (2026-09-11, rama `013`)
+
+La deuda venía anotada desde la feature 009 y se reescribió cuatro veces sin que nadie la midiera.
+Medida, resultó que **el techo no era el problema y la premisa estaba al revés**:
+
+- **El techo de 50 ms no cambió.** Sigue siendo el de `PRD:NFR-02`. Lo que estaba mal era el
+  **estimador**: la distribución de lo que AC-12 mide es bimodal —un grupo de 5 a 9 ms y atascos
+  sueltos de 20 a 65 ms— y los 50 ms caen **adentro** de esa cola. Con n=100, el p95 es una sola
+  muestra ordenada parada justo en el borde entre los dos grupos, así que pasaba o fallaba según si
+  la tasa de atascos quedaba abajo o arriba del 5 %. AC-12 pasó a afirmarse sobre la **mediana**,
+  que es lo que AC-13 ya había hecho en la rama de `004` por un motivo emparentado.
+- **"Falla bajo carga y pasa aislado" era al revés.** Medido sobre 500 muestras por régimen: bajo
+  carga, 0 llegaron a 20 ms (p99 de 8,3 ms); aislado, 11 pasaron de 20 ms y 3 pasaron de 50 (p99 de
+  46 ms, máximo 64,3). Los atascos son de **máquina fría**, no de contención — los tests de base son
+  una sola colección y corren serializados, así que nada compite con la medición.
+- **El p95 no protegía la cota de la purga**, que era el único costo de cola que podía justificarlo.
+  Desarmada —sin el `LIMIT`, con 50.000 filas vencidas— las 50.000 se borran de una sola vez en la
+  primera llamada, que cae en el calentamiento, y las 100 muestras medidas salen normales.
+- **La mediana sabe fallar**, que es lo que el Principio V le exige a una barrera. Comprobado
+  desarmando `ix_intento_de_acceso_ultimo_fallo` con 150.000 filas: la mediana pasa de 5,0 ms a
+  80,5 ms —rojo— y vuelve al verde al restaurar el índice.
+
+El detalle completo, con los números, está en el ajuste de
+[`specs/003-limite-intentos/spec.md`](../003-limite-intentos/spec.md), que es donde vive el criterio.
 
 ### Cierre de D12-08 (2026-09-11, rama `014`)
 

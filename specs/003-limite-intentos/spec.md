@@ -42,9 +42,38 @@ que el Principio IV prohíbe.
 
 La mediana no pierde nada de lo que hay que atrapar: el fallo que ese test existe para ver es una
 diferencia sistemática de ~120 ms, y sobre esa señal la mediana es más sensible que el p95.
-Comprobado desarmando la verificación del hash del camino bloqueado: 2 ms contra 118 ms. **AC-12
-sigue midiéndose con percentil 95**, porque ahí se mide un solo camino contra sí mismo y no hay dos
-series que comparar. El cambio se hizo en la rama de `004`.
+Comprobado desarmando la verificación del hash del camino bloqueado: 2 ms contra 118 ms. El cambio
+se hizo en la rama de `004`.
+
+**AC-12 también se mide con la mediana, desde la rama de `013`.** Hasta ahí seguía con percentil 95,
+con este argumento: "ahí se mide un solo camino contra sí mismo y no hay dos series que comparar".
+El argumento explica por qué el arreglo de AC-13 no se le podía copiar, pero no establece que un p95
+a 50 ms mida algo — y medido, no medía. Al no haber dos series, el entorno no se cancela por ningún
+lado, así que el camino único queda **más** expuesto al ruido, no menos.
+
+Lo que se midió, sobre 1000 muestras en dos regímenes: la distribución es **bimodal** —un grupo de 5
+a 9 ms y atascos sueltos de 20 a 65 ms— y los 50 ms del criterio caen **adentro** de esa cola, no por
+encima. Con n=100 el p95 es una sola muestra ordenada, la nº 95, justo en el borde entre los dos
+grupos: pasa o falla según si la tasa de atascos quedó abajo o arriba del 5 %.
+
+**Y la premisa con la que la deuda se venía anotando desde `009` era al revés.** Decía "falla en la
+corrida completa bajo carga y pasa aislado". Medido: bajo carga, 0 de 500 muestras llegaron a 20 ms
+(p99 de 8,3 ms, máximo 16,9); aislado, 11 de 500 pasaron de 20 ms y 3 pasaron de 50 (p99 de 46 ms,
+máximo 64,3). Los atascos son de **máquina fría, no de contención**: los tests de base son una sola
+colección y corren serializados, así que nada compite con esa medición; lo que la corrida completa
+aporta es una máquina caliente, y eso la hace más limpia.
+
+El p95 no estaba protegiendo ninguna cola del código. El único costo de cola candidato era la purga
+sin su cota, y está comprobado que el p95 tampoco lo veía: desarmada —sin el `LIMIT`, con 50.000
+filas vencidas— las 50.000 se borran de una sola vez en la primera llamada, que cae en el
+calentamiento, y las 100 muestras medidas salen normales (mediana 5,0 ms, p95 13,0 ms). Lo que sí
+hay que atrapar es una regresión **sistemática**, y sobre esa señal la mediana es más sensible.
+Comprobado desarmando el índice que usa la purga (`ix_intento_de_acceso_ultimo_fallo`) con 150.000
+filas en la tabla: la mediana pasa de 5,0 ms a 80,5 ms —rojo— y vuelve al verde al restaurarlo.
+
+**El techo de 50 ms no cambió**: sigue siendo el de NFR-02. Lo que cambió es el estimador. Con esto
+se salda la deuda D12-02, que venía abierta desde `009` como D9-08 y volvió a anotarse en `010`,
+`011` y `012` sin que nadie la midiera.
 
 **La ventana de 15 minutos no se verifica esperando 15 minutos.** El Principio IV de la constitución
 prohíbe tests que dependan del reloj real, y `002` ya resolvió lo mismo para la expiración de la
@@ -108,8 +137,9 @@ se rechaza, incluso presentando la contraseña correcta.
 7. **Given** un email dentro de su ventana de bloqueo, **When** la aplicación se reinicia, **Then**
    se lo sigue rechazando hasta que se cumplan los 15 minutos (AC-11).
 8. **Given** el inicio de sesión con la comprobación del límite activa, **When** se lo compara con
-   el mismo inicio de sesión sin ella sobre 100 ejecuciones, **Then** la diferencia en el percentil
-   95 es de a lo sumo 50 ms (AC-12).
+   el mismo inicio de sesión sin ella sobre 100 ejecuciones, **Then** la diferencia en la
+   **mediana** es de a lo sumo 50 ms (AC-12). El PRD dice "percentil 95"; por qué se mide con la
+   mediana está en el ajuste de más arriba.
 
 ---
 
@@ -207,7 +237,7 @@ respuestas —mensaje, código y tiempo— entre sí y contra la de una contrase
   email durante los 15 minutos de la ventana, incluso si la aplicación se reinicia dentro de ese
   lapso.
 - **FR-008** *(PRD NFR-02)*: El sistema MUST agregar a lo sumo 50 ms al tiempo de respuesta del
-  inicio de sesión, en el percentil 95, por comprobar el límite.
+  inicio de sesión, en la **mediana**, por comprobar el límite.
 - **FR-009** *(PRD NFR-03)*: El sistema MUST tardar lo mismo —dentro de 50 ms en la **mediana**— en
   rechazar un intento sobre un email bloqueado que uno con credenciales incorrectas sobre un email
   no bloqueado, de modo que el cronómetro no distinga un caso del otro.
@@ -233,8 +263,8 @@ respuestas —mensaje, código y tiempo— entre sí y contra la de una contrase
   indistinguibles en mensaje y en código, esté el email registrado o no.
 - **SC-004**: La diferencia de tiempo entre un rechazo por límite y un rechazo por credenciales
   incorrectas es de a lo sumo 50 ms en la **mediana** sobre 100 ejecuciones, y comprobar el límite
-  agrega a lo sumo otros 50 ms en el percentil 95 al inicio de sesión. Los dos estadísticos son
-  distintos a propósito: ver el ajuste de más abajo.
+  agrega a lo sumo otros 50 ms, también en la **mediana**, al inicio de sesión. El PRD pide
+  percentil 95 para los dos: ver el ajuste de más abajo.
 - **SC-005**: El 100 % de los bloqueos vigentes siguen vigentes después de reiniciar la aplicación,
   hasta que se cumplan sus 15 minutos.
 - **SC-006**: Un bloqueo sobre un email no afecta a ningún otro email: el 100 % de los intentos

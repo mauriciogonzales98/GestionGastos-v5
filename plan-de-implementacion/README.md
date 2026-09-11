@@ -68,6 +68,15 @@ saldaba se le apuntaba a "el próximo ticket". Con el plan terminado **ya no hay
 que las que sigan abiertas necesitan que alguien decida hacerlas — no van a caer solas dentro de otra
 feature.
 
+### Trabajo posterior al plan
+
+Deudas saldadas por decisión, ya sin ticket que las arrastre. Van acá porque no son features y no
+entran en la tabla de arriba.
+
+| Rama | Deuda | Qué se decidió |
+|------|-------|----------------|
+| `013` | **D12-02** — el techo de 50 ms de `003:AC-12`, abierta desde la feature 009 como D9-08 y reanotada en la 010, la 011 y la 012 | Medida, resultó que **el techo no era el problema**: los 50 ms de `PRD:NFR-02` quedan igual y lo que cambió es el **estimador**, de percentil 95 a mediana. La distribución es bimodal y los 50 ms caen adentro de su cola, así que el p95 sobre n=100 pasaba o fallaba según la tasa de atascos. Además **la premisa estaba al revés** —los atascos son de máquina fría, no de contención: bajo carga 0 de 500 muestras llegaron a 20 ms, aislado 11— y el p95 **no** protegía la cota de la purga, que era lo único que podía justificarlo. El detalle está en el ajuste de [`specs/003-limite-intentos/spec.md`](../specs/003-limite-intentos/spec.md) |
+
 **El ticket 4b dejó dos cosas sin construir, y están anotadas.** La barra de filtros de categoría y
 fecha y la interfaz de eliminación —la mitad de frontend de FEAT-001b, que salió como feature de
 backend— quedaron para el ticket 6; la vista de totales, para el ticket 5. El criterio con el que se
