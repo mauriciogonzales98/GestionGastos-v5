@@ -32,7 +32,7 @@ verifica la suite.
 > | 1 · Los 360 px medidos de verdad | **Sin ejecutar** → **D12-01** |
 > | 2 · El camino rápido con un solo Tab más | **Cubierto**: `TecladoFormulario.test.tsx` enumera el orden de tabulación y ahora incluye el control nuevo entre la fecha y el botón |
 > | 3 · El campo con un lector de pantalla | **Sin ejecutar** → **D12-07**. Los tests verifican que la tripleta esté armada; que se *escuche* bien no lo pueden verificar |
-> | 4 · Un movimiento de antes de la migración | **Cubierto**, y mejor que a mano: `Las_Cuatro_Rutas_No_Distinguen_Las_Dos_Formas_De_Sin_Nota_FR011` escribe la fila sin valor con SQL —que es lo que un movimiento previo a la migración tiene— y exige que las cuatro rutas devuelvan lo mismo |
+> | 4 · Un movimiento de antes de la migración | **Cubierto**, y mejor que a mano: `Las_Cuatro_Rutas_Devuelven_La_Cadena_Vacia_Sin_Nota_FR011` escribe la fila sin valor con SQL —que es lo que un movimiento previo a la migración tiene— y exige que las cuatro rutas devuelvan la cadena vacía |
 > | 5 · Los saltos de línea de ida y vuelta | **Cubierto**: un test en el listado y otro en la ventana de edición |
 >
 > Quedan dos, y los dos son los que necesitan ojos o un lector de pantalla de verdad. Es lo que
