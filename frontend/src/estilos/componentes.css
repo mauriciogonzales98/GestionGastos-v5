@@ -41,6 +41,14 @@
 }
 
 /*
+ * La aclaración de que el resumen y el listado no están hablando de lo mismo (D6-06). Sin color
+ * propio: no es un error ni un estado, es una precisión sobre lo que se está mirando.
+ */
+.c-resumen__aviso {
+  margin: 0;
+}
+
+/*
  * Los totales de UNA moneda. Se enmarca cada una por separado y a propósito: dos monedas son dos
  * universos separados y nada se suma nunca a través de ellos (`PRD:RF-29`). Que se vean como dos
  * bloques y no como una lista continua es esa regla dicha en la maquetación.

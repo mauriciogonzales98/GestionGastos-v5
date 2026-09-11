@@ -497,3 +497,87 @@ describe('PantallaMovimientos — la carrera del resumen', () => {
     expect(screen.queryByText(/2020-01-31/)).not.toBeInTheDocument();
   });
 });
+
+/**
+ * D6-06 · el resumen y el listado pueden estar hablando de cosas distintas, y la pantalla lo dice.
+ *
+ * El resumen es del **mes completo** por decisión declarada en
+ * `specs/006-resumen-del-mes/contracts/resumen.md`: `GET /api/resumen` no acepta `categoriaId` y el
+ * de esta pantalla nunca pide un período. El listado sí se acota. Sin aviso, la misma pantalla
+ * muestra dos cifras que se contradicen y quien mira no tiene cómo saber cuál es cuál.
+ *
+ * **El aviso mira lo aplicado contra lo que el resumen cubre, y no si alguien tocó el botón.** Es la
+ * diferencia que decide todo: la barra viene sembrada con el mes en curso, así que "Aplicar" sin
+ * cambiar nada manda un rango que coincide con el del resumen. Un aviso atado al botón mentiría ahí.
+ */
+describe('PantallaMovimientos — el aviso de que el listado está acotado D6-06', () => {
+  const AVISO = /este resumen es de todo el mes/i;
+
+  it('al entrar, sin nada acotado, no avisa nada', async () => {
+    await renderizar();
+
+    expect(screen.queryByText(AVISO)).not.toBeInTheDocument();
+  });
+
+  it('acotar por categoría hace aparecer el aviso', async () => {
+    const usuario = userEvent.setup();
+    await renderizar();
+
+    await usuario.selectOptions(screen.getByLabelText('Acotar por categoría'), '1');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+    expect(await screen.findByText(AVISO)).toBeVisible();
+  });
+
+  it('acotar por moneda hace aparecer el aviso', async () => {
+    const usuario = userEvent.setup();
+    await renderizar();
+
+    await usuario.selectOptions(screen.getByLabelText('Acotar por moneda'), '2');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+    expect(await screen.findByText(AVISO)).toBeVisible();
+  });
+
+  /**
+   * El caso que separa "se aplicó" de "acota de verdad". La barra arranca con el período del
+   * resumen, así que aplicar sin tocar nada pide exactamente el mes que el resumen ya cuenta: las
+   * dos vistas coinciden y no hay nada que aclarar.
+   */
+  it('aplicar sin cambiar nada NO avisa: el listado y el resumen cuentan lo mismo', async () => {
+    const usuario = userEvent.setup();
+    await renderizar();
+
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+    await waitFor(() => expect(vi.mocked(cliente.obtenerMovimientos)).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(AVISO)).not.toBeInTheDocument();
+  });
+
+  it('un rango distinto del que cuenta el resumen hace aparecer el aviso', async () => {
+    const usuario = userEvent.setup();
+    await renderizar();
+
+    // Un día después del `desde` del resumen: alcanza con que el período no sea el mismo.
+    await usuario.clear(screen.getByLabelText('Desde'));
+    await usuario.type(screen.getByLabelText('Desde'), '2026-09-02');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+    expect(await screen.findByText(AVISO)).toBeVisible();
+  });
+
+  it('volver a "todas" hace desaparecer el aviso', async () => {
+    const usuario = userEvent.setup();
+    await renderizar();
+
+    const categoria = screen.getByLabelText('Acotar por categoría');
+    await usuario.selectOptions(categoria, '1');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
+    expect(await screen.findByText(AVISO)).toBeVisible();
+
+    await usuario.selectOptions(categoria, '');
+    await usuario.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+    await waitFor(() => expect(screen.queryByText(AVISO)).not.toBeInTheDocument());
+  });
+});

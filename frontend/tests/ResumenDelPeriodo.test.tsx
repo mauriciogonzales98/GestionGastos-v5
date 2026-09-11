@@ -151,3 +151,30 @@ describe('ResumenDelPeriodo — la escala del monto FR-019', () => {
     }
   });
 });
+
+/**
+ * D6-06 · el resumen dice cuándo NO está hablando de lo mismo que el listado.
+ *
+ * El aviso llega como texto desde la pantalla y no se arma acá adentro, y es a propósito: este
+ * componente lo usan las dos pantallas y el dashboard **no tiene ningún listado debajo**. Decidir
+ * qué decir es de quien tiene el acotado; decidir dónde va, de acá.
+ */
+describe('ResumenDelPeriodo — el aviso de que el listado está acotado D6-06', () => {
+  it('sin aviso que mostrar, no muestra ninguno', () => {
+    render(<ResumenDelPeriodo resumen={RESUMEN} />);
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('muestra el aviso que le pasan, dentro del resumen y sin ser un error', () => {
+    render(<ResumenDelPeriodo resumen={RESUMEN} aviso="El listado de abajo está acotado." />);
+
+    const resumen = screen.getByRole('region', { name: 'Resumen del mes' });
+
+    expect(within(resumen).getByRole('status')).toHaveTextContent(
+      'El listado de abajo está acotado.',
+    );
+    // No es un fallo: no hay nada roto ni nada que reparar, así que no interrumpe a nadie.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});

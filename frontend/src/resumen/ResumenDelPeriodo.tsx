@@ -14,6 +14,15 @@ export interface PropsResumenDelPeriodo {
    * (`FR-019`). Opcional: sin él se cae en lo que `Intl` deduzca del código ISO.
    */
   monedas?: Moneda[];
+  /**
+   * Lo que hay que aclarar sobre de qué habla este resumen, o nada.
+   *
+   * **Llega como texto y no se arma acá adentro** (D6-06). El caso que lo motiva es el acotado del
+   * listado de la pantalla principal, y este componente lo usa también el dashboard, que no tiene
+   * ningún listado debajo: decidir *qué* aclarar es de quien tiene el acotado, y lo único que se
+   * decide acá es dónde va.
+   */
+  aviso?: string;
 }
 
 /**
@@ -31,6 +40,7 @@ export function ResumenDelPeriodo({
   resumen,
   titulo = 'Resumen del mes',
   monedas,
+  aviso,
 }: PropsResumenDelPeriodo) {
   return (
     <section className="l-pila c-resumen" aria-label={titulo}>
@@ -38,6 +48,15 @@ export function ResumenDelPeriodo({
       <p>
         Del {resumen.desde} al {resumen.hasta}
       </p>
+
+      {/* `role="status"` y no `alert`: nada está roto y no hay nada que reparar. Aparece en
+          respuesta a algo que la persona acaba de hacer —acotar el listado— y se anuncia sin
+          interrumpirla, que es el mismo criterio que usa la confirmación del alta. */}
+      {aviso ? (
+        <p role="status" className="c-resumen__aviso">
+          {aviso}
+        </p>
+      ) : null}
 
       {/* **Sin ninguna moneda que mostrar, se dice.**
           
