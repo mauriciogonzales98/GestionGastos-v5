@@ -342,6 +342,19 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// nada que las obligara a seguir estándolo. Se mudaron al canal antes de que este test pasara
     /// a verde, que es la salida que la barrera de movimientos viene predicando desde FEAT-001b:
     /// se agrega el método al canal, no la excepción a la barrera.
+    ///
+    /// **Lo que este escaneo NO ve, dicho para que nadie le confíe de más** (hallazgo 2 de la
+    /// revisión del PR #35): las lecturas por **propiedad de navegación**.
+    /// <c>MovimientosConsulta</c> proyecta <c>m.Categoria!.Nombre</c>, que es un JOIN contra
+    /// <c>categoria</c> y llega a filas de esa tabla sin pasar por <c>CategoriasConsulta</c>; el
+    /// regex mira <c>.Categorias</c> en plural y no puede verlo. **Hoy es seguro y no por
+    /// casualidad**: esa consulta ya viene acotada por <c>usuario_id</c> sobre movimientos, así que
+    /// sólo alcanza las categorías que los movimientos propios referencian. Pero eso vale mientras
+    /// ningún movimiento pueda apuntar a una categoría ajena, y esa invariante la sostienen las dos
+    /// comprobaciones de <c>MovimientosEndpoints</c> —con su test cruzado
+    /// <c>Un_Movimiento_No_Puede_Apuntar_A_Una_Categoria_Ajena_FR021_SC009</c>— y **ninguna
+    /// restricción de esquema**. Ensanchar el escaneo a las navegaciones sería perseguir la vía
+    /// equivocada: lo que protege ese flanco es la invariante, no el canal.
     /// </summary>
     [Fact]
     public void Ninguna_Lectura_De_Categorias_Vive_Fuera_Del_Canal()
