@@ -1,3 +1,4 @@
+using GestionGastos.Api.Categorias;
 using GestionGastos.Api.Dominio;
 using GestionGastos.Api.Persistencia;
 using Microsoft.EntityFrameworkCore;
@@ -31,11 +32,15 @@ public static class MovimientosEndpoints
             //
             // No se distingue "no existe" de "no es tuya": la respuesta es la misma, para no
             // confirmar la existencia de una categoría ajena.
+            //
+            // **El ámbito lo pone el canal y no esta línea** (D7-05). Hasta acá el predicado del
+            // ámbito venía escrito a mano, y estaba bien escrito: lo que faltaba era que algo lo
+            // obligara a seguir estándolo. Lo que queda acá es lo que sí es de este endpoint —que
+            // la categoría esté activa—, y el aislamiento se hereda en vez de repetirse.
             var categoria = peticion.CategoriaId is { } id
-                ? await contexto.Categorias.FirstOrDefaultAsync(c =>
-                    c.Id == id
-                    && (c.UsuarioId == null || c.UsuarioId == usuarioActual.Id)
-                    && c.Activa)
+                ? await CategoriasConsulta
+                    .DelAmbitoPorId(contexto, usuarioActual.Id, id)
+                    .FirstOrDefaultAsync(c => c.Activa)
                 : null;
 
             // La moneda: la elegida, o la predeterminada del catálogo si no se eligió ninguna
@@ -211,11 +216,12 @@ public static class MovimientosEndpoints
             // (D-04): eso dejaría MOVER un movimiento a cualquier categoría apagada, que es
             // clasificarlo de nuevo con algo que ya no se ofrece. Lo que se admite es conservar,
             // no elegir.
+            //
+            // El ámbito sale del canal, igual que en el alta (D7-05).
             var categoria = peticion.CategoriaId is { } categoriaId
-                ? await contexto.Categorias.FirstOrDefaultAsync(c =>
-                    c.Id == categoriaId
-                    && (c.UsuarioId == null || c.UsuarioId == usuarioActual.Id)
-                    && (c.Activa || c.Id == movimiento.CategoriaId))
+                ? await CategoriasConsulta
+                    .DelAmbitoPorId(contexto, usuarioActual.Id, categoriaId)
+                    .FirstOrDefaultAsync(c => c.Activa || c.Id == movimiento.CategoriaId)
                 : null;
 
             // La moneda pedida, si se pidió alguna. **Ausente NO es la predeterminada acá**: es

@@ -397,8 +397,41 @@ tabla de las features 004 y 006.
 | D7-02 | **La pantalla de edición de un movimiento**, que también consume el catálogo | Igual que D7-01: la edición existe en el backend desde 005 y en la pantalla no | Ticket 6 |
 | D7-03 | **Reasignar los movimientos de una categoría dada de baja** a otra | Fuera de alcance explícito del PRD: la baja lógica existe precisamente para no tocarlos | Nadie |
 | D7-04 | **Restaurar una categoría dada de baja** | Fuera de alcance explícito del PRD; AC-09 fija que el camino es crear una nueva | Nadie |
-| D7-05 | **La barrera del canal de categorías vigila el CANAL, no quién lo esquiva.** `BarreraDeAislamientoTests` enumera por reflexión los métodos públicos de `CategoriasConsulta` y le exige `usuario_id` a cada uno, pero **no** hay un escaneo de archivos que impida que alguien lea `contexto.Categorias` fuera del canal, como sí existe para movimientos | El alcance de la tarea que la escribió eran los métodos del canal, y ensancharla a mitad de camino habría sido escribir sin haber visto el rojo de esa otra vía. Hoy no hay ninguna lectura de categorías fuera del canal, así que la barrera está en pie: lo que falta es lo que la protegería de la lectura que alguien escriba el mes que viene | El primer ticket que agregue una lectura de categorías. `verificar-aislamiento.sh` ya tiene la forma —su paso 3/9 hace exactamente eso para movimientos— así que es agregar una mitad conocida, no inventarla |
+| ~~D7-05~~ | ~~**La barrera del canal de categorías vigila el CANAL, no quién lo esquiva.**~~ | **SALDADA** en la rama `017` (2026-09-11), y **su enunciado estaba equivocado en el hecho que lo sostenía**. Ver abajo | — |
 | D7-06 | **La pantalla de categorías no tiene estilos propios.** Reusa las clases de layout (`l-pila`, `l-fila`, `l-cabecera`) y nada más: la lista es un `<ul>` sin maquetar | Ticket 6 es el de maquetación y accesibilidad, y adelantarle decisiones visuales acá sería trabajo que ese ticket va a rehacer. Lo que sí está resuelto es lo que no es cosmético: la fila tiene nombre accesible, los errores van con `role="alert"` al lado de su campo, y la pantalla se recorre con teclado | Ticket 6 (Maquetación) |
+
+#### Cómo se saldó D7-05
+
+La deuda decía: *"Hoy no hay ninguna lectura de categorías fuera del canal, así que la barrera está
+en pie: lo que falta es lo que la protegería de la lectura que alguien escriba el mes que viene."*
+
+**Había dos**, las dos en `Movimientos/MovimientosEndpoints.cs`: la que busca la categoría al dar de
+alta un movimiento y la que la busca al editarlo. Las dos existían desde antes de que la deuda se
+escribiera. Lo que la deuda daba por un riesgo futuro ya era presente, y nadie lo había notado
+porque **no había nada que lo notara** — que es exactamente lo que la deuda describía y no lo que
+creía estar describiendo.
+
+**No había ningún dato expuesto**, y conviene decirlo con precisión: las dos lecturas llevaban el
+acotado por ámbito escrito a mano —`c.UsuarioId == null || c.UsuarioId == usuarioActual.Id`— y
+estaban bien escritas. Lo que faltaba no era la condición sino la **obligación**: nada impedía que
+la tercera naciera sin ella.
+
+**Se mudaron al canal antes de que el test pasara a verde**, con `CategoriasConsulta.DelAmbitoPorId`,
+que ya existía y hacía exactamente eso. En el endpoint quedó sólo lo que sí es suyo —que la
+categoría esté activa, y en la edición la excepción de `FR-023`—, y el ámbito se hereda por
+construcción. Es la salida que la barrera de movimientos viene predicando desde FEAT-001b: *se
+agrega el método al canal, no la excepción a la barrera.*
+
+**El rojo se vio, y no fue ceremonial.** El escaneo se escribió primero y falló nombrando a
+`MovimientosEndpoints.cs`, con las dos lecturas de verdad. No hizo falta fabricar un infractor para
+comprobar que la barrera mira: había uno.
+
+**Y la barrera sabe fallar.** `verificar-aislamiento.sh` pasó de nueve pasos a diez: el 8/10 cuela
+una lectura de categorías fuera del canal y exige el rojo. Sin ese paso, el escaneo nuevo sería una
+barrera más que nadie vio caerse.
+
+Lo que queda vigilado ahora son **dos** tablas por **dos** vías cada una: que las consultas del canal
+acoten, y que nadie lea por afuera.
 
 ---
 
