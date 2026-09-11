@@ -17,7 +17,10 @@ namespace GestionGastos.Api.Tests.Integracion;
 /// no saben que existe—, y ése es el descuido que va a pasar el día que alguien agregue el séptimo
 /// endpoint.
 ///
-/// Por eso hay dos tests y no uno: el primero vigila la condición, el segundo vigila el canal.
+/// Por eso no hay un test sino dos por tabla: uno vigila la condición —que las consultas del canal
+/// acoten— y otro vigila el canal —que nadie lea por afuera—. Las categorías tuvieron sólo el
+/// primero desde la feature 007 hasta que se saldó D7-05, y esa mitad que faltaba es la que
+/// protege lo que todavía no se escribió.
 /// Y por eso existe `backend/verificar-aislamiento.sh`, que le prueba a esta barrera que sabe
 /// ponerse en rojo — una barrera que nunca se vio fallar no es una barrera (Principio V).
 /// </summary>
@@ -48,7 +51,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// adentro compilaba y dejaba la barrera en 4/4 verde. No era un error de quien la escribió:
     /// era una condición que caducó cuando cambió lo que este archivo hace.
     ///
-    /// `verificar-aislamiento.sh` tiene el paso 4/7 que le prueba el rojo por esta vía.
+    /// `verificar-aislamiento.sh` tiene el paso 4/10 que le prueba el rojo por esta vía.
     /// </summary>
     private const string EscrituraDeclarada = "Movimientos/MovimientosEndpoints.cs";
 
@@ -60,6 +63,27 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// exactamente el agujero que se cerró.
     /// </summary>
     private static readonly string[] EscriturasPermitidas = ["Add", "Update", "Remove"];
+
+    /// <summary>
+    /// El único archivo de producción que puede LEER <c>contexto.Categorias</c>.
+    ///
+    /// Llega con la deuda D7-05 de la feature 007, que dejó a las categorías con **media** barrera:
+    /// se vigilaba que las consultas del canal acotaran, y no que alguien leyera por fuera de él.
+    /// </summary>
+    private const string CanalDeCategorias = "Categorias/CategoriasConsulta.cs";
+
+    /// <summary>
+    /// El archivo donde las ESCRITURAS de categorías son legítimas.
+    ///
+    /// Sólo <c>Add</c>, y no por prudencia: el renombre y la baja trabajan sobre una entidad que ya
+    /// vino acotada del canal y se guardan con <c>SaveChangesAsync</c>, así que no tocan el
+    /// <c>DbSet</c>. Nombrar las tres operaciones acá cuando sólo se usa una sería declarar un
+    /// permiso que nadie pidió.
+    /// </summary>
+    private const string EscrituraDeCategoriasDeclarada = "Categorias/CategoriasEndpoints.cs";
+
+    /// <summary>Lo único que <see cref="EscrituraDeCategoriasDeclarada"/> puede hacer con el DbSet.</summary>
+    private static readonly string[] EscriturasDeCategoriasPermitidas = ["Add"];
 
     /// <summary>
     /// Donde el <c>DbSet</c> se DECLARA, que no es lo mismo que leerlo.
@@ -140,7 +164,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// que la barrera no sabe inspeccionar es una consulta que la barrera no está mirando, y eso se
     /// grita, no se omite.
     ///
-    /// `verificar-aislamiento.sh` tiene los pasos 5/8 y 6/8 que le prueban el rojo por estas dos
+    /// `verificar-aislamiento.sh` tiene los pasos 5/10 y 6/10 que le prueban el rojo por estas dos
     /// vías: la que sale sin ejecutar y la que ejecuta adentro.
     /// </summary>
     [Fact]
@@ -199,7 +223,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// 4/4 verde. No era un descuido de quien la escribió — era una condición que nunca había
     /// tenido que existir.
     ///
-    /// `verificar-aislamiento.sh` tiene el paso 7/8 que le prueba el rojo por esta vía.
+    /// `verificar-aislamiento.sh` tiene el paso 7/10 que le prueba el rojo por esta vía.
     /// </summary>
     [Fact]
     public void Todas_Las_Consultas_Del_Canal_De_Categorias_Acotan_Por_Ambito()
@@ -280,19 +304,8 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     [Fact]
     public void Ninguna_Lectura_De_Movimientos_Vive_Fuera_Del_Canal()
     {
-        var raiz = RaizDelProyectoDeProduccion();
-
-        var infractores = Directory
-            .EnumerateFiles(raiz, "*.cs", SearchOption.AllDirectories)
-            .Where(archivo => !EstaEnMigraciones(raiz, archivo))
-            .Where(archivo => !EsRutaDeclarada(raiz, archivo))
-            .Where(archivo => UsaElDbSetDeMovimientos(
-                EsLaEscrituraDeclarada(raiz, archivo)
-                    ? SinLasEscriturasPermitidas(File.ReadAllText(archivo))
-                    : File.ReadAllText(archivo)))
-            .Select(archivo => Path.GetRelativePath(raiz, archivo).Replace('\\', '/'))
-            .Order(StringComparer.Ordinal)
-            .ToList();
+        var infractores = LecturasFueraDelCanal(
+            "Movimientos", "Movimiento", CanalDeLectura, EscrituraDeclarada, EscriturasPermitidas);
 
         Assert.True(
             infractores.Count == 0,
@@ -314,18 +327,116 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// verde por vacuidad: sin archivos que lo usen, no hay infractores.
     /// </summary>
     [Fact]
-    public void El_Canal_De_Lectura_Existe_Y_Se_Usa()
+    public void El_Canal_De_Lectura_Existe_Y_Se_Usa() =>
+        ExigirQueElCanalExistaYSeUse("Movimientos", "Movimiento", CanalDeLectura);
+
+    /// <summary>
+    /// Ningún archivo de producción lee <c>contexto.Categorias</c> fuera del canal único.
+    ///
+    /// **Es la mitad que faltaba, y la deuda D7-05 la daba por inofensiva.** Su texto decía que hoy
+    /// no había ninguna lectura de categorías fuera del canal, así que lo único que faltaba era
+    /// proteger lo que alguien escribiera el mes que viene. Había **dos**, las dos en
+    /// <c>Movimientos/MovimientosEndpoints.cs</c>: la que busca la categoría al dar de alta un
+    /// movimiento y la que la busca al editarlo. Estaban bien acotadas —las dos llevaban
+    /// <c>usuario_id</c> escrito a mano— así que no había ningún dato expuesto; lo que no había era
+    /// nada que las obligara a seguir estándolo. Se mudaron al canal antes de que este test pasara
+    /// a verde, que es la salida que la barrera de movimientos viene predicando desde FEAT-001b:
+    /// se agrega el método al canal, no la excepción a la barrera.
+    ///
+    /// **Lo que este escaneo NO ve, dicho para que nadie le confíe de más** (hallazgo 2 de la
+    /// revisión del PR #35): las lecturas por **propiedad de navegación**.
+    /// <c>MovimientosConsulta</c> proyecta <c>m.Categoria!.Nombre</c>, que es un JOIN contra
+    /// <c>categoria</c> y llega a filas de esa tabla sin pasar por <c>CategoriasConsulta</c>; el
+    /// regex mira <c>.Categorias</c> en plural y no puede verlo. **Hoy es seguro y no por
+    /// casualidad**: esa consulta ya viene acotada por <c>usuario_id</c> sobre movimientos, así que
+    /// sólo alcanza las categorías que los movimientos propios referencian. Pero eso vale mientras
+    /// ningún movimiento pueda apuntar a una categoría ajena, y esa invariante la sostienen las dos
+    /// comprobaciones de <c>MovimientosEndpoints</c> —con su test cruzado
+    /// <c>Un_Movimiento_No_Puede_Apuntar_A_Una_Categoria_Ajena_FR021_SC009</c>— y **ninguna
+    /// restricción de esquema**. Ensanchar el escaneo a las navegaciones sería perseguir la vía
+    /// equivocada: lo que protege ese flanco es la invariante, no el canal.
+    /// </summary>
+    [Fact]
+    public void Ninguna_Lectura_De_Categorias_Vive_Fuera_Del_Canal()
     {
-        var canal = Path.Combine(RaizDelProyectoDeProduccion(), CanalDeLectura);
+        var infractores = LecturasFueraDelCanal(
+            "Categorias",
+            "Categoria",
+            CanalDeCategorias,
+            EscrituraDeCategoriasDeclarada,
+            EscriturasDeCategoriasPermitidas);
 
         Assert.True(
-            File.Exists(canal),
-            $"No existe `{CanalDeLectura}`. La barrera del canal quedaría en verde sin vigilar nada.");
+            infractores.Count == 0,
+            "Estos archivos LEEN `contexto.Categorias` fuera del canal único " +
+            $"(`{CanalDeCategorias}`):\n  " +
+            string.Join("\n  ", infractores) +
+            "\n\nUna lectura de categorías que no pase por el canal es una que nadie está " +
+            "mirando, y el acotado por ámbito se olvida escribiéndola: `contexto.Categorias` sin " +
+            "condición devuelve también las privadas de las demás cuentas. La salida es agregar el " +
+            "método a `CategoriasConsulta`, no sumar una excepción acá.\n\n" +
+            $"`{EscrituraDeCategoriasDeclarada}` puede ESCRIBIR categorías —" +
+            string.Join(", ", EscriturasDeCategoriasPermitidas.Select(o => $"`.Categorias.{o}(`")) +
+            "— y nada más. Si aparece ahí, es porque lee.");
+    }
+
+    /// <summary>El canal de categorías sigue existiendo y sigue siendo el que se vigila.</summary>
+    [Fact]
+    public void El_Canal_De_Categorias_Existe_Y_Se_Usa() =>
+        ExigirQueElCanalExistaYSeUse("Categorias", "Categoria", CanalDeCategorias);
+
+    /// <summary>
+    /// Los archivos de producción que usan el <c>DbSet</c> indicado fuera de su canal.
+    ///
+    /// **Está parametrizado porque son dos vigilancias con la misma forma y distinto predicado**,
+    /// que es exactamente lo que ya pasaba con las dos comprobaciones por reflexión de más arriba.
+    /// Lo que cambia entre movimientos y categorías es qué DbSet se mira, cuál es su canal y qué
+    /// escrituras se le permiten al archivo que escribe; el recorrido y las exenciones
+    /// estructurales —`Migrations/`, la declaración del DbSet— son los mismos, y duplicarlos
+    /// dejaría dos copias que hay que acordarse de arreglar juntas.
+    /// </summary>
+    private static List<string> LecturasFueraDelCanal(
+        string dbSet,
+        string entidad,
+        string canal,
+        string escrituraDeclarada,
+        string[] escriturasPermitidas)
+    {
+        var raiz = RaizDelProyectoDeProduccion();
+
+        return [.. Directory
+            .EnumerateFiles(raiz, "*.cs", SearchOption.AllDirectories)
+            .Where(archivo => !EsCodigoGenerado(raiz, archivo))
+            .Where(archivo => Relativa(raiz, archivo) != canal)
+            .Where(archivo => Relativa(raiz, archivo) != DeclaracionDelDbSet)
+            .Where(archivo => UsaElDbSet(
+                Relativa(raiz, archivo) == escrituraDeclarada
+                    ? SinLasEscriturasPermitidas(File.ReadAllText(archivo), dbSet, escriturasPermitidas)
+                    : File.ReadAllText(archivo),
+                dbSet,
+                entidad))
+            .Select(archivo => Relativa(raiz, archivo))
+            .Order(StringComparer.Ordinal)];
+    }
+
+    /// <summary>
+    /// El canal existe y sigue leyendo su <c>DbSet</c>.
+    ///
+    /// Sin esto, borrar el canal y esparcir las consultas dejaría el escaneo en verde por vacuidad:
+    /// sin archivos que lo usen, no hay infractores.
+    /// </summary>
+    private static void ExigirQueElCanalExistaYSeUse(string dbSet, string entidad, string canal)
+    {
+        var ruta = Path.Combine(RaizDelProyectoDeProduccion(), canal);
 
         Assert.True(
-            UsaElDbSetDeMovimientos(File.ReadAllText(canal)),
-            $"`{CanalDeLectura}` ya no lee `contexto.Movimientos`: el canal se vació y las " +
-            "consultas se mudaron a algún lado que esta barrera no está mirando.");
+            File.Exists(ruta),
+            $"No existe `{canal}`. La barrera del canal quedaría en verde sin vigilar nada.");
+
+        Assert.True(
+            UsaElDbSet(File.ReadAllText(ruta), dbSet, entidad),
+            $"`{canal}` ya no lee `contexto.{dbSet}`: el canal se vació y las consultas se " +
+            "mudaron a algún lado que esta barrera no está mirando.");
     }
 
     /// <summary>
@@ -343,16 +454,16 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// <c>MovimientosConsulta</c> y <c>MapMovimientos()</c> no matchean por el <c>\b</c> y por el
     /// punto, respectivamente.
     /// </summary>
-    private static bool UsaElDbSetDeMovimientos(string codigo) =>
+    private static bool UsaElDbSet(string codigo, string dbSet, string entidad) =>
         Regex.IsMatch(
             codigo,
-            @"(?<!Api)\.\s*Movimientos\b|\bSet\s*<\s*Movimiento\s*>",
+            @"(?<!Api)\.\s*" + dbSet + @"\b|\bSet\s*<\s*" + entidad + @"\s*>",
             RegexOptions.None,
             TimeSpan.FromSeconds(5));
 
-    /// <summary><c>true</c> si el archivo es aquel donde las escrituras son legítimas.</summary>
-    private static bool EsLaEscrituraDeclarada(string raiz, string archivo) =>
-        Path.GetRelativePath(raiz, archivo).Replace('\\', '/') == EscrituraDeclarada;
+    /// <summary>La ruta del archivo relativa a la raíz, con barras normales.</summary>
+    private static string Relativa(string raiz, string archivo) =>
+        Path.GetRelativePath(raiz, archivo).Replace('\\', '/');
 
     /// <summary>
     /// El código sin sus escrituras permitidas, para que lo que quede se pueda mirar como se mira
@@ -365,27 +476,40 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     /// Se recorta la operación y no la línea entera: borrar la línea escondería una lectura escrita
     /// al lado de una escritura legítima.
     /// </summary>
-    private static string SinLasEscriturasPermitidas(string codigo) =>
-        EscriturasPermitidas.Aggregate(codigo, (texto, operacion) => Regex.Replace(
+    private static string SinLasEscriturasPermitidas(
+        string codigo,
+        string dbSet,
+        string[] escriturasPermitidas) =>
+        escriturasPermitidas.Aggregate(codigo, (texto, operacion) => Regex.Replace(
             texto,
-            @"\.\s*Movimientos\s*\.\s*" + operacion + @"\s*\(",
+            @"\.\s*" + dbSet + @"\s*\.\s*" + operacion + @"\s*\(",
             "(",
             RegexOptions.None,
             TimeSpan.FromSeconds(5)));
 
-    private static bool EsRutaDeclarada(string raiz, string archivo)
+    /// <summary>
+    /// Las carpetas de código GENERADO, que quedan fuera del escaneo.
+    ///
+    /// `Migrations/` lo genera EF, nadie lo escribe a mano, y no consulta en nombre de ninguna
+    /// cuenta. Es la misma excepción que hace la barrera del linter.
+    ///
+    /// `obj/` y `bin/` son la misma clase de cosa y estaban adentro por descuido: el recorrido es
+    /// sobre la carpeta del proyecto entera, así que barría también los `.cs` que deja la
+    /// compilación. Hoy son tres y ninguno nombra un `DbSet`, así que la barrera estaba verde por
+    /// suerte y no por construcción. **Comprobado**: un archivo con `contexto.Categorias` adentro
+    /// de `obj/Debug/` la ponía en rojo, y el mensaje pedía mover al canal código que nadie
+    /// escribió y nadie puede mover. El escenario que lo vuelve real es
+    /// `dotnet ef dbcontext optimize` —el modelo compilado, que es el paso de rendimiento estándar
+    /// de EF— y ese día la única salida visible sería apagar la barrera.
+    /// </summary>
+    private static bool EsCodigoGenerado(string raiz, string archivo)
     {
         var relativa = Path.GetRelativePath(raiz, archivo).Replace('\\', '/');
-        return relativa == CanalDeLectura
-            || relativa == DeclaracionDelDbSet;
-    }
 
-    /// <summary>
-    /// `Migrations/` queda fuera: lo genera EF, nadie lo escribe a mano, y no consulta movimientos
-    /// en nombre de ninguna cuenta. Es la misma excepción que hace la barrera del linter.
-    /// </summary>
-    private static bool EstaEnMigraciones(string raiz, string archivo) =>
-        Path.GetRelativePath(raiz, archivo).Replace('\\', '/').StartsWith("Migrations/", StringComparison.Ordinal);
+        return relativa.StartsWith("Migrations/", StringComparison.Ordinal)
+            || relativa.StartsWith("obj/", StringComparison.Ordinal)
+            || relativa.StartsWith("bin/", StringComparison.Ordinal);
+    }
 
     /// <summary>
     /// La carpeta de `GestionGastos.Api`, encontrada subiendo desde el binario de los tests.
