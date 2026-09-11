@@ -345,6 +345,27 @@ export function PantallaMovimientos({
       });
   }, [onSesionVencida]);
 
+  /**
+   * **Si lo que el listado está mostrando NO es lo que el resumen cuenta** (D6-06).
+   *
+   * El resumen de esta pantalla es siempre del mes completo —`GET /api/resumen` no acepta
+   * `categoriaId` y acá nunca se le pide un período, que es la decisión declarada en
+   * `specs/006-resumen-del-mes/contracts/resumen.md`— y el listado sí se acota. Cuando los dos
+   * hablan de universos distintos, la misma pantalla muestra dos cifras que se contradicen y quien
+   * mira no tiene cómo saber cuál es cuál.
+   *
+   * **Se compara lo aplicado contra lo que el resumen cubre, y no si alguien tocó "Aplicar".** La
+   * barra viene sembrada con el período del resumen, así que aplicar sin cambiar nada pide
+   * exactamente el mes que el resumen ya cuenta: ahí las dos vistas coinciden y un aviso mentiría.
+   * Por eso el rango se compara contra `resumen.desde`/`resumen.hasta` en vez de contra "hay algo
+   * puesto" — los campos nunca están vacíos.
+   */
+  const listadoAcotado =
+    acotado.categoriaId != null ||
+    acotado.monedaId != null ||
+    (!!acotado.desde && acotado.desde !== resumen?.desde) ||
+    (!!acotado.hasta && acotado.hasta !== resumen?.hasta);
+
   useEffect(() => {
     void recargarResumen();
   }, [recargarResumen]);
@@ -539,7 +560,16 @@ export function PantallaMovimientos({
           mirar es del dashboard (FR-011b). */}
       {errorDelResumen ? <p role="alert">{errorDelResumen}</p> : null}
       {resumen ? (
-        <ResumenDelPeriodo resumen={resumen} titulo="Resumen del mes" monedas={monedas} />
+        <ResumenDelPeriodo
+          resumen={resumen}
+          titulo="Resumen del mes"
+          monedas={monedas}
+          aviso={
+            listadoAcotado
+              ? 'El listado de abajo está filtrado. Este resumen es de todo el mes.'
+              : undefined
+          }
+        />
       ) : null}
 
       <FormularioMovimiento

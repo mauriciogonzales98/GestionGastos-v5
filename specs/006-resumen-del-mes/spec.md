@@ -323,7 +323,7 @@ que lo va a poder cubrir, para que ese ticket lo cubra al nacer. Es la misma tab
 | D6-03 | **RF-30: filtrar el resumen por moneda.** El resumen las discrimina; no se pueden filtrar | Filtrar monedas requiere que haya más de una en uso, y hoy todo se registra en la predeterminada | Ticket 4a / 4b |
 | ~~D6-04~~ | ~~**AC-14: los movimientos de una categoría dada de baja siguen sumando en el desglose**~~ | **SALDADA** por el ticket 3 (`specs/007-categorias-propias/`, 2026-09-03). Ver abajo | — |
 | D6-05 | **El índice por `categoria_id`** que ayudaría al `GROUP BY` | RNF-01 se cumple sin él, medido en los dos escalones. Un índice de más se paga en cada `INSERT` | Nadie, salvo que `RendimientoResumenTests` se ponga en rojo. Ver [D-10](./research.md#d-10--sin-migración-y-el-índice-se-deja-como-está) |
-| D6-06 | **El resumen no se filtra por categoría**, y el listado sí desde FEAT-001b. Un `categoriaId` en la URL se ignora | El resumen es del período completo por diseño: filtrarlo es una vista distinta, no un parámetro más. Declarado en [`contracts/resumen.md`](./contracts/resumen.md) para que no se resuelva por omisión | Ticket 5 (Dashboard) — **si el filtro tapa el listado y no el resumen, la misma pantalla muestra dos cifras que se contradicen** |
+| ~~D6-06~~ | ~~**El resumen no se filtra por categoría**, y el listado sí desde FEAT-001b. Un `categoriaId` en la URL se ignora~~ | **SALDADA** en la rama `016` (2026-09-11), por el segundo de los dos caminos que [`contracts/resumen.md`](./contracts/resumen.md) dejó abiertos. Ver abajo | — |
 
 #### Cómo se saldó D6-04
 
@@ -344,6 +344,37 @@ agregó `&& m.Categoria!.Activa` a la consulta del resumen y se corrió la suite
 en verde**. Hasta el ticket 3 todas las categorías tenían `activa = true`, así que el filtro no
 cambiaba ningún número y ningún test podía notarlo. Ese verde era exactamente la deuda, y hoy es un
 rojo.
+
+#### Cómo se saldó D6-06
+
+El contrato dejó escritos **dos** caminos y ninguno de los dos al azar: *"o el filtro tapa las dos
+vistas a la vez, o el resumen se titula de forma que se vea que habla de todo el período"*. Se tomó
+el segundo, y lo que faltaba era terminarlo: el resumen ya declaraba su período en pantalla —"Del
+*desde* al *hasta*", desde la feature 010— pero **nada decía nada sobre la categoría**, que es
+justamente el acotado que el resumen no sabe hacer.
+
+**El primer camino se descartó con motivo, no por costo.** Abrir `GET /api/resumen` a `categoriaId`
+obliga a revertir una decisión declarada en el contrato y a contradecir al PRD, que quiere el
+resumen del período completo. Filtrar el resumen por categoría es *otra vista*, no un parámetro más.
+
+**El aviso mira lo aplicado contra lo que el resumen cubre, y no si alguien tocó "Aplicar".** Es la
+distinción que decide si el aviso dice la verdad: la barra de filtros viene sembrada con el período
+del resumen (`FR-015`), así que aplicar sin cambiar nada pide exactamente el mes que el resumen ya
+cuenta. Ahí las dos vistas coinciden y un aviso atado al botón estaría mintiendo. Por eso el rango
+se compara contra `resumen.desde`/`resumen.hasta` y no contra "hay algo puesto": los campos nunca
+están vacíos. Ese caso tiene su propio test —
+`aplicar sin cambiar nada NO avisa: el listado y el resumen cuentan lo mismo`— y es el que separa
+esta implementación de la ingenua.
+
+**El texto llega desde la pantalla y no se arma dentro de `ResumenDelPeriodo`.** El componente lo
+comparten la pantalla principal y el dashboard, y el dashboard no tiene ningún listado debajo: qué
+aclarar es de quien tiene el acotado, y lo único que se decide adentro es dónde va. Va con
+`role="status"` y no `role="alert"`, por el mismo criterio que la confirmación del alta: nada está
+roto, así que se anuncia sin interrumpir.
+
+**Lo que sigue sin poder hacerse, y no es deuda:** filtrar el resumen. Sigue siendo del período
+completo, a propósito. Lo que cambió es que la pantalla ya no deja que eso se confunda con un error
+de cálculo.
 
 ### Deuda de proceso, no de producto
 

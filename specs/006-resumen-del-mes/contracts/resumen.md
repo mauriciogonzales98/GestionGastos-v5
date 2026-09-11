@@ -35,8 +35,13 @@ el endpoint no declara.
 La consecuencia le toca al ticket 5 y conviene saberla antes de maquetar: si el dashboard filtra el
 listado por categoría y muestra el resumen al lado sin filtrar, las dos cifras de la misma pantalla
 se contradicen, y quien mire no tiene cómo saber cuál es cuál. O el filtro tapa las dos vistas a la
-vez, o el resumen se titula de forma que se vea que habla de todo el período. Queda anotado como
+vez, o el resumen se titula de forma que se vea que habla de todo el período. Quedó anotado como
 D6-06 en la tabla de *Deuda registrada* de la spec.
+
+**Saldada en la rama `016`, por el segundo camino.** El resumen declara su período en pantalla y,
+cuando el listado está acotado a algo que él no cuenta, lo dice con una línea propia. **Este endpoint
+no cambió**: sigue sin aceptar `categoriaId`, y la asimetría declarada arriba sigue en pie a
+propósito.
 
 ---
 
