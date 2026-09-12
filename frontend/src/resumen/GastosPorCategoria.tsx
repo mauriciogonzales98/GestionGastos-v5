@@ -76,7 +76,15 @@ export function GastosPorCategoria({ gastos, monedaCodigo, monedas }: PropsGasto
                   dos que pueden discrepar.
 
                   Todas comparten clase y relleno: las categorías no se codifican por color, se
-                  distinguen por el nombre que está a su izquierda (D-04, NFR-003). */}
+                  distinguen por el nombre que está a su izquierda (D-04, NFR-003).
+
+                  **Y esto dejó de ser una pendiente**: D12-03 preguntaba si las barras debían
+                  llevar color ahora que existe la paleta, y se cerró que no. Una serie va de un
+                  solo color: el nombre ya está en la celda de al lado y la magnitud en el largo,
+                  así que un color por categoría gastaría el único canal libre en información que
+                  el gráfico ya muestra. Y las categorías las crea el usuario y no tienen tope, así
+                  que los tonos habría que ciclarlos — dos categorías distintas del mismo color, con
+                  el color pareciendo decir algo. */}
               <div
                 data-testid="barra"
                 aria-hidden="true"
