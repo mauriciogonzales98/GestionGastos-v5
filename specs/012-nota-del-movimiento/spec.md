@@ -422,7 +422,7 @@ migrado, exigiendo que la base lo rechace. No toca ninguna pantalla ni ningún e
 |---|---|---|---|
 | D12-01 | **El desborde horizontal a 360 px verificado por medición real**, en un navegador, y con él los pasos a mano del quickstart | Es **D11-01** y arrastra **D10-09**. Esta feature agrega la séptima columna del listado, que es el caso más apretado que la tabla tuvo nunca, y lo verifica igual por **regla** y no por medición: jsdom no maqueta. La restricción de no agregar dependencias sigue cerrando la puerta a un runner de navegador | Quien decida que vale un runner de navegador en el CI |
 | D12-02 | ~~**Revisar el techo de 50 ms de `003:AC-12`**~~ — **SALDADA en la rama `013`** | Es **D9-08**, **D10-04** y **D11-03**. El fallo ya tiene nombre desde la 011 —`RendimientoLimiteTests.El_P95_De_La_Comprobacion_Agrega_Menos_De_Cincuenta_Milisegundos_AC12`—: falla en la corrida completa bajo carga y pasa aislado. No hay nada más que averiguar, hay que decidir el techo, y decidirlo es una decisión de criterio que esta feature no tiene por qué tomar | El ticket que decida si ese techo sigue siendo el correcto |
-| D12-03 | **Ponerle color a las barras del dashboard** | Es **D10-08** y **D11-04**. Sigue siendo una decisión de producto: D-04 de la 010 dejó todas las barras del mismo relleno a propósito, porque las categorías no se codifican por color | Nadie, salvo que producto lo pida |
+| ~~D12-03~~ | ~~**Ponerle color a las barras del dashboard**~~ | **CERRADA** en la rama `019` (2026-09-12) por decisión de producto, y **no queda pendiente**: las barras van de un solo color. Ver abajo | — |
 | D12-04 | **Buscar, filtrar, agrupar o totalizar por la nota**, y las **etiquetas reutilizables** que serían la forma correcta de hacerlo | Fuera de alcance explícito del PRD, y es *la* restricción que impide que la nota se vuelva una segunda taxonomía informal. Si aparece la necesidad real de totalizar por algo más fino que la categoría, se resuelve con un catálogo de etiquetas, no estirando la nota | Nadie. Necesita una decisión de producto y un ticket propio |
 | D12-05 | **Autocompletado o sugerencias** a partir de notas anteriores | Fuera de alcance explícito: sería la puerta de atrás a la misma taxonomía informal que `PRD:RF-33` evita | Nadie |
 | D12-06 | **Formato dentro de la nota** —negrita, saltos de línea con significado, enlaces que se puedan seguir— y **adjuntar comprobantes** al movimiento | Fuera de alcance explícito del PRD. El formato además chocaría de frente con `NFR-001`, que es el requisito que hace que la nota sea segura | Nadie |
@@ -438,7 +438,7 @@ Confirmado contra lo que la implementación realmente dejó, no contra lo que la
 |---|---|---|
 | D12-01 | **Abierta** | Sin cambios en el fondo, pero **más chica**: de los cinco pasos a mano del quickstart, tres quedaron cubiertos por tests durante la implementación. Lo que sigue sin ejecutar son los 360 px medidos y el lector de pantalla — no hay navegador en el entorno |
 | D12-02 | **Abierta** | Sin cambios. El fallo apareció una vez en la corrida completa (87,6 ms contra un techo de 50) y pasó aislado y en la corrida siguiente. Es exactamente lo que D9-08 describe desde la feature 009. **Saldada después, en la rama `013`**: ver la nota de cierre al pie |
-| D12-03 | **Abierta** | Sin cambios. Sigue siendo una decisión de producto |
+| D12-03 | **Cerrada** | Producto la decidió el 2026-09-12 y decidió que **no**: una serie va de un solo color. Dejó de ser deuda |
 | D12-04 | **Abierta**, y ahora **verificada** | Era una intención escrita; ahora hay una barrera que la sostiene. `verificar-nota.sh` impide que el listado acote por la nota y que el resumen la agrupe. Lo que queda abierto es el catálogo de etiquetas, que necesita su propia decisión de producto |
 | D12-05 | **Abierta** | Sin cambios |
 | D12-06 | **Abierta** | Sin cambios, y con una precisión que la implementación agregó: los saltos de línea **sí** existen en el dato (`FR-012`) y no significan nada en la presentación. Darles significado sigue fuera de alcance |
@@ -490,6 +490,34 @@ Medida, resultó que **el techo no era el problema y la premisa estaba al revés
 
 El detalle completo, con los números, está en el ajuste de
 [`specs/003-limite-intentos/spec.md`](../003-limite-intentos/spec.md), que es donde vive el criterio.
+
+### Cierre de D12-03 (2026-09-12, rama `019`)
+
+La deuda preguntaba si las barras del desglose debían llevar color ahora que la feature 011 trajo la
+paleta que les faltaba. **Producto decidió que no**, y el motivo no es el costo: es que colorearlas
+empeoraría el gráfico.
+
+**Una serie va de un solo color.** El nombre de la categoría está en la celda de al lado y la
+magnitud está en el largo de la barra, así que un color por categoría gastaría el único canal libre
+en información que el gráfico ya muestra. Es lo mismo que la `D-04` de la 010 había decidido por su
+cuenta, y coincide con la guía de visualización consultada al cerrarla, que lo lista entre sus
+anti-patrones.
+
+**Y hay un hecho de este producto que lo vuelve decisivo**: las categorías las crea el usuario y no
+tienen tope (`PRD:RF-31`). La regla es asignar tonos en orden fijo y **nunca ciclarlos**; con
+categorías ilimitadas habría que ciclar sí o sí, así que dos categorías distintas terminarían del
+mismo color. Ahí el color deja de ser decorativo y pasa a insinuar un parentesco que no existe.
+
+**Lo que sí se hizo**, que es lo que la pregunta buscaba de verdad: las dos especificaciones de marca
+que al gráfico le faltaban. La barra tiene ahora la **punta del lado del dato redondeada** —4px, con
+el arranque a escuadra para que el cero de todas quede a plomo— y los rieles de filas contiguas
+dejaron de tocarse, separados por un **hueco de 2px del color del fondo**, así que cada fila se lee
+como su propia pista en vez de como una columna gris continua.
+
+**Lo que se descartó y por qué:** el tooltip al pasar el mouse, que la misma guía pide por defecto en
+gráficos de barras. Acá no corresponde — un tooltip realza pero nunca condiciona, y todo valor que
+mostraría ya está como texto en la misma fila. Este gráfico **es** la vista de tabla a la que un
+tooltip haría de respaldo.
 
 ### Cierre de D12-08 (2026-09-11, rama `014`)
 

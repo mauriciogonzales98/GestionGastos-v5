@@ -117,11 +117,39 @@
   /* El riel ocupa lo que sobra: la barra se compara con las de las otras filas, así que todas
      tienen que medirse contra el mismo ancho. */
   width: 100%;
+
+  /*
+   * **El hueco de 2px que separa un riel del de la fila siguiente.**
+   *
+   * Con `border-collapse: collapse` y sin esto, los rieles de las filas contiguas se tocan y el
+   * gris se lee como una sola columna continua en vez de como una pista por fila. Cada riel pone
+   * 1px arriba y 1px abajo, así que entre dos contiguos quedan los 2px.
+   *
+   * Es un hueco del color del fondo y no un borde: un borde sería una línea dibujada alrededor de
+   * la marca, que es otra cosa — separa pintando en vez de dejando aire.
+   */
+  padding-block: 1px;
   background-color: var(--color-riel);
+
+  /* Sin esto el relleno del riel pinta también su propio padding y el hueco no existiría. */
+  background-clip: content-box;
 }
 
+/*
+ * La barra: 16px de alto —por debajo del tope de 24px, para que la fila respire— con la punta del
+ * lado del dato redondeada y el arranque a escuadra.
+ *
+ * **El redondeo va sólo del lado derecho, y es la diferencia entre adornar y mentir**: el borde
+ * izquierdo es el cero de todas las barras y tiene que quedar a plomo con el de las demás para que
+ * los largos se comparen de un vistazo. Redondear los dos extremos correría visualmente el origen
+ * de cada barra.
+ *
+ * **Un solo color para todas, y eso no es una pendiente**: las categorías no se codifican por
+ * color (D-04, deuda D12-03, cerrada). Se distinguen por el nombre que está a su izquierda.
+ */
 .c-desglose__barra {
   height: 1rem;
+  border-radius: 0 4px 4px 0;
   background-color: var(--color-barra);
 }
 
