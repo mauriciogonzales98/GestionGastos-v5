@@ -352,7 +352,13 @@ que cada una de las diez ofrece renombrar y dar de baja, igual que una creada a 
 
 | Deuda | De dónde viene | Cómo queda |
 |---|---|---|
-| **D7-07** | Feature 007, anotada al saldar D7-05 (PR #38) | Saldada, pero **no por el camino que la fila proponía**. Los dos que proponía se midieron y se descartaron; la fila hay que reescribirla con lo que este spike encontró, aunque el resultado final sea el que pedía: la invariante en la base |
+| **D7-07** | Feature 007, anotada al saldar D7-05 (PR #38) | **Saldada**, pero no por el camino que la fila proponía. Los dos que proponía se midieron y se descartaron; la fila quedó reescrita en [`specs/007-categorias-propias/spec.md`](../007-categorias-propias/spec.md) con lo que el spike encontró, aunque el resultado final sea el que pedía: la invariante en la base |
+
+## Deuda que esta feature deja anotada
+
+| # | Qué queda | Por qué no acá | Quién lo cubre |
+|---|---|---|---|
+| **D13-01** | **La barrera de aislamiento vigila el TEXTO `contexto.Categorias`, así que una escritura por propiedad de navegación la esquivaría.** Un `usuario.Categorias.Add(...)` —o cualquier otra forma de llegar al conjunto sin nombrarlo— no la pone en rojo | **No es una exposición: hoy no existe ninguna, y esta feature no introduce ninguna.** El catálogo inicial escribe por el `DbSet`, dentro del único archivo declarado para eso, justamente para no abrir esta puerta (research D-06). Pero el agujero es real y es **el gemelo exacto** del que originó D7-07: aquél era la lectura por navegación —`m.Categoria!.Nombre`— y éste es la escritura. Se anota con nombre en vez de dejarlo sin nombrar | Sin asignar. Ojo con la forma: ensanchar el regex a las navegaciones es perseguir la vía equivocada —lo mismo que la barrera ya dice sobre las lecturas—, así que hay que diseñarlo antes de prometerlo. La feature 013 mostró que ese diseño previo no es ceremonia: los dos caminos que D7-07 proponía sin medir resultaron los dos inviables |
 
 ## Dependencies
 

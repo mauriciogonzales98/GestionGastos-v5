@@ -168,12 +168,12 @@ problema que la fase 2 evita.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T042 Reescribir la fila **D7-07** en `specs/007-categorias-propias/spec.md` (línea 402): hoy propone un trigger o una clave foránea compuesta, y los dos se midieron y fallaron. Dejar anotado cómo se saldó de verdad y por qué el camino era otro
-- [ ] T043 [P] Anotar **D13-01** en la tabla de deuda de esta feature: la barrera de aislamiento vigila el texto `contexto.Categorias`, así que una escritura por propiedad de navegación la esquivaría. Hoy no existe ninguna; es el gemelo del agujero de lectura que originó D7-07 (research D-06)
-- [ ] T044 [P] Agregar a la tabla de *Stack* de `AGENTS.md` la barrera nueva **y `backend/verificar-nota.sh`**, que falta desde la feature 012: la tabla documenta seis barreras y el repo tiene siete
-- [ ] T045 [P] Actualizar `plan-de-implementacion/README.md` con la feature cerrada y la deuda saldada, como hicieron las features 016 y 017
+- [X] T042 Reescribir la fila **D7-07** en `specs/007-categorias-propias/spec.md` (línea 402): hoy propone un trigger o una clave foránea compuesta, y los dos se midieron y fallaron. Dejar anotado cómo se saldó de verdad y por qué el camino era otro
+- [X] T043 [P] Anotar **D13-01** en la tabla de deuda de esta feature: la barrera de aislamiento vigila el texto `contexto.Categorias`, así que una escritura por propiedad de navegación la esquivaría. Hoy no existe ninguna; es el gemelo del agujero de lectura que originó D7-07 (research D-06)
+- [X] T044 [P] Agregar a la tabla de *Stack* de `AGENTS.md` la barrera nueva **y `backend/verificar-nota.sh`**, que falta desde la feature 012: la tabla documenta seis barreras y el repo tiene siete
+- [X] T045 [P] Actualizar `plan-de-implementacion/README.md` con la feature cerrada y la deuda saldada, como hicieron las features 016 y 017
 - [ ] T046 Correr la puerta de cierre completa de [quickstart.md](./quickstart.md) §6: cobertura, las **ocho** barreras y el build de producción del frontend, con la salida a la vista
-- [ ] T047 Comparar la foto de totales de T002 contra la base ya migrada y confirmar que no se movió un número (`SC-003`)
+- [X] T047 Comparar la foto de totales de T002 contra la base ya migrada y confirmar que no se movió un número (`SC-003`)
 
 ---
 
