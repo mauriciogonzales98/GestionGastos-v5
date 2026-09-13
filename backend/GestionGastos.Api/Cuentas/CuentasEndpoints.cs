@@ -109,9 +109,16 @@ public static class CuentasEndpoints
     ///
     /// Por eso se mira **sobre qué entidad** falló, que es información que EF da estructurada. Es
     /// más preciso que el nombre del índice dentro del mensaje, que sí depende del texto.
+    ///
+    /// **Y se exige que haya al menos una entrada, que no es una redundancia.** `All` sobre una lista
+    /// vacía devuelve `true` —"todas son un `Usuario`" es cierto cuando no hay ninguna—, así que un
+    /// `1062` que EF no pudiera atribuir a ninguna entidad volvería a caer en este `catch` y el alta
+    /// respondería como si la cuenta se hubiera creado sin haberla creado. Es el mismo desenlace que
+    /// esta comprobación viene a impedir, entrando por la puerta de al lado.
     /// </summary>
     private static bool EsEmailDuplicado(DbUpdateException excepcion) =>
         excepcion.InnerException is MySqlException mysql
         && mysql.ErrorCode == MySqlErrorCode.DuplicateKeyEntry
+        && excepcion.Entries.Count > 0
         && excepcion.Entries.All(entrada => entrada.Entity is Usuario);
 }

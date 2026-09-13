@@ -541,6 +541,43 @@ public class AltaDeCuentaTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal(0, await contexto.Categorias.CountAsync());
     }
 
+    /// <summary>
+    /// **Un `1062` que EF no pudo atribuir a ninguna entidad no se hace pasar por email duplicado.**
+    ///
+    /// Es el borde del `catch` que el test de arriba deja abierto. Aquél comprueba que un choque
+    /// atribuido a las **categorías** no se confunda con el del email; éste comprueba el caso en que
+    /// no hay a qué atribuirlo: `DbUpdateException.Entries` llega vacío.
+    ///
+    /// **Y no es un detalle de estilo: es cómo se comporta `All` sobre una lista vacía.** Devuelve
+    /// `true` —"todas las entradas son un `Usuario`" es cierto cuando no hay ninguna—, así que el
+    /// `catch` se lo tragaría y el alta respondería `201` con el mensaje de siempre sin haber creado
+    /// nada. La persona se iría creyendo que tiene cuenta.
+    /// </summary>
+    [Fact]
+    public async Task Un_1062_Sin_Entradas_No_Se_Hace_Pasar_Por_Email_Duplicado_FR003()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        var email = Unico();
+
+        var sinEntradas = new FallaConUnMilSesentaYDosSinEntradas();
+        using var factoria = new FactoriaConReloj(
+            new DateOnly(2026, 8, 24),
+            servicios => servicios.ConfigureDbContext<GestionGastosDbContext>(
+                o => o.AddInterceptors(sinEntradas)));
+        using var cliente = factoria.CreateClient();
+
+        using var alta = await cliente.PostAsJsonAsync(
+            new Uri("/api/cuentas", UriKind.Relative),
+            new { email, contrasena = "una frase larga y buena" });
+
+        Assert.True(sinEntradas.Intervino, "el interceptor no llegó a fallar el guardado");
+
+        Assert.NotEqual(HttpStatusCode.Created, alta.StatusCode);
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Equal(0, await contexto.Usuarios.CountAsync(u => u.Email == email));
+    }
+
     /// <summary>El catálogo que la API le ofrece a esa cuenta.</summary>
     private static async Task<List<CategoriaDelCatalogo>> CatalogoAsync(CuentaDePrueba cuenta)
     {
