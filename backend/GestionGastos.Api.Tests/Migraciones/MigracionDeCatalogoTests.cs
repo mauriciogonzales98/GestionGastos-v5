@@ -4,6 +4,7 @@ using GestionGastos.Api.Tests.Integracion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Internal;
 
 namespace GestionGastos.Api.Tests.Migraciones;
 
@@ -35,7 +36,17 @@ namespace GestionGastos.Api.Tests.Migraciones;
 [Collection(BaseDeDatosSuite.Nombre)]
 public class MigracionDeCatalogoTests(BaseDeDatosFixture baseDeDatos)
 {
-    /// <summary>La migración justo anterior a la de esta feature.</summary>
+    /// <summary>La migración de esta feature, la que estos tests miden.</summary>
+    private const string MigracionMedida = "CategoriasPorCuenta";
+
+    /// <summary>
+    /// La migración justo anterior a <see cref="MigracionMedida"/>: el esquema del que se parte.
+    ///
+    /// **Se comprueba que siga siendo la anterior, y no se confía en el nombre escrito acá.** El día
+    /// que alguien agregue una migración entre estas dos, este archivo bajaría a un esquema que ya
+    /// no es el de antes de la feature y verificaría otra cosa **sin ponerse en rojo** — que es
+    /// exactamente la forma en que un test deja de verificar lo que dice su nombre.
+    /// </summary>
     private const string MigracionAnterior = "NotaSinCadenaVacia";
 
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
@@ -279,6 +290,8 @@ public class MigracionDeCatalogoTests(BaseDeDatosFixture baseDeDatos)
     private static async Task<EstadoSembrado> SembrarElEstadoAnteriorAsync(
         DbContext contexto, IMigrator migrador)
     {
+        ExigirQueSigaSiendoLaAnterior(contexto);
+
         await migrador.MigrateAsync(MigracionAnterior);
 
         // Las diez compartidas tienen que estar: es el estado del que parte la migración. Si el
@@ -344,6 +357,35 @@ public class MigracionDeCatalogoTests(BaseDeDatosFixture baseDeDatos)
             """);
 
         return new EstadoSembrado(cuentaA, cuentaB, gimnasio, comidaDeBaja, propias);
+    }
+
+    /// <summary>
+    /// <see cref="MigracionAnterior"/> sigue siendo la que precede a <see cref="MigracionMedida"/>.
+    ///
+    /// Se lee del ensamblado de migraciones y no de una lista escrita a mano: es la misma fuente que
+    /// EF usa para ordenarlas, así que no puede desincronizarse de la realidad.
+    /// </summary>
+    private static void ExigirQueSigaSiendoLaAnterior(DbContext contexto)
+    {
+        var todas = contexto.Database.GetService<IMigrationsAssembly>()
+            .Migrations
+            .Keys
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        var medida = todas.FindIndex(m => m.EndsWith(MigracionMedida, StringComparison.Ordinal));
+
+        Assert.True(
+            medida > 0,
+            $"No se encontró la migración `{MigracionMedida}` en el ensamblado, o es la primera de " +
+            "todas. Estos tests miden esa migración: sin ella no hay nada que verificar.");
+
+        Assert.True(
+            todas[medida - 1].EndsWith(MigracionAnterior, StringComparison.Ordinal),
+            $"La migración anterior a `{MigracionMedida}` es ahora `{todas[medida - 1]}` y este " +
+            $"archivo baja el esquema hasta `{MigracionAnterior}`. Estaría sembrando el estado " +
+            "anterior sobre un esquema que no es el de antes de la feature, y verificando otra cosa " +
+            $"sin ponerse en rojo. Actualizá `{nameof(MigracionAnterior)}`.");
     }
 
     /// <summary>
