@@ -30,10 +30,11 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = CrearFactoria(new DateOnly(2026, 8, 23));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         var cliente = cuenta.Cliente;
+        var comida = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id);
 
         using var respuesta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 1250.50m, categoriaId = 1, fecha = "2026-08-23" });
+            new { tipo = "gasto", monto = 1250.50m, categoriaId = comida, fecha = "2026-08-23" });
 
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
 
@@ -45,7 +46,7 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
         Assert.True(creado.GetProperty("id").GetInt64() > 0);
         Assert.Equal("gasto", creado.GetProperty("tipo").GetString());
         Assert.Equal(1250.50m, creado.GetProperty("monto").GetDecimal());
-        Assert.Equal(1, creado.GetProperty("categoriaId").GetInt32());
+        Assert.Equal(comida, creado.GetProperty("categoriaId").GetInt32());
         Assert.Equal("Comida", creado.GetProperty("categoriaNombre").GetString());
         Assert.Equal("ARS", creado.GetProperty("monedaCodigo").GetString());
         Assert.Equal("2026-08-23", creado.GetProperty("fecha").GetString());
@@ -80,7 +81,12 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
 
         using var respuesta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 100m, categoriaId = 1 });
+            new
+            {
+                tipo = "gasto",
+                monto = 100m,
+                categoriaId = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id),
+            });
 
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
 
@@ -104,7 +110,13 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
         // El contrato dice "ausente o null": mandar null explícito no puede comportarse distinto.
         using var respuesta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 100m, categoriaId = 1, fecha = (string?)null });
+            new
+            {
+                tipo = "gasto",
+                monto = 100m,
+                categoriaId = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id),
+                fecha = (string?)null,
+            });
 
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
 
@@ -127,7 +139,13 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
         // Categoría 8 = Sueldo, del catálogo de ingreso.
         using var respuesta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "ingreso", monto = 50000m, categoriaId = 8, fecha = "2026-08-23" });
+            new
+            {
+                tipo = "ingreso",
+                monto = 50000m,
+                categoriaId = await CatalogoDeCategorias.UnIngresoAsync(_baseDeDatos, cuenta.Id),
+                fecha = "2026-08-23",
+            });
 
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
 
@@ -160,8 +178,8 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
 
         Assert.NotEqual(ana.Id, bruno.Id);
 
-        var deAna = await RegistrarAsync(ana, 111.11m);
-        var deBruno = await RegistrarAsync(bruno, 222.22m);
+        var deAna = await RegistrarAsync(ana, 111.11m, await GastoDeAsync(ana));
+        var deBruno = await RegistrarAsync(bruno, 222.22m, await GastoDeAsync(bruno));
 
         await using var contexto = _baseDeDatos.CrearContexto();
 
@@ -172,17 +190,26 @@ public class AltaMovimientoTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>Registra un gasto por la API y devuelve el id del movimiento creado.</summary>
-    private static async Task<long> RegistrarAsync(CuentaDePrueba cuenta, decimal monto)
+    private static async Task<long> RegistrarAsync(
+        CuentaDePrueba cuenta, decimal monto, int categoriaId)
     {
         using var respuesta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto, categoriaId = 1, fecha = "2026-08-23" });
+            new { tipo = "gasto", monto, categoriaId, fecha = "2026-08-23" });
 
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
 
         using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
         return json.RootElement.GetProperty("id").GetInt64();
     }
+
+    /// <summary>
+    /// Un gasto del catálogo de esa cuenta. **Cada cuenta tiene el suyo**: desde la feature 013 las
+    /// categorías no se comparten, así que el gasto de Ana y el de Bruno son dos filas distintas
+    /// aunque las dos se llamen igual.
+    /// </summary>
+    private Task<int> GastoDeAsync(CuentaDePrueba cuenta) =>
+        CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id);
 
     private static FactoriaConReloj CrearFactoria(DateOnly hoy) => new(hoy);
 }

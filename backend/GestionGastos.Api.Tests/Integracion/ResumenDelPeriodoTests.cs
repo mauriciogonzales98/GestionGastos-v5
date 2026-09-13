@@ -36,9 +36,6 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
     /// </summary>
     private static readonly DateOnly MesAnterior = new DateOnly(Hoy.Year, Hoy.Month, 10).AddMonths(-1);
 
-    private const int Comida = 1;
-    private const int Transporte = 2;
-    private const int Sueldo = 8;
 
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
 
@@ -55,11 +52,12 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 1000m, Comida, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 2000m, Comida, Tarde);
-        await RegistrarAsync(cuenta, "gasto", 500m, Transporte, Tarde);
-        await RegistrarAsync(cuenta, "ingreso", 8000m, Sueldo, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 1000m, cat.Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 2000m, cat.Comida, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 500m, cat.Transporte, Tarde);
+        await RegistrarAsync(cuenta, "ingreso", 8000m, cat.Sueldo, Temprano);
 
         using var resumen = await ResumenAsync(cuenta);
         var ars = Moneda(resumen, "ARS");
@@ -85,6 +83,7 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         using var resumen = await ResumenAsync(cuenta);
         var monedas = resumen.RootElement.GetProperty("monedas");
@@ -113,9 +112,10 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 1000m, Comida, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 777_777m, Comida, MesAnterior);
+        await RegistrarAsync(cuenta, "gasto", 1000m, cat.Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 777_777m, cat.Comida, MesAnterior);
 
         using var resumen = await ResumenAsync(cuenta);
 
@@ -134,9 +134,10 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "ingreso", 1000m, Sueldo, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 2500m, Comida, Tarde);
+        await RegistrarAsync(cuenta, "ingreso", 1000m, cat.Sueldo, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 2500m, cat.Comida, Tarde);
 
         using var resumen = await ResumenAsync(cuenta);
 
@@ -155,8 +156,9 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 100m, Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 100m, cat.Comida, Temprano);
 
         using (var antes = await ResumenAsync(cuenta))
         {
@@ -164,8 +166,8 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
             Assert.Equal(0m, Moneda(antes, "ARS").GetProperty("totalIngresado").GetDecimal());
         }
 
-        await RegistrarAsync(cuenta, "gasto", 400m, Comida, Tarde);
-        await RegistrarAsync(cuenta, "ingreso", 900m, Sueldo, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 400m, cat.Comida, Tarde);
+        await RegistrarAsync(cuenta, "ingreso", 900m, cat.Sueldo, Tarde);
 
         using var despues = await ResumenAsync(cuenta);
 
@@ -195,13 +197,15 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var ana = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         using var beto = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catAna = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, ana.Id);
+        var catBeto = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, beto.Id);
 
-        await RegistrarAsync(ana, "gasto", 1000m, Comida, Temprano);
-        await RegistrarAsync(ana, "gasto", 2500m, Transporte, Tarde);
-        await RegistrarAsync(ana, "ingreso", 4000m, Sueldo, Temprano);
+        await RegistrarAsync(ana, "gasto", 1000m, catAna.Comida, Temprano);
+        await RegistrarAsync(ana, "gasto", 2500m, catAna.Transporte, Tarde);
+        await RegistrarAsync(ana, "ingreso", 4000m, catAna.Sueldo, Temprano);
 
-        await RegistrarAsync(beto, "gasto", 1_000_000m, Comida, Temprano);
-        await RegistrarAsync(beto, "ingreso", 500_000m, Sueldo, Tarde);
+        await RegistrarAsync(beto, "gasto", 1_000_000m, catBeto.Comida, Temprano);
+        await RegistrarAsync(beto, "ingreso", 500_000m, catBeto.Sueldo, Tarde);
 
         using (var deAna = await ResumenAsync(ana))
         {
@@ -247,10 +251,11 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 100m, Comida, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 200m, Comida, Tarde);
-        await RegistrarAsync(cuenta, "gasto", 50_000m, Comida, new DateOnly(2026, 8, 26));
+        await RegistrarAsync(cuenta, "gasto", 100m, cat.Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 200m, cat.Comida, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 50_000m, cat.Comida, new DateOnly(2026, 8, 26));
 
         using var resumen = await ResumenAsync(cuenta, Temprano, Tarde);
 
@@ -269,9 +274,10 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 640m, Comida, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 999m, Comida, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 640m, cat.Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 999m, cat.Comida, Tarde);
 
         using var resumen = await ResumenAsync(cuenta, Temprano, Temprano);
 
@@ -294,6 +300,7 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         var (estado, cuerpo) = await CrudoAsync(cuenta, consulta);
 
@@ -317,11 +324,12 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 123.45m, Comida, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 67.89m, Transporte, Tarde);
-        await RegistrarAsync(cuenta, "ingreso", 500m, Sueldo, Tarde);
-        await RegistrarAsync(cuenta, "gasto", 9_000m, Comida, MesAnterior);
+        await RegistrarAsync(cuenta, "gasto", 123.45m, cat.Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 67.89m, cat.Transporte, Tarde);
+        await RegistrarAsync(cuenta, "ingreso", 500m, cat.Sueldo, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 9_000m, cat.Comida, MesAnterior);
 
         using var listado = await ListadoAsync(cuenta, Temprano, Tarde);
         var gastadoSegunElListado = listado.RootElement.EnumerateArray()
@@ -347,8 +355,9 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 1000m, Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 1000m, cat.Comida, Temprano);
 
         using var resumen = await ResumenAsync(
             cuenta, new DateOnly(1999, 1, 1), new DateOnly(1999, 1, 31));
@@ -379,6 +388,7 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         using var resumen = await ResumenAsync(cuenta);
 
@@ -411,15 +421,16 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 1000m, Comida, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 2000m, Comida, Tarde);
-        await RegistrarAsync(cuenta, "gasto", 500m, Transporte, Tarde);
-        await RegistrarAsync(cuenta, "ingreso", 8000m, Sueldo, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 1000m, cat.Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 2000m, cat.Comida, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 500m, cat.Transporte, Tarde);
+        await RegistrarAsync(cuenta, "ingreso", 8000m, cat.Sueldo, Temprano);
 
         // Uno del mes anterior: tiene que quedar afuera de LOS DOS, o la igualdad sería la de dos
         // consultas que traen todo.
-        await RegistrarAsync(cuenta, "gasto", 9999m, Comida, MesAnterior);
+        await RegistrarAsync(cuenta, "gasto", 9999m, cat.Comida, MesAnterior);
 
         // El primer y el último día del mes en curso, calculados desde el reloj clavado y no
         // escritos a mano: un rango escrito a mano dejaría de ser "el mes en curso" el día que
@@ -449,9 +460,10 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 1000m, Comida, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 9999m, Comida, MesAnterior);
+        await RegistrarAsync(cuenta, "gasto", 1000m, cat.Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 9999m, cat.Comida, MesAnterior);
 
         using var esteMes = await ResumenAsync(cuenta);
         using var elAnterior = await ResumenAsync(
@@ -498,9 +510,10 @@ public class ResumenDelPeriodoTests(BaseDeDatosFixture baseDeDatos)
         {
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-            await RegistrarAsync(cuenta, "gasto", 100m, Comida, Hoy, moneda.Id);
-            await RegistrarAsync(cuenta, "gasto", 250m, Comida, Hoy);
+            await RegistrarAsync(cuenta, "gasto", 100m, cat.Comida, Hoy, moneda.Id);
+            await RegistrarAsync(cuenta, "gasto", 250m, cat.Comida, Hoy);
 
             string predeterminada;
             await using (var contexto = _baseDeDatos.CrearContexto())

@@ -75,6 +75,7 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         var antes = await MonedasDelResumenAsync(cuenta);
 
@@ -126,6 +127,7 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         await ConLaMonedaAsync("EUR", async nueva =>
         {
@@ -133,7 +135,7 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
             {
                 using var respuesta = await cuenta.Cliente.PostAsJsonAsync(
                     new Uri("/api/movimientos", UriKind.Relative),
-                    new { tipo = "gasto", monto = 1500m, categoriaId = 1, fecha = Hoy.ToString("yyyy-MM-dd") });
+                    new { tipo = "gasto", monto = 1500m, categoriaId = cat.Comida, fecha = Hoy.ToString("yyyy-MM-dd") });
 
                 Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
 
@@ -167,9 +169,10 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 1, TipoMovimiento.Gasto, 10_000m);
-        await SembrarAsync(cuenta.Id, monedaId: 2, categoriaId: 1, TipoMovimiento.Gasto, 50m);
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: cat.Comida, TipoMovimiento.Gasto, 10_000m);
+        await SembrarAsync(cuenta.Id, monedaId: 2, categoriaId: cat.Comida, TipoMovimiento.Gasto, 50m);
 
         var monedas = await MonedasDelResumenAsync(cuenta);
 
@@ -201,11 +204,12 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 8, TipoMovimiento.Ingreso, 500m);
-        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 1, TipoMovimiento.Gasto, 200m);
-        await SembrarAsync(cuenta.Id, monedaId: 2, categoriaId: 8, TipoMovimiento.Ingreso, 200m);
-        await SembrarAsync(cuenta.Id, monedaId: 2, categoriaId: 1, TipoMovimiento.Gasto, 500m);
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: cat.Sueldo, TipoMovimiento.Ingreso, 500m);
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: cat.Comida, TipoMovimiento.Gasto, 200m);
+        await SembrarAsync(cuenta.Id, monedaId: 2, categoriaId: cat.Sueldo, TipoMovimiento.Ingreso, 200m);
+        await SembrarAsync(cuenta.Id, monedaId: 2, categoriaId: cat.Comida, TipoMovimiento.Gasto, 500m);
 
         var monedas = await MonedasDelResumenAsync(cuenta);
 
@@ -231,10 +235,11 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         foreach (var monedaId in new short[] { 1, 2 })
         {
-            foreach (var categoriaId in new[] { 1, 2 })
+            foreach (var categoriaId in new[] { cat.Comida, cat.Transporte })
             {
                 await SembrarAsync(cuenta.Id, monedaId, categoriaId, TipoMovimiento.Gasto, 100m);
                 await SembrarAsync(cuenta.Id, monedaId, categoriaId, TipoMovimiento.Gasto, 50m);
@@ -300,9 +305,10 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         // Sólo ARS tiene movimientos. USD está en el catálogo y no se usó.
-        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 1, TipoMovimiento.Gasto, 700m);
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: cat.Comida, TipoMovimiento.Gasto, 700m);
 
         var monedas = await MonedasDelResumenAsync(cuenta);
 
@@ -327,6 +333,7 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         var monedas = await MonedasDelResumenAsync(cuenta);
 
@@ -368,10 +375,11 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 8, TipoMovimiento.Ingreso, 1000m);
-        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 1, TipoMovimiento.Gasto, 300m);
-        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: 2, TipoMovimiento.Gasto, 100m);
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: cat.Sueldo, TipoMovimiento.Ingreso, 1000m);
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: cat.Comida, TipoMovimiento.Gasto, 300m);
+        await SembrarAsync(cuenta.Id, monedaId: 1, categoriaId: cat.Transporte, TipoMovimiento.Gasto, 100m);
 
         var ars = Assert.Single(await MonedasDelResumenAsync(cuenta), m => m.MonedaCodigo == "ARS");
 

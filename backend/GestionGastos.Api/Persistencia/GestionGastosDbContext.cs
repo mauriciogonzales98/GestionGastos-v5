@@ -162,7 +162,10 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
                 .IsUnique()
                 .HasDatabaseName("ux_categoria_ambito_nombre_tipo");
 
-            e.HasOne<Usuario>()
+            // La navegación se nombra explícitamente. Sin esto EF descubre `Categoria.Usuario` por
+            // convención, no la reconoce como la misma relación que este `HasForeignKey`, y arma una
+            // SEGUNDA con una clave foránea en la sombra — una columna `UsuarioId1` que nadie pidió.
+            e.HasOne(c => c.Usuario)
                 .WithMany()
                 .HasForeignKey(c => c.UsuarioId)
                 .OnDelete(DeleteBehavior.Restrict);

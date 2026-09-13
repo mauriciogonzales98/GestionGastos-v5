@@ -119,6 +119,7 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 15));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         await using (var contexto = _baseDeDatos.CrearContexto())
         {
@@ -129,7 +130,7 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
                     Tipo = TipoMovimiento.Gasto,
                     Monto = 100m,
                     MonedaId = 1,
-                    CategoriaId = 1,
+                    CategoriaId = cat.Comida,
                     Fecha = new DateOnly(2026, 8, 10),
                 },
                 new Movimiento
@@ -138,7 +139,7 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
                     Tipo = TipoMovimiento.Ingreso,
                     Monto = 50000m,
                     MonedaId = 1,
-                    CategoriaId = 8,
+                    CategoriaId = cat.Sueldo,
                     Fecha = new DateOnly(2026, 8, 20),
                 });
             await contexto.SaveChangesAsync();
@@ -188,6 +189,11 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
 
     private async Task<List<long>> SembrarAsync(long usuarioId, params DateOnly[] fechas)
     {
+        // La categoría sale del catálogo de ESA cuenta. Desde la feature 013 no hay ninguna que
+        // sirva para todas: sembrar con un número fijo le pondría a un movimiento la categoría de
+        // otra, que es justamente lo que la base pasó a rechazar.
+        var categoriaId = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, usuarioId);
+
         await using var contexto = _baseDeDatos.CrearContexto();
         var creados = new List<Movimiento>();
 
@@ -199,7 +205,7 @@ public class ListadoMovimientosTests(BaseDeDatosFixture baseDeDatos)
                 Tipo = TipoMovimiento.Gasto,
                 Monto = 100m,
                 MonedaId = 1,
-                CategoriaId = 1,
+                CategoriaId = categoriaId,
                 Fecha = fecha,
             };
 

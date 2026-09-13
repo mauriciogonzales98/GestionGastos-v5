@@ -40,10 +40,11 @@ public class ContratoResumenTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var gasto = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id);
 
         using (var creacion = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 10m, categoriaId = 1, fecha = "2026-08-23" }))
+            new { tipo = "gasto", monto = 10m, categoriaId = gasto, fecha = "2026-08-23" }))
         {
             Assert.Equal(HttpStatusCode.Created, creacion.StatusCode);
         }

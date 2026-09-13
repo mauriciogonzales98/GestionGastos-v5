@@ -478,10 +478,11 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
         await RegistrarAsync(cuenta, gimnasio.Id, 1500m);
         await RegistrarAsync(cuenta, gimnasio.Id, 300m);
 
-        // Una predefinida que se queda activa, y un ingreso: así el balance no es una resta de un
-        // solo número y el desglose tiene con qué convivir.
-        await RegistrarAsync(cuenta, categoriaId: 1, monto: 900m);
-        await RegistrarAsync(cuenta, categoriaId: 8, monto: 5000m, tipo: "ingreso");
+        // Una del catálogo inicial que se queda activa, y un ingreso: así el balance no es una
+        // resta de un solo número y el desglose tiene con qué convivir.
+        var delCatalogo = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
+        await RegistrarAsync(cuenta, delCatalogo.Comida, monto: 900m);
+        await RegistrarAsync(cuenta, delCatalogo.Sueldo, monto: 5000m, tipo: "ingreso");
 
         var antes = await ResumenCrudoAsync(cuenta);
 

@@ -32,9 +32,9 @@ negociable.
 **Purpose**: dejar registrado el estado del que se parte, porque parte de esta feature se verifica
 comparando contra él.
 
-- [ ] T001 Correr la puerta completa sobre `main` sin tocar nada y guardar la salida, para tener la línea de base: `dotnet test backend/` y `pnpm --dir frontend test`
-- [ ] T002 [P] Escribir la consulta de la foto de totales —por cuenta y período: total ingresado, total gastado, balance y desglose por categoría— en `backend/db/foto-de-totales.sql`, y guardar su resultado actual contra `gestiongastos`. Es lo que `SC-003` compara después de migrar
-- [ ] T003 [P] Verificar que los dos árboles de trabajo estén limpios antes de empezar: `verificar-monedas.sh` lo exige y no puede distinguir lo que ensucia ella de lo que ya estaba sucio
+- [X] T001 Correr la puerta completa sobre `main` sin tocar nada y guardar la salida, para tener la línea de base: `dotnet test backend/` y `pnpm --dir frontend test`
+- [X] T002 [P] Escribir la consulta de la foto de totales —por cuenta y período: total ingresado, total gastado, balance y desglose por categoría— en `backend/db/foto-de-totales.sql`, y guardar su resultado actual contra `gestiongastos`. Es lo que `SC-003` compara después de migrar
+- [X] T003 [P] Verificar que los dos árboles de trabajo estén limpios antes de empezar: `verificar-monedas.sh` lo exige y no puede distinguir lo que ensucia ella de lo que ya estaba sucio
 
 ---
 
@@ -48,11 +48,11 @@ a la vez y no hay forma de que las tareas intermedias terminen en verde. Por eso
 C# sigue anulable hasta la fase 5**, y lo que cambia primero es la base. El Principio III exige una
 puerta verde por tarea, no una promesa de que al final todo cierra.
 
-- [ ] T004 Escribir el test de `CatalogoInicial`: devuelve diez categorías, siete de gasto y tres de ingreso, con los nombres del catálogo original, todas activas — `backend/GestionGastos.Api.Tests/Unitarios/CatalogoInicialTests.cs` (`FR-002`). Verlo en rojo
-- [ ] T005 Crear `backend/GestionGastos.Api/Categorias/CatalogoInicial.cs` con los diez nombres y el alta del catálogo para un usuario. **Es el único archivo que conoce esa lista**, y escribe por `contexto.Categorias.AddRange` (research D-05, D-06)
-- [ ] T006 [P] Crear el helper `backend/GestionGastos.Api.Tests/Integracion/CatalogoDeCategorias.cs`, al estilo del `CatalogoDeMonedas` que ya existe: resuelve una categoría por nombre y tipo **dentro del catálogo de una cuenta** (research D-10)
-- [ ] T007 Reemplazar los cinco `CategoriaId = <número>` de la suite por el helper de T006. Los identificadores de categoría dejan de ser estables y un test que los fija se vuelve intermitente (Principio IV)
-- [ ] T008 VERIFY: `dotnet format --verify-no-changes`, `dotnet build -warnaserror` y `dotnet test backend/` en verde, con la salida a la vista
+- [X] T004 Escribir el test de `CatalogoInicial`: devuelve diez categorías, siete de gasto y tres de ingreso, con los nombres del catálogo original, todas activas — `backend/GestionGastos.Api.Tests/Unitarios/CatalogoInicialTests.cs` (`FR-002`). Verlo en rojo
+- [X] T005 Crear `backend/GestionGastos.Api/Categorias/CatalogoInicial.cs` con los diez nombres y el alta del catálogo para un usuario. **Es el único archivo que conoce esa lista**, y escribe por `contexto.Categorias.AddRange` (research D-05, D-06)
+- [X] T006 [P] Crear el helper `backend/GestionGastos.Api.Tests/Integracion/CatalogoDeCategorias.cs`, al estilo del `CatalogoDeMonedas` que ya existe: resuelve una categoría por nombre y tipo **dentro del catálogo de una cuenta** (research D-10)
+- [X] T007 Reemplazar los `CategoriaId = <número>` de la suite por el helper de T006. **Eran cinco contando sólo la forma C#; contando los cuerpos JSON (`categoriaId: 1`) son más de cuarenta, en 16 archivos** — y todos se rompen igual cuando las diez compartidas desaparezcan. La medición de research D-10 contaba una sola de las dos formas. Los identificadores de categoría dejan de ser estables y un test que los fija se vuelve intermitente (Principio IV)
+- [X] T008 VERIFY: `dotnet format --verify-no-changes`, `dotnet build -warnaserror` y `dotnet test backend/` en verde, con la salida a la vista
 
 **Checkpoint**: el catálogo inicial existe y nadie lo usa todavía. La base y la app siguen como estaban.
 
@@ -84,7 +84,7 @@ T015 comparten **una sola puerta**, la de T017.
 
 - [ ] T014 [US3] Crear la migración a mano en `backend/GestionGastos.Api/Migrations/<fecha>_CategoriasPorCuenta.cs`, pasos 1 a 6 de research D-04: columna temporal `migracion_origen_id`, copias por `INSERT ... SELECT` cruzando `usuario` con las predefinidas **que haya en la base**, reapuntado por identidad, borrado de las diez compartidas, `usuario_id NOT NULL` y baja de la columna temporal. En la misma tarea: quitar el `HasData` de `Categoria` de `GestionGastosDbContext.Sembrar` —**sin tocar la de `Moneda`**— y marcar la columna como obligatoria con `IsRequired()` (`FR-001`). **La propiedad de C# sigue siendo `long?`**: así el modelo y la base quedan sincronizados sin romper los cinco sitios que la usan. **No confiar en lo que proponga el scaffolding**: generados solos, los `DELETE` del `HasData` irían antes del reapuntado y la migración fallaría contra la foránea. **Y escribir el `Down()` de verdad**: `usuario_id` vuelve a anulable, se recrean las diez compartidas, se reapuntan los movimientos de vuelta y se borran las copias. No es opcional — sin él, T009 no puede fabricar el estado anterior, y quien lo verifica es justamente ese test
 - [ ] T015 [US1] Llamar a `CatalogoInicial` desde el alta en `backend/GestionGastos.Api/Cuentas/CuentasEndpoints.cs`, con **un solo** `SaveChangesAsync` —el que ya hay— para que la cuenta y su catálogo sean una sola transacción (`FR-003`), y acotar el `catch (DbUpdateException) when (EsEmailDuplicado(...))` para que siga cubriendo sólo el email duplicado
-- [ ] T016 [US1] Declarar `Categorias/CatalogoInicial.cs` como segundo escritor autorizado en `backend/GestionGastos.Api.Tests/Integracion/BarreraDeAislamientoTests.cs`, con `Add` y `AddRange` permitidos, y escribir en el comentario por qué es un archivo aparte y no una autorización a `CuentasEndpoints` (research D-06)
+- [X] T016 [US1] *(adelantada a la fase 2: la barrera se puso en rojo en la puerta de T008, en cuanto el archivo existió — no hacía falta que nadie lo llamara)* Declarar `Categorias/CatalogoInicial.cs` como segundo escritor autorizado en `backend/GestionGastos.Api.Tests/Integracion/BarreraDeAislamientoTests.cs`, con `Add` y `AddRange` permitidos, y escribir en el comentario por qué es un archivo aparte y no una autorización a `CuentasEndpoints` (research D-06)
 - [ ] T017 VERIFY: `dotnet build -warnaserror`, `dotnet test backend/` completo y `./backend/verificar-aislamiento.sh` (~4 min), los tres en verde y con la salida a la vista
 
 **Checkpoint**: los datos viejos viven en el modelo nuevo y las cuentas nuevas nacen con su catálogo.

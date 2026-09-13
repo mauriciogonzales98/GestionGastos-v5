@@ -21,6 +21,18 @@ public class Categoria
     /// </summary>
     public long? UsuarioId { get; set; }
 
+    /// <summary>
+    /// La cuenta dueña, como objeto. **Existe para el alta**: cuando una cuenta se registra, sus
+    /// diez categorías iniciales se enlazan por acá y no por <see cref="UsuarioId"/>, porque en ese
+    /// momento la cuenta todavía no tiene identificador — lo genera su propio <c>INSERT</c>. Con la
+    /// navegación puesta, EF ordena las once escrituras y propaga el identificador dentro del mismo
+    /// <c>SaveChanges</c>, que es lo que hace que FR-003 sea una sola transacción.
+    ///
+    /// **No se lee por acá.** Toda lectura de categorías pasa por `CategoriasConsulta`, y el
+    /// aislamiento se acota con `UsuarioId`, no navegando.
+    /// </summary>
+    public Usuario? Usuario { get; set; }
+
     /// <summary>Baja lógica de RF-09. Igual que <see cref="UsuarioId"/>, anticipo del ticket 3.</summary>
     public bool Activa { get; set; } = true;
 

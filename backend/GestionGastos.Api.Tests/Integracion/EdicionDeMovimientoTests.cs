@@ -35,10 +35,6 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
     /// <summary>Un mes distinto, para el caso en que la edición sí lo saca del período.</summary>
     private static readonly DateOnly FechaDeOtroMes = new(2026, 5, 3);
 
-    private const int Comida = 1;
-    private const int Transporte = 2;
-    private const int Sueldo = 8;
-
     private const decimal MontoOriginal = 1500m;
     private const decimal MontoCorregido = 15000m;
 
@@ -57,8 +53,9 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        var id = await RegistrarAsync(cuenta, MontoOriginal);
+        var id = await RegistrarAsync(cuenta, MontoOriginal, cat.Comida);
 
         var (estado, cuerpo, _) = await CrudoAsync(cuenta, HttpMethod.Get, $"/api/movimientos/{id}");
         Assert.Equal(HttpStatusCode.OK, estado);
@@ -84,10 +81,11 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        var id = await RegistrarAsync(cuenta, MontoOriginal);
+        var id = await RegistrarAsync(cuenta, MontoOriginal, cat.Comida);
 
-        var (estado, _, _) = await EditarAsync(cuenta, id, MontoCorregido, Comida, FechaOriginal);
+        var (estado, _, _) = await EditarAsync(cuenta, id, MontoCorregido, cat.Comida, FechaOriginal);
         Assert.Equal(HttpStatusCode.OK, estado);
 
         var enElListado = (await ListadoAsync(cuenta)).Single();
@@ -112,21 +110,22 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        var id = await RegistrarAsync(cuenta, MontoOriginal);
+        var id = await RegistrarAsync(cuenta, MontoOriginal, cat.Comida);
 
         // Dentro del mes en curso: cambia y sigue viéndose.
-        await EditarAsync(cuenta, id, MontoOriginal, Transporte, FechaNueva);
+        await EditarAsync(cuenta, id, MontoOriginal, cat.Transporte, FechaNueva);
 
         var enElListado = (await ListadoAsync(cuenta)).Single();
-        Assert.Equal(Transporte, enElListado.GetProperty("categoriaId").GetInt32());
+        Assert.Equal(cat.Transporte, enElListado.GetProperty("categoriaId").GetInt32());
         Assert.Equal("Transporte", enElListado.GetProperty("categoriaNombre").GetString());
         Assert.Equal(
             FechaNueva.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             enElListado.GetProperty("fecha").GetString());
 
         // Fuera del mes en curso: deja de verse, y no porque se haya borrado.
-        await EditarAsync(cuenta, id, MontoOriginal, Transporte, FechaDeOtroMes);
+        await EditarAsync(cuenta, id, MontoOriginal, cat.Transporte, FechaDeOtroMes);
 
         Assert.Empty(await ListadoAsync(cuenta));
 
@@ -149,12 +148,14 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var a = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         using var b = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catA = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, a.Id);
+        var catB = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, b.Id);
         Assert.NotEqual(a.Id, b.Id);
 
-        var deA = await RegistrarAsync(a, MontoOriginal);
+        var deA = await RegistrarAsync(a, MontoOriginal, catA.Comida);
 
         var (estado, _, _) = await EditarAsync(
-            a, deA, MontoCorregido, Comida, FechaOriginal, propietarioEnElCuerpo: b.Id);
+            a, deA, MontoCorregido, catA.Comida, FechaOriginal, propietarioEnElCuerpo: b.Id);
         Assert.Equal(HttpStatusCode.OK, estado);
 
         // Sigue siendo de A, con el valor nuevo...
@@ -181,9 +182,11 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var a = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         using var b = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catA = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, a.Id);
+        var catB = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, b.Id);
         Assert.NotEqual(a.Id, b.Id);
 
-        var deB = await RegistrarAsync(b, MontoOriginal);
+        var deB = await RegistrarAsync(b, MontoOriginal, catB.Comida);
         var antesDeB = await ListadoAsync(b);
 
         var inexistente = await IdInexistenteAsync(a);
@@ -192,8 +195,8 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await IndistinguiblesAsync(a, HttpMethod.Get, deB, inexistente);
 
         // Modificar.
-        var ajeno = await EditarCrudoAsync(a, deB, MontoCorregido, Comida, FechaNueva);
-        var fantasma = await EditarCrudoAsync(a, inexistente, MontoCorregido, Comida, FechaNueva);
+        var ajeno = await EditarCrudoAsync(a, deB, MontoCorregido, catA.Comida, FechaNueva);
+        var fantasma = await EditarCrudoAsync(a, inexistente, MontoCorregido, catA.Comida, FechaNueva);
         RespuestasIndistinguibles.Exigir(ajeno, fantasma, $"PUT sobre ajeno ({deB}) e inexistente ({inexistente})");
 
         // Y el movimiento de B quedó intacto: campo por campo, no sólo "sigue estando".
@@ -217,12 +220,14 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var a = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         using var b = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catA = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, a.Id);
+        var catB = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, b.Id);
 
-        var deA = await RegistrarAsync(a, MontoOriginal);
-        var deB = await RegistrarAsync(b, MontoOriginal);
+        var deA = await RegistrarAsync(a, MontoOriginal, catA.Comida);
+        var deB = await RegistrarAsync(b, MontoOriginal, catB.Comida);
 
         // Monto negativo: 400 con la clave del campo, igual que el alta.
-        var (estado, cuerpo, _) = await EditarCrudoAsync(a, deA, -5m, Comida, FechaOriginal);
+        var (estado, cuerpo, _) = await EditarCrudoAsync(a, deA, -5m, catA.Comida, FechaOriginal);
         Assert.Equal(HttpStatusCode.BadRequest, estado);
         using (var json = JsonDocument.Parse(cuerpo))
         {
@@ -236,11 +241,11 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         // (INV-03). El tipo se manda forzado, porque derivarlo de la categoría armaría un par
         // válido y el test no probaría nada.
         var (porTipo, _, _) = await EditarCrudoAsync(
-            a, deA, MontoOriginal, Sueldo, FechaOriginal, tipoForzado: "gasto");
+            a, deA, MontoOriginal, catA.Sueldo, FechaOriginal, tipoForzado: "gasto");
         Assert.Equal(HttpStatusCode.BadRequest, porTipo);
 
         // Y lo ajeno con cuerpo inválido responde 404, NO 400: el orden es buscar y después validar.
-        var (ajeno, _, _) = await EditarCrudoAsync(a, deB, -5m, Comida, FechaOriginal);
+        var (ajeno, _, _) = await EditarCrudoAsync(a, deB, -5m, catA.Comida, FechaOriginal);
         Assert.Equal(HttpStatusCode.NotFound, ajeno);
     }
 
@@ -258,6 +263,7 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         var inexistente = await IdInexistenteAsync(cuenta);
 
@@ -325,7 +331,12 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         CuentaDePrueba cuenta, long id, decimal monto, int categoriaId, DateOnly fecha,
         long? propietarioEnElCuerpo = null, string? tipoForzado = null)
     {
-        var tipo = tipoForzado ?? (categoriaId == Sueldo ? "ingreso" : "gasto");
+        // Todas las categorías con las que edita este archivo son de gasto. Derivar el tipo
+        // comparando el identificador contra el de "Sueldo" dejó de ser posible en la feature 013:
+        // ese número ya no es el mismo para todas las cuentas. El único caso que edita con una
+        // categoría de ingreso es el del par incoherente, y ése manda el tipo a mano — que es
+        // justamente lo que quiere probar.
+        var tipo = tipoForzado ?? "gasto";
         var texto = fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         // `nota` viaja siempre: es obligatoria al editar desde la feature 012, por el mismo motivo que
@@ -345,13 +356,14 @@ public class EdicionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
             respuesta.Content.Headers.ContentType?.MediaType);
     }
 
-    private static async Task<long> RegistrarAsync(CuentaDePrueba cuenta, decimal monto)
+    private static async Task<long> RegistrarAsync(
+        CuentaDePrueba cuenta, decimal monto, int categoriaId)
     {
         var fecha = FechaOriginal.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         using var respuesta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto, categoriaId = Comida, fecha });
+            new { tipo = "gasto", monto, categoriaId, fecha });
 
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
 

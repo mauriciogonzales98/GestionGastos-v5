@@ -75,6 +75,7 @@ public class NotaSinCadenaVaciaEsquemaTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 11));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var gasto = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id);
 
         await using var contexto = _baseDeDatos.CrearContexto();
         var movimiento = new Movimiento
@@ -83,7 +84,7 @@ public class NotaSinCadenaVaciaEsquemaTests(BaseDeDatosFixture baseDeDatos)
             Tipo = TipoMovimiento.Gasto,
             Monto = 100m,
             MonedaId = 1,
-            CategoriaId = 1,
+            CategoriaId = gasto,
             Fecha = new DateOnly(2026, 9, 11),
             Nota = "una nota que existe",
         };

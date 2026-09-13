@@ -24,12 +24,13 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         const string Nota = "viaje al aeropuerto";
 
         using var alta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 8500m, categoriaId = 1, fecha = "2026-09-10", nota = Nota });
+            new { tipo = "gasto", monto = 8500m, categoriaId = cat.Comida, fecha = "2026-09-10", nota = Nota });
 
         Assert.Equal(HttpStatusCode.Created, alta.StatusCode);
         using var json = JsonDocument.Parse(await alta.Content.ReadAsStringAsync());
@@ -64,10 +65,11 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         using var alta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota });
+            new { tipo = "gasto", monto = 1200m, categoriaId = cat.Comida, fecha = "2026-09-10", nota });
 
         Assert.Equal(HttpStatusCode.Created, alta.StatusCode);
         using var json = JsonDocument.Parse(await alta.Content.ReadAsStringAsync());
@@ -87,10 +89,11 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         using var alta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10" });
+            new { tipo = "gasto", monto = 1200m, categoriaId = cat.Comida, fecha = "2026-09-10" });
 
         Assert.Equal(HttpStatusCode.Created, alta.StatusCode);
         using var json = JsonDocument.Parse(await alta.Content.ReadAsStringAsync());
@@ -171,11 +174,12 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
         var cliente = cuenta.Cliente;
 
         // Ruta 1 — el alta. Se registra un movimiento y después se fuerza con SQL la única
         // representación de "sin nota" que el esquema admite: `nota = NULL`.
-        var sinValor = await RegistrarAsync(cliente);
+        var sinValor = await RegistrarAsync(cliente, cat.Comida);
 
         await using (var contexto = _baseDeDatos.CrearContexto())
         {
@@ -215,7 +219,7 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         // que se verifica es que la respuesta no la devuelva como null.
         using (var edicion = await cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{sinValor}", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota = "" }))
+            new { tipo = "gasto", monto = 1200m, categoriaId = cat.Comida, fecha = "2026-09-10", nota = "" }))
         {
             Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
             using var json = JsonDocument.Parse(await edicion.Content.ReadAsStringAsync());
@@ -236,13 +240,14 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         const string Secreto = "zzzsecretozzz";
         var nota = Secreto + new string('a', 120);
 
         using var alta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota });
+            new { tipo = "gasto", monto = 1200m, categoriaId = cat.Comida, fecha = "2026-09-10", nota });
 
         Assert.Equal(HttpStatusCode.BadRequest, alta.StatusCode);
 
@@ -260,10 +265,11 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         using var alta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota });
+            new { tipo = "gasto", monto = 1200m, categoriaId = cat.Comida, fecha = "2026-09-10", nota });
 
         if (alta.StatusCode == HttpStatusCode.Created)
         {
@@ -298,11 +304,12 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
-        var id = await RegistrarAsync(cuenta.Cliente, "viaje al areopuerto");
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
+        var id = await RegistrarAsync(cuenta.Cliente, cat.Comida, "viaje al areopuerto");
 
         using var edicion = await cuenta.Cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{id}", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota = "viaje al aeropuerto" });
+            new { tipo = "gasto", monto = 1200m, categoriaId = cat.Comida, fecha = "2026-09-10", nota = "viaje al aeropuerto" });
 
         Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
         using var json = JsonDocument.Parse(await edicion.Content.ReadAsStringAsync());
@@ -335,11 +342,12 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
-        var id = await RegistrarAsync(cuenta.Cliente, "algo que resultó no importar");
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
+        var id = await RegistrarAsync(cuenta.Cliente, cat.Comida, "algo que resultó no importar");
 
         using var edicion = await cuenta.Cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{id}", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota = vacia });
+            new { tipo = "gasto", monto = 1200m, categoriaId = cat.Comida, fecha = "2026-09-10", nota = vacia });
 
         Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
         using var json = JsonDocument.Parse(await edicion.Content.ReadAsStringAsync());
@@ -362,7 +370,8 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
-        var id = await RegistrarAsync(cuenta.Cliente, "la original");
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
+        var id = await RegistrarAsync(cuenta.Cliente, cat.Comida, "la original");
 
         using var edicion = await cuenta.Cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{id}", UriKind.Relative),
@@ -370,7 +379,7 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
             {
                 tipo = "ingreso",
                 monto = 99999m,
-                categoriaId = 8,
+                categoriaId = cat.Sueldo,
                 fecha = "2026-01-01",
                 nota = new string('a', 121),
             });
@@ -405,8 +414,9 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
         var cliente = cuenta.Cliente;
-        var id = await RegistrarAsync(cliente);
+        var id = await RegistrarAsync(cliente, cat.Comida);
 
         var antes = await ResumenAsync(cliente);
 
@@ -415,7 +425,7 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         {
             using var edicion = await cliente.PutAsJsonAsync(
                 new Uri($"/api/movimientos/{id}", UriKind.Relative),
-                new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota });
+                new { tipo = "gasto", monto = 1200m, categoriaId = cat.Comida, fecha = "2026-09-10", nota });
 
             Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
             Assert.Equal(antes, await ResumenAsync(cliente));
@@ -453,13 +463,14 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 10));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
-        var id = await RegistrarAsync(cuenta.Cliente, "lo que la persona escribió");
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
+        var id = await RegistrarAsync(cuenta.Cliente, cat.Comida, "lo que la persona escribió");
 
         // El cuerpo NO lleva la clave `nota`. Todo lo demás está completo, así que nada más puede
         // provocar el rechazo: si esto pasara, pasaría por el camino equivocado.
         using var edicion = await cuenta.Cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{id}", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10" });
+            new { tipo = "gasto", monto = 1200m, categoriaId = cat.Comida, fecha = "2026-09-10" });
 
         Assert.Equal(HttpStatusCode.BadRequest, edicion.StatusCode);
 
@@ -477,11 +488,12 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>Registra un gasto —con nota o sin ella— y devuelve su id.</summary>
-    private static async Task<long> RegistrarAsync(HttpClient cliente, string? nota = null)
+    private static async Task<long> RegistrarAsync(
+        HttpClient cliente, int categoriaId, string? nota = null)
     {
         using var alta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 1200m, categoriaId = 1, fecha = "2026-09-10", nota });
+            new { tipo = "gasto", monto = 1200m, categoriaId, fecha = "2026-09-10", nota });
 
         Assert.Equal(HttpStatusCode.Created, alta.StatusCode);
         using var json = JsonDocument.Parse(await alta.Content.ReadAsStringAsync());
