@@ -201,5 +201,26 @@ jobs:
         env:
           ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
 
+      # La nota describe, no clasifica (RF-33, FR-007 de la feature 012): el listado la muestra y no
+      # puede acotar ni ordenar por ella, y el resumen no puede mencionarla. Esa barrera existía
+      # desde la 012 y **no estaba corriendo en CI**: se detectó al agregar la octava.
+      #
+      # Recompila con la consulta modificada, así que va con las otras barreras.
+      - name: Barrera de la nota
+        run: ./backend/verificar-nota.sh
+        env:
+          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+
+      # La base tiene que rechazar por sí misma un movimiento clasificado con la categoría de otra
+      # cuenta (FR-006 de la feature 013). Es la deuda D7-07: hasta entonces la regla la sostenían
+      # dos comprobaciones de la aplicación, así que valía para lo que pasa por la API y no para un
+      # script de mantenimiento o un arreglo a mano en la base.
+      #
+      # No recompila: desarma la restricción con SQL directo, que es exactamente lo que mide.
+      - name: Barrera del ámbito de categoría
+        run: ./backend/verificar-ambito-de-categoria.sh
+        env:
+          ConnectionStrings__Default: "Server=127.0.0.1;Port=3306;Database=gestiongastos_test;User ID=root;AllowPublicKeyRetrieval=true;"
+
       - name: Barrera del linter
         run: ./backend/verificar-linter.sh

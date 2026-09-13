@@ -105,22 +105,22 @@ movimiento quedó fuera de su ámbito, esta migración no entra (research D-04).
 
 ### Tests ⚠️
 
-- [ ] T018 [US2] Escribir `backend/GestionGastos.Api.Tests/Integracion/AmbitoDeCategoriaEsquemaTests.cs` con los tres casos de escritura directa de `FR-006` y `FR-009`: `INSERT` con categoría ajena rechazado, `UPDATE` a categoría ajena rechazado, `INSERT` con categoría propia aceptado (`SC-002`). Verlos en rojo — **hoy el tercero ya pasa**, así que el rojo tiene que venir de los dos primeros
-- [ ] T019 [US2] Escribir en ese mismo archivo el test de que `usuario_id` de `movimiento` participa de **dos** claves foráneas a la vez, la de `usuario` y la nueva. Es lo que research D-01 marcó como "hay que probarlo, no suponerlo". Verlo en rojo
+- [X] T018 [US2] Escribir `backend/GestionGastos.Api.Tests/Integracion/AmbitoDeCategoriaEsquemaTests.cs` con los tres casos de escritura directa de `FR-006` y `FR-009`: `INSERT` con categoría ajena rechazado, `UPDATE` a categoría ajena rechazado, `INSERT` con categoría propia aceptado (`SC-002`). Verlos en rojo — **hoy el tercero ya pasa**, así que el rojo tiene que venir de los dos primeros
+- [X] T019 [US2] Escribir en ese mismo archivo el test de que `usuario_id` de `movimiento` participa de **dos** claves foráneas a la vez, la de `usuario` y la nueva. Es lo que research D-01 marcó como "hay que probarlo, no suponerlo". Verlo en rojo
 
 ### Implementation
 
-- [ ] T020 [US2] Agregar la clave alternativa `(id, usuario_id)` de `categoria` y la foránea compuesta `(categoria_id, usuario_id) → categoria (id, usuario_id)` de `movimiento` en `backend/GestionGastos.Api/Persistencia/GestionGastosDbContext.cs`, y quitar la foránea simple (data-model)
-- [ ] T021 [US2] Crear la segunda migración, `<fecha>_AmbitoDeCategoriaEnLaBase.cs`, con esos dos cambios de esquema
-- [ ] T022 [US2] Revisar lo que EF generó para `IX_movimiento_categoria_id` y no dejar dos índices que empiezan por la misma columna (data-model)
-- [ ] T023 [US2] VERIFY: `dotnet test backend/` completo en verde. La suite entera es parte de este AC: la restricción no puede estar rechazando ningún caso legítimo (escena 4 de US2)
+- [X] T020 [US2] Agregar la clave alternativa `(id, usuario_id)` de `categoria` y la foránea compuesta `(categoria_id, usuario_id) → categoria (id, usuario_id)` de `movimiento` en `backend/GestionGastos.Api/Persistencia/GestionGastosDbContext.cs`, y quitar la foránea simple (data-model)
+- [X] T021 [US2] Crear la segunda migración, `<fecha>_AmbitoDeCategoriaEnLaBase.cs`, con esos dos cambios de esquema
+- [X] T022 [US2] Revisar lo que EF generó para `IX_movimiento_categoria_id` y no dejar dos índices que empiezan por la misma columna (data-model)
+- [X] T023 [US2] VERIFY: `dotnet test backend/` completo en verde. La suite entera es parte de este AC: la restricción no puede estar rechazando ningún caso legítimo (escena 4 de US2)
 
 ### La barrera de la restricción (Principio V)
 
-- [ ] T024 [US2] Escribir `backend/verificar-ambito-de-categoria.sh`: quita la foránea compuesta, exige que `AmbitoDeCategoriaEsquemaTests` se ponga en **rojo**, la restaura y exige el verde. Sería la octava barrera del proyecto (`FR-019`, research D-09)
-- [ ] T025 [US2] Correrla y ver los dos estados con la salida a la vista. Una barrera que nunca se vio fallar no es una barrera
-- [ ] T026 [P] [US2] Registrarla en `backend/GestionGastos.Api.Tests/Integracion/BarrerasEjecutablesTests.cs` si ese test enumera las barreras existentes
-- [ ] T027 [P] [US2] Agregarla al workflow en `.github/workflows/ci.yml`, junto a las demás
+- [X] T024 [US2] Escribir `backend/verificar-ambito-de-categoria.sh`: quita la foránea compuesta, exige que `AmbitoDeCategoriaEsquemaTests` se ponga en **rojo**, la restaura y exige el verde. Sería la octava barrera del proyecto (`FR-019`, research D-09)
+- [X] T025 [US2] Correrla y ver los dos estados con la salida a la vista. Una barrera que nunca se vio fallar no es una barrera
+- [X] T026 [P] [US2] Registrarla en `backend/GestionGastos.Api.Tests/Integracion/BarrerasEjecutablesTests.cs` si ese test enumera las barreras existentes
+- [X] T027 [P] [US2] Agregarla al workflow en `.github/workflows/ci.yml`, junto a las demás
 
 **Checkpoint**: D7-07 saldada. La lectura por navegación `m.Categoria!.Nombre` pasa a ser segura
 **por construcción** y no por suerte.

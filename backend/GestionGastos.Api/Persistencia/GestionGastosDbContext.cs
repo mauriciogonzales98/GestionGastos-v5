@@ -175,6 +175,12 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
                 .WithMany()
                 .HasForeignKey(c => c.UsuarioId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // La clave alternativa `(id, usuario_id)`. **No restringe nada nuevo** —`id` ya es único
+            // por sí solo— y existe por un único motivo: ser el destino de la foránea compuesta de
+            // `movimiento`. MySQL exige que lo que una foránea referencia sea una clave.
+            e.HasAlternateKey(c => new { c.Id, c.UsuarioId })
+                .HasName("ak_categoria_id_usuario");
         });
 
         modelBuilder.Entity<Movimiento>(e =>
@@ -226,7 +232,27 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
                 .HasDatabaseName("ix_movimiento_usuario_fecha");
 
             e.HasOne<Usuario>().WithMany().HasForeignKey(m => m.UsuarioId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(m => m.Categoria).WithMany().HasForeignKey(m => m.CategoriaId).OnDelete(DeleteBehavior.Restrict);
+
+            // **La invariante de D7-07, en la base** (FR-006 de la feature 013): el dueño del
+            // movimiento y el dueño de su categoría son el mismo.
+            //
+            // Reemplaza a la foránea simple contra `categoria (id)`, que ésta contiene: una fila que
+            // satisface `(categoria_id, usuario_id)` satisface también `(categoria_id)`, así que
+            // dejar las dos sería el mismo índice por duplicado.
+            //
+            // Hasta la feature 013 esto **no se podía expresar**. La condición real era
+            // `categoria.usuario_id IS NULL OR categoria.usuario_id = movimiento.usuario_id`, y una
+            // foránea no sabe decir "o nula": montada tal cual, rechazaba las diez predefinidas con
+            // un `ERROR 1452`. Lo que la hizo posible fue que toda categoría pasara a tener dueño.
+            //
+            // `usuario_id` queda participando de DOS foráneas a la vez, ésta y la de `usuario`.
+            // MySQL lo admite, y `AmbitoDeCategoriaEsquemaTests` lo comprueba en vez de suponerlo.
+            e.HasOne(m => m.Categoria)
+                .WithMany()
+                .HasForeignKey(m => new { m.CategoriaId, m.UsuarioId })
+                .HasPrincipalKey(c => new { c.Id, c.UsuarioId })
+                .HasConstraintName("fk_movimiento_categoria_del_ambito")
+                .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(m => m.Moneda).WithMany().HasForeignKey(m => m.MonedaId).OnDelete(DeleteBehavior.Restrict);
         });
 
