@@ -191,6 +191,85 @@ public class MigracionDeCatalogoTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>
+    /// **Un fallo de la migración no deja la base a medias, y se puede reintentar** (`FR-014`).
+    ///
+    /// El fallo se fabrica con el único caso que puede producirlo de verdad: una cuenta con una
+    /// categoría propia **activa** homónima de una predefinida. El esquema anterior lo permitía
+    /// —para MySQL `usuario_id NULL` y `usuario_id 7` son claves distintas, así que el índice único
+    /// las dejaba convivir (D-02 de la 007)— y la copia que la migración crea choca contra ella.
+    ///
+    /// **Lo que este test fija no es que falle, sino cómo queda la base después.** Un fallo tiene
+    /// que dejarla exactamente como estaba: sin copias a medias, sin columnas de trabajo puestas y
+    /// —sobre todo— en condiciones de volver a intentarlo una vez corregido el dato. Es lo que
+    /// separa "falla" de "se rompe".
+    ///
+    /// **Y no se puede dar por supuesto por estar dentro de una migración.** Medido el 2026-09-13:
+    /// un `ALTER TABLE` confirma la transacción de forma implícita y la termina, así que todo lo que
+    /// venga después queda fuera de ella y un `ROLLBACK` posterior no lo deshace. Una migración que
+    /// mezcle DDL con pasos de datos **no es atómica**, diga lo que diga el comentario que tenga
+    /// encima.
+    /// </summary>
+    [Fact]
+    public async Task Un_Fallo_No_Deja_La_Base_A_Medias_Y_Se_Puede_Reintentar_FR014()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        var migrador = contexto.Database.GetService<IMigrator>();
+
+        try
+        {
+            var sembrado = await SembrarElEstadoAnteriorAsync(contexto, migrador);
+
+            // La propia ACTIVA homónima de una predefinida: el caso que hace fallar el alta de las
+            // copias. Se agrega sobre el estado que el sembrado ya dejó.
+            await EjecutarAsync(contexto, $"""
+                INSERT INTO categoria (nombre, tipo, usuario_id, activa, discriminador)
+                VALUES ('Transporte', 0, {sembrado.CuentaA}, 1, 0)
+                """);
+
+            var compartidasAntes = await EscalarAsync(
+                contexto, "SELECT COUNT(*) FROM categoria WHERE usuario_id IS NULL");
+            var deLaCuentaAntes = await ContarCategoriasDeAsync(contexto, sembrado.CuentaA);
+
+            // 1 · La migración falla. Que falle está bien: FR-014 pide fallar antes que completarse
+            //     a medias.
+            await Assert.ThrowsAnyAsync<Exception>(() => migrador.MigrateAsync());
+
+            // 2 · Y la base quedó como estaba. Las tres cosas que un fallo no puede dejar puestas:
+            Assert.Equal(
+                compartidasAntes,
+                await EscalarAsync(contexto, "SELECT COUNT(*) FROM categoria WHERE usuario_id IS NULL"));
+
+            Assert.Equal(deLaCuentaAntes, await ContarCategoriasDeAsync(contexto, sembrado.CuentaA));
+
+            Assert.Equal(
+                0,
+                await EscalarAsync(contexto, """
+                    SELECT COUNT(*)
+                    FROM information_schema.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND TABLE_NAME = 'categoria'
+                      AND COLUMN_NAME = 'migracion_origen_id'
+                    """));
+
+            // 3 · Corregido el dato que la hacía fallar, el reintento entra.
+            await EjecutarAsync(
+                contexto,
+                $"DELETE FROM categoria WHERE usuario_id = {sembrado.CuentaA} AND nombre = 'Transporte'");
+
+            await migrador.MigrateAsync();
+
+            Assert.Equal(0, await EscalarAsync(
+                contexto, "SELECT COUNT(*) FROM categoria WHERE usuario_id IS NULL"));
+        }
+        finally
+        {
+            await RestaurarAsync(migrador);
+        }
+    }
+
+    /// <summary>
     /// Baja el esquema a la migración anterior y siembra el estado de antes de la feature.
     ///
     /// Lo que fabrica: dos cuentas, las diez compartidas —que vuelve a poner el <c>Down()</c>—, una
@@ -275,6 +354,41 @@ public class MigracionDeCatalogoTests(BaseDeDatosFixture baseDeDatos)
     /// </summary>
     private async Task RestaurarAsync(IMigrator migrador)
     {
+        // **Se limpia ANTES de migrar, y ése es todo el punto del orden.**
+        //
+        // Limpiar después parece igual y no lo es: si el test murió con un dato que hace fallar la
+        // migración —que es justamente lo que uno de estos tests fabrica a propósito—, el
+        // `MigrateAsync` de la restauración falla por el mismo motivo, la base queda en el esquema
+        // viejo, y **los cien tests siguientes fallan por algo que no es suyo**. Pasó de verdad
+        // mientras se escribía esto.
+        //
+        // Lo mismo con la columna de trabajo: una migración que mezcla DDL con pasos de datos puede
+        // dejarla puesta al fallar —el `ALTER TABLE` confirma la transacción y la termina—, y
+        // entonces el reintento muere con `Duplicate column name`. Con la migración escrita como
+        // corresponde esto no encuentra nada; está por si vuelve a escribirse mal.
+        await using (var contexto = _baseDeDatos.CrearContexto())
+        {
+            var quedo = await EscalarAsync(contexto, """
+                SELECT COUNT(*)
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'categoria'
+                  AND COLUMN_NAME = 'migracion_origen_id'
+                """);
+
+            if (quedo > 0)
+            {
+                await EjecutarAsync(
+                    contexto, "ALTER TABLE categoria DROP COLUMN migracion_origen_id");
+            }
+
+            // Con SQL crudo y no por el modelo: el esquema al que se puede haber quedado la base
+            // admite el `usuario_id` nulo que el modelo de hoy dice que no existe.
+            await EjecutarAsync(contexto, "DELETE FROM movimiento");
+            await EjecutarAsync(contexto, "DELETE FROM categoria WHERE usuario_id IS NOT NULL");
+            await EjecutarAsync(contexto, "DELETE FROM usuario");
+        }
+
         await migrador.MigrateAsync();
         await _baseDeDatos.LimpiarCuentasAsync();
     }

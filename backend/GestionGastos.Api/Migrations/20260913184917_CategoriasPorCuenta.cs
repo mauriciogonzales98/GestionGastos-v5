@@ -17,10 +17,25 @@ namespace GestionGastos.Api.Migrations
     /// el catálogo inicial del código haya cambiado: copiando lo que efectivamente existía, migra esa
     /// base y no una imaginaria.
     ///
-    /// **Quién verifica que salió bien: las restricciones mismas.** El paso 5 falla si quedó alguna
-    /// categoría sin dueño; la migración siguiente falla si quedó algún movimiento fuera de su
-    /// ámbito. No hace falta una comprobación aparte, y como cada migración corre en su transacción,
-    /// un fallo deja la base como estaba en vez de completarse a medias (FR-014).
+    /// **Quién verifica que salió bien: las restricciones mismas.** El último paso falla si quedó
+    /// alguna categoría sin dueño; la migración siguiente falla si quedó algún movimiento fuera de su
+    /// ámbito. No hace falta una comprobación aparte.
+    ///
+    /// **Y por eso los tres pasos de datos van juntos y el único `ALTER TABLE` va último.** Una
+    /// migración NO es atómica por el hecho de ser una migración: en MySQL un `ALTER TABLE` confirma
+    /// la transacción abierta y la termina, así que todo lo que venga después queda fuera de ella y
+    /// ningún `ROLLBACK` lo deshace. Medido el 2026-09-13 —un `INSERT` posterior a un `ALTER`
+    /// sobrevivió a un `ROLLBACK` explícito—, y la primera versión de esta migración lo ignoraba:
+    /// abría con un `ADD COLUMN` para una columna de trabajo, y un fallo posterior la dejaba puesta
+    /// y hacía que el reintento muriera con `Duplicate column name`. `FR-014` pide fallar en vez de
+    /// completarse a medias, y eso incluye poder volver a intentarlo.
+    ///
+    /// **La columna de trabajo desapareció, y el emparejamiento no perdió precisión.** Lo que hacía
+    /// falta era distinguir la copia de "Comida" de una "Comida" que la cuenta ya tuviera dada de
+    /// baja (D-03), y eso lo resuelve el `discriminador`: vale `0` en las activas y el propio `id` en
+    /// las dadas de baja, y el índice único `(usuario_id, nombre, tipo, discriminador)` garantiza que
+    /// para un ámbito, un nombre y un tipo haya **a lo sumo una** fila con `discriminador = 0`. El
+    /// emparejamiento es unívoco por construcción, y lo garantiza una restricción y no la suerte.
     /// </summary>
     public partial class CategoriasPorCuenta : Migration
     {
@@ -29,47 +44,55 @@ namespace GestionGastos.Api.Migrations
         {
             System.ArgumentNullException.ThrowIfNull(migrationBuilder);
 
-            // 1 · Una columna temporal para recordar de qué predefinida salió cada copia.
+            // 1 · Una copia de cada predefinida para cada cuenta que exista.
             //
-            // Es lo que permite reapuntar **por identidad**. Emparejar por `(nombre, tipo)` sería
-            // más corto y estaría mal: una cuenta puede tener una categoría propia DADA DE BAJA
-            // homónima de una predefinida —para eso existe el discriminador—, y el JOIN por nombre
-            // encontraría dos candidatas y mandaría el movimiento a la equivocada, en silencio y sin
-            // error (D-03).
-            migrationBuilder.Sql(
-                "ALTER TABLE categoria ADD COLUMN migracion_origen_id INT NULL");
-
-            // 2 · Una copia de cada predefinida para cada cuenta que exista.
+            // Las copias salen de lo que HAY en la base y no de una lista escrita acá (D-02), y
+            // nacen activas con `discriminador = 0` — que es lo que el paso siguiente usa para
+            // encontrarlas sin ambigüedad.
             migrationBuilder.Sql("""
-                INSERT INTO categoria (nombre, tipo, usuario_id, activa, discriminador, migracion_origen_id)
-                SELECT c.nombre, c.tipo, u.id, c.activa, 0, c.id
+                INSERT INTO categoria (nombre, tipo, usuario_id, activa, discriminador)
+                SELECT c.nombre, c.tipo, u.id, c.activa, 0
                 FROM usuario u
                 CROSS JOIN categoria c
                 WHERE c.usuario_id IS NULL
                 """);
 
-            // 3 · Cada movimiento pasa a la copia de SU dueño, emparejando por la columna temporal.
+            // 2 · Cada movimiento pasa a la copia de SU dueño.
+            //
+            // Se llega a la copia pasando por la predefinida a la que el movimiento apunta hoy
+            // —`compartida`, que todavía existe— y de ahí a la fila del mismo nombre y tipo dentro
+            // del ámbito del dueño.
+            //
+            // **El `discriminador = 0` es lo que vuelve unívoco el emparejamiento, y no es un
+            // detalle.** Sin él, una cuenta que ya tuviera una "Comida" DADA DE BAJA daría dos
+            // candidatas y el movimiento se iría a la equivocada, en silencio y sin error (D-03).
+            // Con él, el índice único `(usuario_id, nombre, tipo, discriminador)` garantiza que haya
+            // a lo sumo una: las dadas de baja llevan su propio `id` ahí y quedan fuera.
             migrationBuilder.Sql("""
                 UPDATE movimiento m
+                JOIN categoria compartida
+                  ON compartida.id = m.categoria_id
+                 AND compartida.usuario_id IS NULL
                 JOIN categoria copia
                   ON copia.usuario_id = m.usuario_id
-                 AND copia.migracion_origen_id = m.categoria_id
+                 AND copia.nombre = compartida.nombre
+                 AND copia.tipo = compartida.tipo
+                 AND copia.discriminador = 0
                 SET m.categoria_id = copia.id
                 """);
 
-            // 4 · Y recién ahora se van las compartidas. Si algún movimiento hubiera quedado
-            // apuntando a una de ellas, la clave foránea frena este DELETE y la migración entera se
-            // deshace — que es lo que tiene que pasar.
+            // 3 · Y recién ahora se van las compartidas. Si algún movimiento hubiera quedado
+            // apuntando a una de ellas, la clave foránea frena este DELETE y los tres pasos se
+            // deshacen juntos — que es lo que tiene que pasar.
             migrationBuilder.Sql("DELETE FROM categoria WHERE usuario_id IS NULL");
 
-            // 5 · FR-001 en la base. Falla si quedó una categoría sin dueño, y ésa es justamente la
+            // 4 · FR-001 en la base. Falla si quedó una categoría sin dueño, y ésa es justamente la
             // verificación de FR-014 que no hace falta escribir aparte.
+            //
+            // **Va último porque es DDL**: confirma la transacción y la termina, así que cualquier
+            // paso de datos escrito debajo de esta línea dejaría de poder deshacerse.
             migrationBuilder.Sql(
                 "ALTER TABLE categoria MODIFY usuario_id BIGINT NOT NULL");
-
-            // 6 · La columna temporal se va: cumplió su función dentro de esta misma migración.
-            migrationBuilder.Sql(
-                "ALTER TABLE categoria DROP COLUMN migracion_origen_id");
         }
 
         /// <summary>

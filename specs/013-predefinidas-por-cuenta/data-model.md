@@ -82,13 +82,19 @@ Medido sobre `gestiongastos` el 2026-09-12: 9 cuentas, 10 predefinidas compartid
 | — | 90 copias nuevas (9 cuentas × 10), activas, con dueño |
 | 5 movimientos apuntando a una compartida | 5 apuntando a la copia **de su propio dueño**, misma categoría por nombre y tipo (`FR-011`) |
 
-El emparejamiento va por una columna temporal y no por nombre: una cuenta puede tener una categoría
-propia **dada de baja** homónima de una predefinida, y emparejar por nombre reapuntaría movimientos a
-la categoría equivocada en silencio (D-03 de research).
+El emparejamiento no va por nombre a secas: una cuenta puede tener una categoría propia **dada de
+baja** homónima de una predefinida, y emparejar sólo por nombre reapuntaría movimientos a la
+categoría equivocada en silencio (D-03 de research). Lo que lo desambigua es el `discriminador`, que
+vale `0` en las activas y el propio `id` en las dadas de baja: el índice único
+`(usuario_id, nombre, tipo, discriminador)` garantiza que haya a lo sumo una candidata.
 
 **Quién verifica que salió bien**: las restricciones mismas. `usuario_id NOT NULL` falla si quedó
-una categoría sin dueño; la foránea compuesta falla si quedó un movimiento fuera de su ámbito. La
-migración corre en transacción, así que un fallo deja la base como estaba (`FR-014`).
+una categoría sin dueño; la foránea compuesta falla si quedó un movimiento fuera de su ámbito.
+
+**Y un fallo deja la base como estaba porque la migración está escrita para eso, no porque sea una
+migración.** En MySQL un `ALTER TABLE` confirma la transacción y la termina: los tres pasos de datos
+van juntos y el único cambio de esquema va último, justamente para que no quede nada a medias
+(`FR-014`). El detalle de lo que se midió está en [research.md](./research.md), D-04.
 
 ---
 
