@@ -30,6 +30,7 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         var cliente = cuenta.Cliente;
+        var gasto = await Integracion.CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id);
 
         await SembrarAsync(cuenta.Id, hoy);
 
@@ -39,13 +40,13 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
 
         // Una ejecución de calentamiento fuera de la medición: la primera paga la compilación del
         // pipeline y el primer plan de consulta, y no representa el guardado real.
-        await GuardarAsync(cliente, hoy);
+        await GuardarAsync(cliente, hoy, gasto);
 
         var muestras = new List<double>(Ejecuciones);
         for (var i = 0; i < Ejecuciones; i++)
         {
             var cronometro = Stopwatch.StartNew();
-            await GuardarAsync(cliente, hoy);
+            await GuardarAsync(cliente, hoy, gasto);
             cronometro.Stop();
             muestras.Add(cronometro.Elapsed.TotalMilliseconds);
         }
@@ -82,17 +83,18 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
             using var factoria = new FactoriaConReloj(hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
             var cliente = cuenta.Cliente;
+            var gasto = await Integracion.CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id);
 
             await SembrarAsync(cuenta.Id, hoy);
             await ConfirmarQueElMesTieneFilasAsync(hoy);
 
-            await GuardarAsync(cliente, hoy, moneda.Id);
+            await GuardarAsync(cliente, hoy, gasto, moneda.Id);
 
             var muestras = new List<double>(Ejecuciones);
             for (var i = 0; i < Ejecuciones; i++)
             {
                 var cronometro = Stopwatch.StartNew();
-                await GuardarAsync(cliente, hoy, moneda.Id);
+                await GuardarAsync(cliente, hoy, gasto, moneda.Id);
                 cronometro.Stop();
                 muestras.Add(cronometro.Elapsed.TotalMilliseconds);
             }
@@ -108,7 +110,8 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
         });
     }
 
-    private static async Task GuardarAsync(HttpClient cliente, DateOnly hoy, short? monedaId = null)
+    private static async Task GuardarAsync(
+        HttpClient cliente, DateOnly hoy, int categoriaId, short? monedaId = null)
     {
         using var respuesta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
@@ -116,7 +119,7 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
             {
                 tipo = "gasto",
                 monto = 123.45m,
-                categoriaId = 1,
+                categoriaId,
                 monedaId,
                 fecha = hoy.ToString("yyyy-MM-dd"),
             });
@@ -130,6 +133,8 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
     /// </summary>
     private async Task SembrarAsync(long usuarioId, DateOnly hoy)
     {
+        var categoriaId = await Integracion.CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, usuarioId);
+
         await using var contexto = _baseDeDatos.CrearContexto();
         var fechas = SembradoDeRendimiento.GenerarFechasSembradas(hoy, FilasSembradas);
 
@@ -139,7 +144,7 @@ public class RendimientoAltaTests(BaseDeDatosFixture baseDeDatos)
             Tipo = TipoMovimiento.Gasto,
             Monto = 100m,
             MonedaId = 1,
-            CategoriaId = 1,
+            CategoriaId = categoriaId,
             Fecha = fecha,
         }));
 

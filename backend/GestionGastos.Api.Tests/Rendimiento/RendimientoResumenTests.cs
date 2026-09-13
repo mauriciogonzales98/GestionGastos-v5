@@ -45,8 +45,6 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos, ITestOutput
     private const int Ejecuciones = 100;
 
     /// <summary>Las diez categorías del catálogo, para que el agrupado tenga sobre qué agrupar.</summary>
-    private static readonly int[] CategoriasDeGasto = [1, 2, 3, 4, 5, 6, 7];
-    private static readonly int[] CategoriasDeIngreso = [8, 9, 10];
 
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
 
@@ -155,6 +153,12 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos, ITestOutput
     private async Task SembrarAsync(long usuarioId, DateOnly hoy, int filas, int monedas)
     {
         await using var contexto = _baseDeDatos.CrearContexto();
+        // Las diez categorías salen del catálogo de ESA cuenta: desde la feature 013 los números
+        // 1 a 10 ya no son el catálogo de nadie en particular.
+        var catalogo = await Integracion.CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, usuarioId);
+        var categoriasDeGasto = catalogo.Gastos();
+        var categoriasDeIngreso = catalogo.Ingresos();
+
         var fechas = SembradoDeRendimiento.GenerarFechasSembradas(hoy, filas);
 
         contexto.Movimientos.AddRange(fechas.Select((fecha, i) =>
@@ -170,8 +174,8 @@ public class RendimientoResumenTests(BaseDeDatosFixture baseDeDatos, ITestOutput
                 // caen todas en la misma moneda no ejercita ese nivel del GROUP BY, lo esquiva.
                 MonedaId = (short)((i % monedas) + 1),
                 CategoriaId = esGasto
-                    ? CategoriasDeGasto[i % CategoriasDeGasto.Length]
-                    : CategoriasDeIngreso[i % CategoriasDeIngreso.Length],
+                    ? categoriasDeGasto[i % categoriasDeGasto.Length]
+                    : categoriasDeIngreso[i % categoriasDeIngreso.Length],
                 Fecha = fecha,
             };
         }));

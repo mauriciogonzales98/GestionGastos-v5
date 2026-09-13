@@ -13,13 +13,31 @@ public class Categoria
     public TipoMovimiento Tipo { get; set; }
 
     /// <summary>
-    /// <c>null</c> = predefinida del sistema; con valor = propia de esa cuenta.
+    /// La cuenta dueña. **Obligatoria**: no existe la categoría sin dueño (FR-001).
     ///
-    /// Anticipo deliberado del ticket 3 (D-06): en esta feature todas las filas nacen en
-    /// <c>null</c>, pero la columna está desde el principio para no migrar la tabla después ni
-    /// reescribir las consultas que la tocan.
+    /// Nació anulable, y el <c>null</c> significaba "predefinida del sistema": diez filas que todas
+    /// las cuentas veían y ninguna poseía. Esa clase de fila desapareció con la feature 013, que le
+    /// entrega a cada cuenta su propia copia de las diez al registrarse.
+    ///
+    /// **No es un detalle de tipos.** Mientras el <c>null</c> existió, la regla de que un movimiento
+    /// no puede apuntar a la categoría de otra cuenta no se podía escribir como restricción: la
+    /// condición real era "el dueño coincide **o la categoría no es de nadie**", y una clave foránea
+    /// no sabe decir "o nula". Sacarlo es lo que dejó poner la foránea compuesta que hoy sostiene
+    /// esa invariante — la deuda D7-07.
     /// </summary>
-    public long? UsuarioId { get; set; }
+    public long UsuarioId { get; set; }
+
+    /// <summary>
+    /// La cuenta dueña, como objeto. **Existe para el alta**: cuando una cuenta se registra, sus
+    /// diez categorías iniciales se enlazan por acá y no por <see cref="UsuarioId"/>, porque en ese
+    /// momento la cuenta todavía no tiene identificador — lo genera su propio <c>INSERT</c>. Con la
+    /// navegación puesta, EF ordena las once escrituras y propaga el identificador dentro del mismo
+    /// <c>SaveChanges</c>, que es lo que hace que FR-003 sea una sola transacción.
+    ///
+    /// **No se lee por acá.** Toda lectura de categorías pasa por `CategoriasConsulta`, y el
+    /// aislamiento se acota con `UsuarioId`, no navegando.
+    /// </summary>
+    public Usuario? Usuario { get; set; }
 
     /// <summary>Baja lógica de RF-09. Igual que <see cref="UsuarioId"/>, anticipo del ticket 3.</summary>
     public bool Activa { get; set; } = true;

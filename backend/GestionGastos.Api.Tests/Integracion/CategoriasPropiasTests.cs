@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using GestionGastos.Api.Dominio;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestionGastos.Api.Tests.Integracion;
 
@@ -25,21 +26,25 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
 
     /// <summary>
-    /// AC-02: una cuenta recién registrada ve las diez predefinidas y ninguna propia, porque no
-    /// tiene.
+    /// AC-02, reformulado por la feature 013: una cuenta recién registrada ve **sus** diez y
+    /// ninguna más.
     ///
     /// Se verifica el catálogo COMPLETO contra la lista literal, y no sólo que "haya categorías de
     /// gasto": lo que AC-02 promete es que el punto de partida de toda cuenta nueva es el mismo, y
     /// eso se rompe tanto por una de menos como por una de más — por ejemplo la propia de otra
     /// cuenta colándose por un ámbito mal escrito.
     ///
+    /// **Se comparan nombres y tipos, no identificadores.** Desde la feature 013 el identificador
+    /// de una categoría es de su cuenta: fijar el `1` acá volvería el test dependiente de cuántas
+    /// cuentas se registraron antes en esa base, que es la definición de un test intermitente.
+    ///
     /// **Y el orden, que hasta hoy no lo verificaba nadie.** El contrato dice "por tipo y después
     /// por identificador" y el catálogo salía ordenado igual sin que ningún test lo mirara: si
     /// alguien borraba el `OrderBy`, MySQL seguía devolviendo las filas por clave primaria y nadie
-    /// se enteraba hasta que una propia con id alto apareciera en el medio.
+    /// se enteraba hasta que una con id alto apareciera en el medio.
     /// </summary>
     [Fact]
-    public async Task Una_Cuenta_Nueva_Ve_Las_Diez_Predefinidas_Y_Ninguna_Propia_AC02()
+    public async Task Una_Cuenta_Nueva_Ve_Sus_Diez_Y_Ninguna_Mas_AC02_FR004()
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
@@ -50,22 +55,30 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
 
         Assert.Equal(
             [
-                (1, "Comida", "gasto"),
-                (2, "Transporte", "gasto"),
-                (3, "Vivienda", "gasto"),
-                (4, "Servicios", "gasto"),
-                (5, "Salud", "gasto"),
-                (6, "Ocio", "gasto"),
-                (7, "Otros", "gasto"),
-                (8, "Sueldo", "ingreso"),
-                (9, "Ingreso extra", "ingreso"),
-                (10, "Otros", "ingreso"),
+                ("Comida", "gasto"),
+                ("Transporte", "gasto"),
+                ("Vivienda", "gasto"),
+                ("Servicios", "gasto"),
+                ("Salud", "gasto"),
+                ("Ocio", "gasto"),
+                ("Otros", "gasto"),
+                ("Sueldo", "ingreso"),
+                ("Ingreso extra", "ingreso"),
+                ("Otros", "ingreso"),
             ],
-            catalogo.Select(c => (c.Id, c.Nombre, c.Tipo)));
+            catalogo.Select(c => (c.Nombre, c.Tipo)));
 
-        Assert.All(catalogo, c => Assert.False(
-            c.EsPropia,
-            $"La predefinida {c.Id} ({c.Nombre}) vino marcada como propia."));
+        // El orden es el del contrato: por tipo y después por identificador. Se comprueba aparte
+        // porque la comparación de arriba lo daría por bueno si los ids no fueran crecientes.
+        Assert.Equal(
+            catalogo.OrderBy(c => c.Tipo == "gasto" ? 0 : 1).ThenBy(c => c.Id).Select(c => c.Id),
+            catalogo.Select(c => c.Id));
+
+        // Todas son de esta cuenta: ninguna pertenece a otra ni sobrevive de un catálogo compartido.
+        await using var contexto = _baseDeDatos.CrearContexto();
+        var ajenas = await contexto.Categorias
+            .CountAsync(c => c.UsuarioId != cuenta.Id);
+        Assert.Equal(0, ajenas);
 
         // El selector de gasto del formulario no ofrece categorías de ingreso, y eso sale de que
         // cada categoría trae su tipo: el filtro es del cliente, pero el dato con el que filtra
@@ -93,17 +106,18 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
 
         var creada = await CrearYLeerAsync(mia, "Gimnasio", "gasto");
 
-        Assert.True(creada.EsPropia, "La categoría recién creada no vino marcada como propia.");
         Assert.Equal("Gimnasio", creada.Nombre);
         Assert.Equal("gasto", creada.Tipo);
 
         var catalogoPropio = await CatalogoAsync(mia);
-        Assert.Contains(catalogoPropio, c => c.Id == creada.Id && c.EsPropia);
+        Assert.Contains(catalogoPropio, c => c.Id == creada.Id);
 
         var catalogoAjeno = await CatalogoAsync(ajena);
         Assert.DoesNotContain(catalogoAjeno, c => c.Id == creada.Id);
         Assert.DoesNotContain(catalogoAjeno, c => c.Nombre == "Gimnasio");
-        Assert.All(catalogoAjeno, c => Assert.False(c.EsPropia));
+
+        // Y el catálogo de la otra cuenta es el suyo entero, sin una fila de más.
+        Assert.Equal(10, catalogoAjeno.Count);
     }
 
     /// <summary>
@@ -137,19 +151,24 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
 
         // Y no quedó una segunda fila: un 400 que igual inserta cumple el código y falla la regla.
         var catalogo = await CatalogoAsync(cuenta);
-        Assert.Equal(1, catalogo.Count(c => c.EsPropia));
+        Assert.Equal(1, catalogo.Count(c => c.Nombre == "Gimnasio"));
     }
 
     /// <summary>
-    /// La otra mitad de AC-07: choca también contra las predefinidas, que la cuenta ve pero no
-    /// posee. Es la razón por la que la unicidad la comprueba la aplicación y no puede quedar en el
-    /// índice: para MySQL, `usuario_id NULL` y `usuario_id 7` son claves distintas (D-02).
+    /// La otra mitad de AC-07: choca también contra las diez que la cuenta recibió al registrarse.
+    ///
+    /// **Lo que cambió con la feature 013 es quién lo garantiza, no qué se espera.** Antes esas
+    /// diez tenían `usuario_id NULL` y para MySQL `NULL` y `7` son claves distintas, así que el
+    /// índice único las dejaba pasar y la comprobación tenía que hacerla la aplicación (D-02 de la
+    /// 007). Sin `NULL`, el índice cubre el caso entero. El test fija qué se espera,
+    /// independientemente de quién lo garantice (FR-005).
     /// </summary>
     [Theory]
     [InlineData("Comida", "idéntico a una predefinida")]
     [InlineData("comida", "una predefinida, en minúsculas")]
     [InlineData("  Comida ", "una predefinida, con espacios al borde")]
-    public async Task Rechaza_El_Nombre_Repetido_Contra_Una_Predefinida_AC07(string nombre, string caso)
+    public async Task Rechaza_El_Nombre_Repetido_Contra_Una_Del_Catalogo_Inicial_AC07_FR005(
+        string nombre, string caso)
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
@@ -159,8 +178,9 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
         using var respuesta = await CrearAsync(cuenta, nombre, "gasto");
         await AssertRechazadoAsync(respuesta, "nombre", caso);
 
+        // El catálogo sigue teniendo exactamente las diez del alta: no se coló una undécima.
         var catalogo = await CatalogoAsync(cuenta);
-        Assert.DoesNotContain(catalogo, c => c.EsPropia);
+        Assert.Equal(10, catalogo.Count);
     }
 
     /// <summary>
@@ -217,8 +237,50 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
 
         Assert.NotEqual(deUna.Id, deOtra.Id);
 
-        Assert.Equal([deUna.Id], (await CatalogoAsync(una)).Where(c => c.EsPropia).Select(c => c.Id));
-        Assert.Equal([deOtra.Id], (await CatalogoAsync(otra)).Where(c => c.EsPropia).Select(c => c.Id));
+        // Cada una ve la suya y no la de la otra. Se compara por identificador y no por nombre:
+        // el nombre coincide a propósito, que es justamente lo que el caso admite (FR-005).
+        var catalogoDeUna = await CatalogoAsync(una);
+        Assert.Contains(catalogoDeUna, c => c.Id == deUna.Id);
+        Assert.DoesNotContain(catalogoDeUna, c => c.Id == deOtra.Id);
+
+        var catalogoDeOtra = await CatalogoAsync(otra);
+        Assert.Contains(catalogoDeOtra, c => c.Id == deOtra.Id);
+        Assert.DoesNotContain(catalogoDeOtra, c => c.Id == deUna.Id);
+    }
+
+    /// <summary>
+    /// **FR-005 de la feature 013, de frente**: dos cuentas distintas pueden tener cada una su
+    /// "Comida" de gasto, y dentro de una misma cuenta una segunda activa con ese nombre y ese tipo
+    /// se rechaza con `400` y la clave de su campo.
+    ///
+    /// **Es el requisito cuyo mecanismo de garantía cambió en silencio.** Hasta la feature 013 el
+    /// índice único no alcanzaba: para MySQL "sin dueño" y "dueño 7" son claves distintas, así que
+    /// una propia podía llamarse igual que una predefinida y quien lo impedía era la comprobación de
+    /// la aplicación (D-02 de la 007). Al desaparecer el `NULL`, el índice empieza a cubrirlo de
+    /// verdad. Este test fija **qué se espera**, independientemente de quién lo garantice — que es
+    /// lo que lo deja seguir sirviendo si mañana el mecanismo vuelve a moverse.
+    /// </summary>
+    [Fact]
+    public async Task La_Unicidad_Es_Por_Ambito_Y_No_Global_FR005()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var una = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        using var otra = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        // Las dos tienen su "Comida" de gasto desde el alta, y son filas distintas.
+        var deUna = (await CatalogoAsync(una)).Single(c => c.Nombre == "Comida" && c.Tipo == "gasto");
+        var deOtra = (await CatalogoAsync(otra)).Single(c => c.Nombre == "Comida" && c.Tipo == "gasto");
+
+        Assert.NotEqual(deUna.Id, deOtra.Id);
+
+        // Dentro de una misma cuenta, una segunda activa con ese nombre y tipo se rechaza.
+        using var repetida = await CrearAsync(una, "Comida", "gasto");
+        await AssertRechazadoAsync(repetida, "nombre", "segunda activa con el mismo nombre y tipo");
+
+        // Y la de la otra cuenta no se tocó: el rechazo fue por ámbito, no global.
+        Assert.Contains(await CatalogoAsync(otra), c => c.Id == deOtra.Id && c.Nombre == "Comida");
     }
 
     /// <summary>
@@ -270,7 +332,6 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal(categoria.Id, renombrada.Id);
         Assert.Equal("Gimnasio y pileta", renombrada.Nombre);
         Assert.Equal("gasto", renombrada.Tipo);
-        Assert.True(renombrada.EsPropia);
 
         var listado = await ListadoAsync(cuenta);
         var fila = listado.Single(m => m.GetProperty("id").GetInt64() == movimiento);
@@ -336,31 +397,48 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
         // renombre legítimo, no un no-op. Lo que este test fija es que NO se rechace.
         Assert.Equal(nombre.Trim(), renombrada.Nombre);
         Assert.Equal(categoria.Id, renombrada.Id);
-        Assert.True(renombrada.EsPropia, caso);
+        Assert.Equal("gasto", renombrada.Tipo, StringComparer.Ordinal);
+        Assert.NotEmpty(caso);
     }
 
     /// <summary>
-    /// AC-03: renombrar una **predefinida** responde `403` y la deja intacta (FR-008).
+    /// **FR-015 y SC-007**: renombrar una de las diez que la cuenta recibió al registrarse
+    /// funciona, con las mismas reglas que para una creada a mano.
     ///
-    /// **No es `404`**, y la diferencia con el caso de abajo es deliberada (D-06): la persona la
-    /// está viendo en su selector, y decirle que no existe es mentirle sobre algo que tiene a la
-    /// vista. No hay nada que ocultar — el catálogo predefinido es igual para todas las cuentas.
+    /// **Este test decía lo contrario hasta la feature 013.** Esperaba un `403` sobre una
+    /// predefinida, porque esas diez eran filas del sistema que la cuenta veía y no poseía. Desde
+    /// que cada cuenta recibe su copia, esa clase de fila no existe: lo que se ve es propio, y el
+    /// `403` se quedó sin ningún caso que representar.
+    ///
+    /// Y los movimientos ya clasificados con ella conservan su clasificación con el nombre nuevo,
+    /// que es la mitad que convierte "el PUT devolvió 200" en "el renombre sirvió para algo".
     /// </summary>
     [Fact]
-    public async Task Renombrar_Una_Predefinida_Responde_403_Y_No_La_Toca_AC03()
+    public async Task Renombrar_Una_Del_Catalogo_Inicial_Funciona_FR015_SC007()
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
 
-        using var respuesta = await RenombrarAsync(cuenta, 1, "Comida casera");
-        Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
+        var comida = (await CatalogoAsync(cuenta)).First(c => c.Nombre == "Comida" && c.Tipo == "gasto");
+        var movimiento = await RegistrarAsync(cuenta, comida.Id, 800m);
 
-        var comida = (await CatalogoAsync(cuenta)).Single(c => c.Id == 1);
-        Assert.Equal("Comida", comida.Nombre);
-        Assert.Equal("gasto", comida.Tipo);
-        Assert.False(comida.EsPropia);
+        var renombrada = await RenombrarYLeerAsync(cuenta, comida.Id, "Comida casera");
+
+        Assert.Equal(comida.Id, renombrada.Id);
+        Assert.Equal("Comida casera", renombrada.Nombre);
+        Assert.Equal("gasto", renombrada.Tipo);
+
+        // Sigue siendo la misma fila en el catálogo, con el nombre nuevo y sin duplicarse.
+        var catalogo = await CatalogoAsync(cuenta);
+        Assert.Equal(10, catalogo.Count);
+        Assert.DoesNotContain(catalogo, c => c.Nombre == "Comida" && c.Tipo == "gasto");
+
+        // Y el movimiento conserva su clasificación.
+        var fila = (await ListadoAsync(cuenta)).Single(m => m.GetProperty("id").GetInt64() == movimiento);
+        Assert.Equal(comida.Id, fila.GetProperty("categoriaId").GetInt32());
+        Assert.Equal("Comida casera", fila.GetProperty("categoriaNombre").GetString());
     }
 
     /// <summary>
@@ -478,10 +556,11 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
         await RegistrarAsync(cuenta, gimnasio.Id, 1500m);
         await RegistrarAsync(cuenta, gimnasio.Id, 300m);
 
-        // Una predefinida que se queda activa, y un ingreso: así el balance no es una resta de un
-        // solo número y el desglose tiene con qué convivir.
-        await RegistrarAsync(cuenta, categoriaId: 1, monto: 900m);
-        await RegistrarAsync(cuenta, categoriaId: 8, monto: 5000m, tipo: "ingreso");
+        // Una del catálogo inicial que se queda activa, y un ingreso: así el balance no es una
+        // resta de un solo número y el desglose tiene con qué convivir.
+        var delCatalogo = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
+        await RegistrarAsync(cuenta, delCatalogo.Comida, monto: 900m);
+        await RegistrarAsync(cuenta, delCatalogo.Sueldo, monto: 5000m, tipo: "ingreso");
 
         var antes = await ResumenCrudoAsync(cuenta);
 
@@ -539,8 +618,8 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal(vieja.Id, fila.GetProperty("categoriaId").GetInt32());
 
         // Sólo la nueva se ofrece: la vieja sigue dada de baja.
-        var propias = (await CatalogoAsync(cuenta)).Where(c => c.EsPropia).Select(c => c.Id);
-        Assert.Equal([nueva.Id], propias);
+        var conEseNombre = (await CatalogoAsync(cuenta)).Where(c => c.Nombre == "Gimnasio").Select(c => c.Id);
+        Assert.Equal([nueva.Id], conEseNombre);
     }
 
     /// <summary>
@@ -660,19 +739,40 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
         await AssertRechazadoAsync(respuesta, "nombre", "el choque contra el índice");
     }
 
-    /// <summary>AC-03 en el `DELETE`: una predefinida responde `403` y sigue en el catálogo.</summary>
+    /// <summary>
+    /// **FR-015 y SC-007 en el `DELETE`**: dar de baja una de las diez del catálogo inicial
+    /// funciona, deja de ofrecerse en el formulario y sus movimientos siguen contando.
+    ///
+    /// Como su gemelo del renombre, este test esperaba un `403` hasta la feature 013. La tercera
+    /// aserción es la que importa más: una baja que además borrara plata de los totales sería una
+    /// baja rota, y es exactamente lo que la baja lógica existe para evitar.
+    /// </summary>
     [Fact]
-    public async Task Dar_De_Baja_Una_Predefinida_Responde_403_AC03()
+    public async Task Dar_De_Baja_Una_Del_Catalogo_Inicial_Funciona_FR015_SC007()
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
 
-        using var respuesta = await BajaAsync(cuenta, 1);
-        Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
+        var comida = (await CatalogoAsync(cuenta)).First(c => c.Nombre == "Comida" && c.Tipo == "gasto");
+        await RegistrarAsync(cuenta, comida.Id, 1200m);
 
-        Assert.Contains(await CatalogoAsync(cuenta), c => c.Id == 1 && c.Nombre == "Comida");
+        using (var baja = await BajaAsync(cuenta, comida.Id))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, baja.StatusCode);
+        }
+
+        // Deja de ofrecerse...
+        var catalogo = await CatalogoAsync(cuenta);
+        Assert.DoesNotContain(catalogo, c => c.Id == comida.Id);
+        Assert.Equal(9, catalogo.Count);
+
+        // ...y sus movimientos siguen contando, con su nombre.
+        var entrada = (await DesgloseAsync(cuenta))
+            .Single(c => c.GetProperty("categoriaId").GetInt32() == comida.Id);
+        Assert.Equal("Comida", entrada.GetProperty("categoriaNombre").GetString());
+        Assert.Equal(1200m, entrada.GetProperty("total").GetDecimal());
     }
 
     /// <summary>
@@ -845,4 +945,4 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
 /// anidada y privada dispara CA1812 —sólo la instancia el deserializador, así que para el
 /// analizador es código muerto— y anidada y pública dispara CA1034.
 /// </summary>
-public sealed record CategoriaVista(int Id, string Nombre, string Tipo, bool EsPropia);
+public sealed record CategoriaVista(int Id, string Nombre, string Tipo);

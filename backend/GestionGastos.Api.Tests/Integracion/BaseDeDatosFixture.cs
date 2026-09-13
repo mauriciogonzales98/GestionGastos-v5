@@ -89,14 +89,16 @@ public class BaseDeDatosFixture : IAsyncLifetime
     /// ocupado y el test que intenta el mismo nombre falla por lo que hizo la corrida anterior, no
     /// por el código.
     ///
-    /// **Sólo las propias.** Las predefinidas tienen `usuario_id NULL`, las siembra la migración y
-    /// media suite las da por dadas: borrarlas dejaría la base sin catálogo.
+    /// **Se van todas, y desde la feature 013 eso es lo correcto.** Antes se acotaba a las propias
+    /// porque las diez predefinidas tenían `usuario_id NULL`, las sembraba la migración y media
+    /// suite las daba por dadas: borrarlas dejaba la base sin catálogo. Ya no hay catálogo global —
+    /// cada cuenta recibe el suyo al registrarse—, así que las categorías se van con su cuenta.
     /// </summary>
     public async Task LimpiarCuentasAsync()
     {
         await using var contexto = CrearContexto();
         await contexto.Movimientos.ExecuteDeleteAsync();
-        await contexto.Categorias.Where(c => c.UsuarioId != null).ExecuteDeleteAsync();
+        await contexto.Categorias.ExecuteDeleteAsync();
         await contexto.Usuarios.ExecuteDeleteAsync();
     }
 

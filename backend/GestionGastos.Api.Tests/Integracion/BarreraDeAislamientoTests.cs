@@ -86,6 +86,41 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     private static readonly string[] EscriturasDeCategoriasPermitidas = ["Add"];
 
     /// <summary>
+    /// El SEGUNDO archivo que puede escribir categorías: el catálogo inicial de una cuenta nueva.
+    ///
+    /// Llega con la feature 013, que le entrega a cada cuenta sus diez categorías al registrarse.
+    /// Ese alta tiene que escribir diez filas, y hasta acá el único autorizado era el endpoint de
+    /// categorías.
+    ///
+    /// **Es un archivo propio y no una autorización a <c>CuentasEndpoints</c>**, que es quien lo
+    /// llama. Declarar a `CuentasEndpoints` le abriría el <c>DbSet</c> de categorías a un archivo
+    /// que además valida el email, hashea la contraseña y atrapa el 1062 del alta duplicada — y esa
+    /// autorización quedaría vigente para todo lo que ese archivo haga en el futuro. Un archivo de
+    /// una sola responsabilidad mantiene la excepción del tamaño de lo que efectivamente hace falta
+    /// (D-06 de la feature 013).
+    ///
+    /// Agregar un archivo nombrado, con su motivo escrito, es mantenimiento de la barrera: sigue
+    /// saltando ante el archivo siguiente. Lo que la desarmaría es una excepción genérica o un
+    /// patrón ensanchado para que el código nuevo entre solo.
+    /// </summary>
+    private const string CatalogoInicialDeclarado = "Categorias/CatalogoInicial.cs";
+
+    /// <summary>
+    /// Lo que <see cref="CatalogoInicialDeclarado"/> puede hacer con el DbSet.
+    ///
+    /// <c>AddRange</c> además de <c>Add</c>: entrega las diez de una vez, en una sola operación y
+    /// dentro del mismo <c>SaveChanges</c> que crea la cuenta (FR-003).
+    /// </summary>
+    private static readonly string[] EscriturasDelCatalogoInicialPermitidas = ["Add", "AddRange"];
+
+    /// <summary>Los archivos que pueden ESCRIBIR categorías, cada uno con lo que puede hacer.</summary>
+    private static readonly (string Archivo, string[] Operaciones)[] EscritoresDeCategorias =
+    [
+        (EscrituraDeCategoriasDeclarada, EscriturasDeCategoriasPermitidas),
+        (CatalogoInicialDeclarado, EscriturasDelCatalogoInicialPermitidas),
+    ];
+
+    /// <summary>
     /// Donde el <c>DbSet</c> se DECLARA, que no es lo mismo que leerlo.
     ///
     /// `GestionGastosDbContext` contiene `DbSet&lt;Movimiento&gt; Movimientos =&gt;
@@ -305,7 +340,10 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
     public void Ninguna_Lectura_De_Movimientos_Vive_Fuera_Del_Canal()
     {
         var infractores = LecturasFueraDelCanal(
-            "Movimientos", "Movimiento", CanalDeLectura, EscrituraDeclarada, EscriturasPermitidas);
+            "Movimientos",
+            "Movimiento",
+            CanalDeLectura,
+            (EscrituraDeclarada, EscriturasPermitidas));
 
         Assert.True(
             infractores.Count == 0,
@@ -363,8 +401,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
             "Categorias",
             "Categoria",
             CanalDeCategorias,
-            EscrituraDeCategoriasDeclarada,
-            EscriturasDeCategoriasPermitidas);
+            EscritoresDeCategorias);
 
         Assert.True(
             infractores.Count == 0,
@@ -375,9 +412,13 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
             "mirando, y el acotado por ámbito se olvida escribiéndola: `contexto.Categorias` sin " +
             "condición devuelve también las privadas de las demás cuentas. La salida es agregar el " +
             "método a `CategoriasConsulta`, no sumar una excepción acá.\n\n" +
-            $"`{EscrituraDeCategoriasDeclarada}` puede ESCRIBIR categorías —" +
-            string.Join(", ", EscriturasDeCategoriasPermitidas.Select(o => $"`.Categorias.{o}(`")) +
-            "— y nada más. Si aparece ahí, es porque lee.");
+            "Los archivos que pueden ESCRIBIR categorías son:\n  " +
+            string.Join(
+                "\n  ",
+                EscritoresDeCategorias.Select(e =>
+                    $"`{e.Archivo}` — " +
+                    string.Join(", ", e.Operaciones.Select(o => $"`.Categorias.{o}(`")))) +
+            "\n\ny nada más. Si uno de ésos aparece en la lista de arriba, es porque además LEE.");
     }
 
     /// <summary>El canal de categorías sigue existiendo y sigue siendo el que se vigila.</summary>
@@ -399,10 +440,18 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
         string dbSet,
         string entidad,
         string canal,
-        string escrituraDeclarada,
-        string[] escriturasPermitidas)
+        params (string Archivo, string[] Operaciones)[] escritores)
     {
         var raiz = RaizDelProyectoDeProduccion();
+
+        // Cada escritor declara SUS operaciones, no las de todos. Con una sola lista compartida,
+        // autorizar `AddRange` para el catálogo inicial se lo habría autorizado de paso al endpoint
+        // de categorías, que nunca lo pidió — y una barrera que reparte permisos que nadie pidió es
+        // una barrera que se afloja sola.
+        string SinSusEscrituras(string relativa, string codigo) =>
+            escritores.FirstOrDefault(e => e.Archivo == relativa) is { Operaciones: not null } escritor
+                ? SinLasEscriturasPermitidas(codigo, dbSet, escritor.Operaciones)
+                : codigo;
 
         return [.. Directory
             .EnumerateFiles(raiz, "*.cs", SearchOption.AllDirectories)
@@ -410,9 +459,7 @@ public class BarreraDeAislamientoTests(BaseDeDatosFixture baseDeDatos)
             .Where(archivo => Relativa(raiz, archivo) != canal)
             .Where(archivo => Relativa(raiz, archivo) != DeclaracionDelDbSet)
             .Where(archivo => UsaElDbSet(
-                Relativa(raiz, archivo) == escrituraDeclarada
-                    ? SinLasEscriturasPermitidas(File.ReadAllText(archivo), dbSet, escriturasPermitidas)
-                    : File.ReadAllText(archivo),
+                SinSusEscrituras(Relativa(raiz, archivo), File.ReadAllText(archivo)),
                 dbSet,
                 entidad))
             .Select(archivo => Relativa(raiz, archivo))

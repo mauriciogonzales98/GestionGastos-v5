@@ -223,8 +223,18 @@ que cada una de las diez ofrece renombrar y dar de baja, igual que una creada a 
   "Comida".** Tiene que poder: el nombre quedó libre.
 - **Una cuenta da de baja su copia de "Otros" (gasto) y crea otra con ese nombre.** Es FR-009 de la
   007 y tiene que seguir andando igual: el discriminador de la baja es lo que lo permite.
+- **Una cuenta ya tiene una categoría propia ACTIVA homónima de una predefinida.** El esquema
+  anterior lo admitía —para MySQL `usuario_id NULL` y `usuario_id 7` son claves distintas, así que el
+  índice único las dejaba convivir (D-02 de la 007)— y sólo lo impedía una comprobación de la
+  aplicación, así que por SQL directo ese estado entra. La copia que la migración crea choca contra
+  ella. **Tiene que fallar entera y poder reintentarse** una vez corregido el dato: el error de MySQL
+  nombra la clave duplicada —`'7-Comida-0-0'`, o sea cuenta, nombre, tipo y discriminador—, que es
+  suficiente para encontrar la fila. Lo cubre
+  `MigracionDeCatalogoTests.Un_Fallo_No_Deja_La_Base_A_Medias_Y_Se_Puede_Reintentar_FR014`.
 - **La migración corre dos veces.** Tiene que ser idempotente o fallar limpio, nunca dejar veinte
-  categorías por cuenta.
+  categorías por cuenta. **Y "fallar limpio" incluye poder volver a intentarlo**: una migración que
+  al fallar deja media estructura puesta se traba sola, que es lo que pasaba antes de la revisión del
+  PR #40.
 - **Una base sin ninguna cuenta.** La migración tiene que dejarla consistente: sin cuentas, no queda
   ninguna categoría, y la primera que se registre recibirá las suyas.
 - **Un movimiento que apunta a una predefinida cuyo dueño no existe.** No puede pasar hoy, pero si
@@ -352,7 +362,13 @@ que cada una de las diez ofrece renombrar y dar de baja, igual que una creada a 
 
 | Deuda | De dónde viene | Cómo queda |
 |---|---|---|
-| **D7-07** | Feature 007, anotada al saldar D7-05 (PR #38) | Saldada, pero **no por el camino que la fila proponía**. Los dos que proponía se midieron y se descartaron; la fila hay que reescribirla con lo que este spike encontró, aunque el resultado final sea el que pedía: la invariante en la base |
+| **D7-07** | Feature 007, anotada al saldar D7-05 (PR #38) | **Saldada**, pero no por el camino que la fila proponía. Los dos que proponía se midieron y se descartaron; la fila quedó reescrita en [`specs/007-categorias-propias/spec.md`](../007-categorias-propias/spec.md) con lo que el spike encontró, aunque el resultado final sea el que pedía: la invariante en la base |
+
+## Deuda que esta feature deja anotada
+
+| # | Qué queda | Por qué no acá | Quién lo cubre |
+|---|---|---|---|
+| **D13-01** | **La barrera de aislamiento vigila el TEXTO `contexto.Categorias`, así que una escritura por propiedad de navegación la esquivaría.** Un `usuario.Categorias.Add(...)` —o cualquier otra forma de llegar al conjunto sin nombrarlo— no la pone en rojo | **No es una exposición: hoy no existe ninguna, y esta feature no introduce ninguna.** El catálogo inicial escribe por el `DbSet`, dentro del único archivo declarado para eso, justamente para no abrir esta puerta (research D-06). Pero el agujero es real y es **el gemelo exacto** del que originó D7-07: aquél era la lectura por navegación —`m.Categoria!.Nombre`— y éste es la escritura. Se anota con nombre en vez de dejarlo sin nombrar | Sin asignar. Ojo con la forma: ensanchar el regex a las navegaciones es perseguir la vía equivocada —lo mismo que la barrera ya dice sobre las lecturas—, así que hay que diseñarlo antes de prometerlo. La feature 013 mostró que ese diseño previo no es ceremonia: los dos caminos que D7-07 proponía sin medir resultaron los dos inviables |
 
 ## Dependencies
 

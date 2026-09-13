@@ -86,31 +86,71 @@ tiene ese borde.
 homónimas conviven por diseño); ids determinísticos para las copias (obliga a reservar rangos y a
 que la migración sepa cuántas cuentas hay).
 
+> **Revisado en el PR #40 (2026-09-13).** La columna temporal se eliminó —ver D-04, mezclaba DDL con
+> pasos de datos y eso rompía la atomicidad— y el emparejamiento pasó a incluir `discriminador = 0`
+> además de `(usuario_id, nombre, tipo)`. Da la misma precisión y por un motivo más fuerte: el índice
+> único `(usuario_id, nombre, tipo, discriminador)` **garantiza** que haya a lo sumo una candidata,
+> así que la desambiguación la sostiene una restricción del esquema y no una columna que hay que
+> acordarse de poner y sacar.
+>
+> **Y este análisis tenía un hueco.** Cubría la homónima **dada de baja** y daba por imposible la
+> homónima **activa**, porque `FR-005` de la 007 la rechaza. Esa regla la hacía cumplir la
+> aplicación: el índice único no podía, que es exactamente la deuda D-02 que esta misma feature cita.
+> Por SQL directo ese estado entra, y entonces la migración falla —correctamente, `FR-014` pide
+> fallar antes que completarse a medias— con el `1062` del índice, que nombra la cuenta y el nombre
+> de la fila culpable. Queda como edge case en la spec y con test propio.
+
 ---
 
 ## D-04 — El orden de la migración, y quién verifica que salió bien
 
-**Decisión**, en **dos** archivos de migración escritos a mano — los pasos 1 a 6 en el primero, el 7
+**Decisión**, en **dos** archivos de migración escritos a mano — los pasos 1 a 4 en el primero, el 5
 en el segundo:
 
-1. `ALTER TABLE categoria ADD COLUMN migracion_origen_id INT NULL`
-2. Insertar las copias, una por cuenta y por predefinida (D-02)
-3. Reapuntar los movimientos (D-03)
-4. Borrar las diez predefinidas compartidas
-5. `ALTER TABLE categoria MODIFY usuario_id BIGINT NOT NULL`
-6. `ALTER TABLE categoria DROP COLUMN migracion_origen_id`
-7. *(segunda migración)* Crear la clave alternativa y la foránea compuesta; quitar la foránea
+1. Insertar las copias, una por cuenta y por predefinida (D-02)
+2. Reapuntar los movimientos (D-03)
+3. Borrar las diez predefinidas compartidas
+4. `ALTER TABLE categoria MODIFY usuario_id BIGINT NOT NULL`
+5. *(segunda migración)* Crear la clave alternativa y la foránea compuesta; quitar la foránea
    simple (D-01)
+
+> **Corregido durante la revisión del PR #40 (2026-09-13).** La versión original abría con un
+> `ALTER TABLE categoria ADD COLUMN migracion_origen_id INT NULL` y lo quitaba al final, para
+> emparejar cada copia con su original por identidad. Eso resultó ser un error, y no menor: ver el
+> *Rationale* de abajo. La columna se eliminó y el emparejamiento pasó a apoyarse en el
+> `discriminador`, que da la misma precisión sin tocar el esquema.
 
 **Por qué en dos archivos y no en uno**: el paso 7 verifica al resto, y separado, un fallo señala el
 paso correcto en vez de dejar "la migración falló" a secas. Además desacopla las dos historias, que
 si no compartirían literalmente el mismo archivo.
 
-**Rationale — la verificación de `FR-014` sale gratis, y ése es el motivo del orden.** El paso 5
-falla si quedó una categoría sin dueño. El paso 7 falla si quedó un movimiento apuntando fuera de su
+**Rationale — la verificación de `FR-014` sale gratis, y ése es el motivo del orden.** El paso 4
+falla si quedó una categoría sin dueño. El paso 5 falla si quedó un movimiento apuntando fuera de su
 ámbito. No hace falta escribir una comprobación aparte: **las restricciones mismas son la
-verificación**, y como cada migración corre en una transacción, un fallo deja la base como estaba en
-vez de completarse a medias.
+verificación**.
+
+**Y una premisa que esta decisión daba por buena y era falsa.** Decía: *"como cada migración corre en
+una transacción, un fallo deja la base como estaba en vez de completarse a medias"*. **En MySQL no.**
+Un `ALTER TABLE` confirma la transacción abierta y la termina, así que todo lo que venga después
+queda fuera de ella. Medido el 2026-09-13 durante la revisión del PR #40, con el caso mínimo:
+
+```sql
+START TRANSACTION;
+ALTER TABLE prueba ADD COLUMN tmp INT NULL;
+INSERT INTO prueba (id) VALUES (2);
+ROLLBACK;
+SELECT id FROM prueba;   -- devuelve 1 y 2: el INSERT sobrevivió al ROLLBACK
+```
+
+Con la columna de trabajo como primer paso, esto tenía consecuencia directa: se forzó el fallo
+—una cuenta con una categoría propia **activa** homónima de una predefinida, que el esquema anterior
+admitía— y la migración dejó la columna puesta. El reintento murió con `Duplicate column name`, y la
+base quedó trabada sin poder avanzar ni volver. `FR-014` pide fallar en vez de completarse a medias,
+y eso incluye poder volver a intentarlo.
+
+**Por eso los pasos de datos van juntos y el único `ALTER TABLE` va último.** Los tres primeros
+comparten la transacción que EF abre y se deshacen juntos; el cuarto es el que la cierra, y no hay
+nada escrito debajo.
 
 **Lo que NO cambia acá es la propiedad de C#.** `Categoria.UsuarioId` sigue siendo `long?` hasta el
 final de la feature, con la columna marcada `IsRequired()` para que el modelo y la base queden

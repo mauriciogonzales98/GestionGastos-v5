@@ -34,8 +34,8 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
-        using var respuesta = await EnviarCrudoAsync(
-            $$"""{"tipo":"gasto","monto":{{monto}},"categoriaId":1,"fecha":"2026-08-23"}""");
+        using var respuesta = await EnviarCrudoAsync(cat =>
+            $$"""{"tipo":"gasto","monto":{{monto}},"categoriaId":{{cat.Comida}},"fecha":"2026-08-23"}""");
 
         await AssertRechazadoAsync(respuesta, "monto", caso);
     }
@@ -51,8 +51,8 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
-        using var respuesta = await EnviarCrudoAsync(
-            $$"""{"tipo":"gasto","monto":{{monto}},"categoriaId":1,"fecha":"2026-08-23"}""");
+        using var respuesta = await EnviarCrudoAsync(cat =>
+            $$"""{"tipo":"gasto","monto":{{monto}},"categoriaId":{{cat.Comida}},"fecha":"2026-08-23"}""");
 
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
 
@@ -65,17 +65,30 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     /// <summary>AC-40 (RF-14) y FR-011: la categoría es obligatoria, tiene que existir y tiene que
     /// ser del mismo tipo que el movimiento.</summary>
     [Theory]
-    [InlineData("\"gasto\"", "null", "sin categoría")]
-    [InlineData("\"gasto\"", "9999", "categoría inexistente")]
-    [InlineData("\"gasto\"", "8", "categoría de ingreso en un gasto")]
-    [InlineData("\"ingreso\"", "1", "categoría de gasto en un ingreso")]
+    // La categoría se nombra, no se numera: el `8` y el `1` que había acá eran "Sueldo" y "Comida"
+    // del catálogo compartido, y ese catálogo dejó de existir (feature 013).
+    [InlineData("\"gasto\"", "ausente", "sin categoría")]
+    [InlineData("\"gasto\"", "inexistente", "categoría inexistente")]
+    [InlineData("\"gasto\"", "ingreso", "categoría de ingreso en un gasto")]
+    [InlineData("\"ingreso\"", "gasto", "categoría de gasto en un ingreso")]
     public async Task Rechaza_Categoria_Invalida_Sin_Registrar_Nada_AC40_FR011(
-        string tipo, string categoriaId, string caso)
+        string tipo, string cual, string caso)
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
-        using var respuesta = await EnviarCrudoAsync(
-            $$"""{"tipo":{{tipo}},"monto":100,"categoriaId":{{categoriaId}},"fecha":"2026-08-23"}""");
+        using var respuesta = await EnviarCrudoAsync(cat =>
+        {
+            var categoriaId = cual switch
+            {
+                "ausente" => "null",
+                "inexistente" => "9999",
+                "ingreso" => cat.Sueldo.ToString(CultureInfo.InvariantCulture),
+                "gasto" => cat.Comida.ToString(CultureInfo.InvariantCulture),
+                _ => throw new InvalidOperationException($"Caso desconocido: {cual}"),
+            };
+
+            return $$"""{"tipo":{{tipo}},"monto":100,"categoriaId":{{categoriaId}},"fecha":"2026-08-23"}""";
+        });
 
         await AssertRechazadoAsync(respuesta, "categoriaId", caso);
     }
@@ -89,8 +102,8 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
-        using var respuesta = await EnviarCrudoAsync(
-            $$"""{"tipo":{{tipo}},"monto":100,"categoriaId":1,"fecha":"2026-08-23"}""");
+        using var respuesta = await EnviarCrudoAsync(cat =>
+            $$"""{"tipo":{{tipo}},"monto":100,"categoriaId":{{cat.Comida}},"fecha":"2026-08-23"}""");
 
         await AssertRechazadoAsync(respuesta, "tipo", caso);
     }
@@ -104,12 +117,12 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
     {
         await _baseDeDatos.LimpiarCuentasAsync();
 
-        string[] peticiones =
+        Func<CategoriasDeLaCuenta, string>[] peticiones =
         [
-            """{"tipo":"gasto","monto":0,"categoriaId":1}""",
-            """{"tipo":"gasto","monto":100,"categoriaId":9999}""",
-            """{"tipo":"transferencia","monto":100,"categoriaId":1}""",
-            """{"tipo":"gasto","monto":10.999,"categoriaId":1}""",
+            cat => $$"""{"tipo":"gasto","monto":0,"categoriaId":{{cat.Comida}}}""",
+            _ => """{"tipo":"gasto","monto":100,"categoriaId":9999}""",
+            cat => $$"""{"tipo":"transferencia","monto":100,"categoriaId":{{cat.Comida}}}""",
+            cat => $$"""{"tipo":"gasto","monto":10.999,"categoriaId":{{cat.Comida}}}""",
         ];
 
         foreach (var peticion in peticiones)
@@ -118,10 +131,10 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
             Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
 
             using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
-            Assert.True(json.RootElement.TryGetProperty("type", out _), peticion);
-            Assert.True(json.RootElement.TryGetProperty("title", out _), peticion);
+            Assert.True(json.RootElement.TryGetProperty("type", out _));
+            Assert.True(json.RootElement.TryGetProperty("title", out _));
             Assert.Equal(400, json.RootElement.GetProperty("status").GetInt32());
-            Assert.True(json.RootElement.TryGetProperty("errors", out _), peticion);
+            Assert.True(json.RootElement.TryGetProperty("errors", out _));
         }
     }
 
@@ -162,7 +175,7 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
         try
         {
             using var respuesta = await EnviarCrudoAsync(
-                $$"""{"tipo":"gasto","monto":100,"categoriaId":{{IdAjena}},"fecha":"2026-08-23"}""");
+                _ => $$"""{"tipo":"gasto","monto":100,"categoriaId":{{IdAjena}},"fecha":"2026-08-23"}""");
 
             await AssertRechazadoAsync(respuesta, "categoriaId", "categoría de otra cuenta");
         }
@@ -172,40 +185,33 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
         }
     }
 
+    /// <summary>
+    /// El alta rechaza una categoría **dada de baja**, y la categoría es **propia de la cuenta que
+    /// la manda**.
+    ///
+    /// Que sea propia no es un detalle: si fuera de otra cuenta, el rechazo llegaría por estar
+    /// fuera del ámbito y este test pasaría en verde sin haber ejercitado nunca la baja lógica. La
+    /// categoría se crea por la API y se da de baja por la API, que es como llega a estar apagada
+    /// de verdad.
+    /// </summary>
     [Fact]
     public async Task Rechaza_Una_Categoria_Dada_De_Baja()
     {
         await _baseDeDatos.LimpiarCuentasAsync();
-        const int IdInactiva = 902;
 
-        await BorrarCategoriaAsync(IdInactiva);
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
 
-        await using (var contexto = _baseDeDatos.CrearContexto())
-        {
-            contexto.Categorias.Add(new Categoria
-            {
-                Id = IdInactiva,
-                Nombre = "Dada de baja",
-                Tipo = TipoMovimiento.Gasto,
-                UsuarioId = null,
-                Activa = false,
-            });
-            await contexto.SaveChangesAsync();
-        }
+        var apagada = await CrearCategoriaAsync(cuenta, "Dada de baja");
+        await DarDeBajaAsync(cuenta, apagada);
 
-        try
-        {
-            using var respuesta = await EnviarCrudoAsync(
-                $$"""{"tipo":"gasto","monto":100,"categoriaId":{{IdInactiva}},"fecha":"2026-08-23"}""");
+        using var respuesta = await EnviarCrudoDesdeAsync(
+            cuenta,
+            $$"""{"tipo":"gasto","monto":100,"categoriaId":{{apagada}},"fecha":"2026-08-23"}""");
 
-            // El catálogo no la ofrece (GET /api/categorias filtra por activa). El alta tampoco
-            // puede aceptarla, o la baja lógica sería puramente cosmética.
-            await AssertRechazadoAsync(respuesta, "categoriaId", "categoría inactiva");
-        }
-        finally
-        {
-            await BorrarCategoriaAsync(IdInactiva);
-        }
+        // El catálogo no la ofrece (GET /api/categorias filtra por activa). El alta tampoco
+        // puede aceptarla, o la baja lógica sería puramente cosmética.
+        await AssertRechazadoAsync(respuesta, "categoriaId", "categoría inactiva");
     }
 
     /// <summary>
@@ -319,16 +325,36 @@ public class ValidacionMovimientoTests(BaseDeDatosFixture baseDeDatos)
             new Uri($"/api/movimientos/{id}", UriKind.Relative),
             new { tipo = "gasto", monto, categoriaId, fecha = "2026-08-23", nota = "" });
 
-    private async Task<HttpResponseMessage> EnviarCrudoAsync(string cuerpo)
+    /// <summary>
+    /// Manda un cuerpo JSON crudo desde una cuenta recién creada.
+    ///
+    /// JSON crudo y no un objeto anónimo: hace falta poder mandar `null`, cadenas vacías y números
+    /// que ningún tipo de C# admitiría, que es exactamente lo que un cliente puede mandar de verdad.
+    ///
+    /// Con sesión iniciada: desde el ticket 01a el propietario sale de la sesión, así que sin ella
+    /// la petición ni siquiera llega a la validación que este test quiere ejercitar.
+    ///
+    /// **El cuerpo se arma con el catálogo de esa cuenta, no antes de conocerla.** Desde la feature
+    /// 013 no hay ningún identificador de categoría que sirva para todas: un número escrito a mano
+    /// sería la categoría de otra cuenta y el rechazo llegaría por el motivo equivocado.
+    /// </summary>
+    private async Task<HttpResponseMessage> EnviarCrudoAsync(
+        Func<CategoriasDeLaCuenta, string> armarCuerpo)
     {
-        // JSON crudo y no un objeto anónimo: hace falta poder mandar `null`, cadenas vacías y
-        // números que ningún tipo de C# admitiría, que es exactamente lo que un cliente puede
-        // mandar de verdad.
-        //
-        // Con sesión iniciada: desde el ticket 01a el propietario sale de la sesión, así que sin
-        // ella la petición ni siquiera llega a la validación que este test quiere ejercitar.
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
+
+        using var contenido = new StringContent(
+            armarCuerpo(cat), Encoding.UTF8, "application/json");
+
+        return await cuenta.Cliente.PostAsync(new Uri("/api/movimientos", UriKind.Relative), contenido);
+    }
+
+    /// <summary>Lo mismo, pero desde una cuenta que el test ya tiene en la mano.</summary>
+    private static async Task<HttpResponseMessage> EnviarCrudoDesdeAsync(
+        CuentaDePrueba cuenta, string cuerpo)
+    {
         using var contenido = new StringContent(cuerpo, Encoding.UTF8, "application/json");
 
         return await cuenta.Cliente.PostAsync(new Uri("/api/movimientos", UriKind.Relative), contenido);

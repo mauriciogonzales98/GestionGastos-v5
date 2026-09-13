@@ -136,8 +136,14 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
             e.Property(c => c.Nombre).HasColumnName("nombre").HasMaxLength(50).IsRequired();
             e.Property(c => c.Tipo).HasColumnName("tipo").HasColumnType("tinyint");
 
-            // Nullable a propósito: NULL = predefinida del sistema (D-06).
-            e.Property(c => c.UsuarioId).HasColumnName("usuario_id");
+            // **Obligatoria desde la feature 013**: toda categoría tiene dueño (FR-001). El `NULL`
+            // significaba "predefinida del sistema" y esa clase de fila dejó de existir — cada
+            // cuenta recibe su copia de las diez al registrarse.
+            //
+            // La propiedad de C# sigue siendo `long?` por ahora: volverla no anulable rompe varios
+            // archivos a la vez y es el último paso de la feature. `IsRequired()` mantiene el modelo
+            // y la base diciendo lo mismo mientras tanto.
+            e.Property(c => c.UsuarioId).HasColumnName("usuario_id").IsRequired();
             e.Property(c => c.Activa).HasColumnName("activa").HasColumnType("bit(1)").HasDefaultValue(true);
 
             // 0 mientras está activa, su propio id al darla de baja. El DEFAULT es lo que deja que
@@ -162,10 +168,19 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
                 .IsUnique()
                 .HasDatabaseName("ux_categoria_ambito_nombre_tipo");
 
-            e.HasOne<Usuario>()
+            // La navegación se nombra explícitamente. Sin esto EF descubre `Categoria.Usuario` por
+            // convención, no la reconoce como la misma relación que este `HasForeignKey`, y arma una
+            // SEGUNDA con una clave foránea en la sombra — una columna `UsuarioId1` que nadie pidió.
+            e.HasOne(c => c.Usuario)
                 .WithMany()
                 .HasForeignKey(c => c.UsuarioId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // La clave alternativa `(id, usuario_id)`. **No restringe nada nuevo** —`id` ya es único
+            // por sí solo— y existe por un único motivo: ser el destino de la foránea compuesta de
+            // `movimiento`. MySQL exige que lo que una foránea referencia sea una clave.
+            e.HasAlternateKey(c => new { c.Id, c.UsuarioId })
+                .HasName("ak_categoria_id_usuario");
         });
 
         modelBuilder.Entity<Movimiento>(e =>
@@ -217,7 +232,27 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
                 .HasDatabaseName("ix_movimiento_usuario_fecha");
 
             e.HasOne<Usuario>().WithMany().HasForeignKey(m => m.UsuarioId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(m => m.Categoria).WithMany().HasForeignKey(m => m.CategoriaId).OnDelete(DeleteBehavior.Restrict);
+
+            // **La invariante de D7-07, en la base** (FR-006 de la feature 013): el dueño del
+            // movimiento y el dueño de su categoría son el mismo.
+            //
+            // Reemplaza a la foránea simple contra `categoria (id)`, que ésta contiene: una fila que
+            // satisface `(categoria_id, usuario_id)` satisface también `(categoria_id)`, así que
+            // dejar las dos sería el mismo índice por duplicado.
+            //
+            // Hasta la feature 013 esto **no se podía expresar**. La condición real era
+            // `categoria.usuario_id IS NULL OR categoria.usuario_id = movimiento.usuario_id`, y una
+            // foránea no sabe decir "o nula": montada tal cual, rechazaba las diez predefinidas con
+            // un `ERROR 1452`. Lo que la hizo posible fue que toda categoría pasara a tener dueño.
+            //
+            // `usuario_id` queda participando de DOS foráneas a la vez, ésta y la de `usuario`.
+            // MySQL lo admite, y `AmbitoDeCategoriaEsquemaTests` lo comprueba en vez de suponerlo.
+            e.HasOne(m => m.Categoria)
+                .WithMany()
+                .HasForeignKey(m => new { m.CategoriaId, m.UsuarioId })
+                .HasPrincipalKey(c => new { c.Id, c.UsuarioId })
+                .HasConstraintName("fk_movimiento_categoria_del_ambito")
+                .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(m => m.Moneda).WithMany().HasForeignKey(m => m.MonedaId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -235,19 +270,12 @@ public class GestionGastosDbContext(DbContextOptions<GestionGastosDbContext> opc
             new Moneda { Id = 1, Codigo = "ARS", Nombre = "Peso argentino", Simbolo = "$", Decimales = 2, EsPredeterminada = true },
             new Moneda { Id = 2, Codigo = "USD", Nombre = "Dólar estadounidense", Simbolo = "US$", Decimales = 2, EsPredeterminada = false });
 
-        // Las diez de FR-006, exactamente: 7 de gasto y 3 de ingreso. "Otros" está en los dos
-        // tipos y son dos filas distintas; la restricción UNIQUE las admite porque difieren en
-        // `tipo`. Todas nacen con usuario_id NULL, o sea predefinidas del sistema.
-        modelBuilder.Entity<Categoria>().HasData(
-            new Categoria { Id = 1, Nombre = "Comida", Tipo = TipoMovimiento.Gasto, Activa = true },
-            new Categoria { Id = 2, Nombre = "Transporte", Tipo = TipoMovimiento.Gasto, Activa = true },
-            new Categoria { Id = 3, Nombre = "Vivienda", Tipo = TipoMovimiento.Gasto, Activa = true },
-            new Categoria { Id = 4, Nombre = "Servicios", Tipo = TipoMovimiento.Gasto, Activa = true },
-            new Categoria { Id = 5, Nombre = "Salud", Tipo = TipoMovimiento.Gasto, Activa = true },
-            new Categoria { Id = 6, Nombre = "Ocio", Tipo = TipoMovimiento.Gasto, Activa = true },
-            new Categoria { Id = 7, Nombre = "Otros", Tipo = TipoMovimiento.Gasto, Activa = true },
-            new Categoria { Id = 8, Nombre = "Sueldo", Tipo = TipoMovimiento.Ingreso, Activa = true },
-            new Categoria { Id = 9, Nombre = "Ingreso extra", Tipo = TipoMovimiento.Ingreso, Activa = true },
-            new Categoria { Id = 10, Nombre = "Otros", Tipo = TipoMovimiento.Ingreso, Activa = true });
+        // **Las diez categorías ya no se siembran acá** (feature 013, D-05). Dejaron de ser un
+        // hecho del esquema: ahora cada cuenta recibe su copia al registrarse, y eso lo hace
+        // `Categorias/CatalogoInicial.cs`. `HasData` no podría hacerlo aunque se quisiera — no sabe
+        // sembrar filas que dependen de un `usuario_id` que todavía no existe.
+        //
+        // La semilla de `Moneda` se queda: las monedas siguen siendo del sistema y no se copian por
+        // cuenta.
     }
 }

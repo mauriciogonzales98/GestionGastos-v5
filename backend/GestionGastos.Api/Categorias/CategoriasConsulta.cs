@@ -41,10 +41,15 @@ public static class CategoriasConsulta
     /// Las categorías **activas** del ámbito que ya usan ese nombre y ese tipo. Es la consulta con
     /// la que se comprueba FR-005, en el alta y en el renombre.
     ///
-    /// **La unicidad la comprueba la aplicación y no puede quedarse en el índice** (D-02): para
-    /// MySQL, `usuario_id NULL` y `usuario_id 7` son claves distintas, así que el índice deja pasar
-    /// una propia homónima de una predefinida. El índice cubre el choque dentro del mismo ámbito;
-    /// esto cubre el choque ENTRE los dos ámbitos que una cuenta ve como uno solo.
+    /// **Existe para que el rechazo tenga forma de error de validación, no de choque de índice.**
+    /// Su razón de ser cambió con la feature 013 y conviene decirlo, porque el comentario anterior
+    /// pasó a ser falso: decía que el índice no alcanzaba porque para MySQL `usuario_id NULL` y
+    /// `usuario_id 7` son claves distintas, así que dejaba pasar una propia homónima de una
+    /// predefinida (D-02 de la 007). Sin `NULL`, el índice cubre el caso entero.
+    ///
+    /// La comprobación **se conserva igual**: el índice devolvería un `1062` que termina en un `500`
+    /// sin decir qué campo está mal, y lo que la persona necesita es un `400` con la clave `nombre`
+    /// al lado de su control. La red de abajo sigue estando; ésta es la que se ve.
     ///
     /// La comparación de nombre no normaliza mayúsculas ni acentos: la collation
     /// `utf8mb4_0900_ai_ci` de la columna ya los ignora, y hacerlo a mano acá además apagaría el
@@ -73,11 +78,12 @@ public static class CategoriasConsulta
     /// de baja a algo ya dado de baja tiene que encontrarlo para poder responder `204` en vez de
     /// `404`. Quien necesite sólo las activas lo pide donde llama.
     ///
-    /// Devuelve también las predefinidas, que la cuenta VE. Distinguir "no se puede tocar" de "no
-    /// existe" es justamente lo que separa el `403` del `404` (FR-008, FR-013, D-06), y esa
-    /// distinción necesita encontrar la fila primero. Quien llama decide: sin dueño es predefinida
-    /// y va `403`; con dueño es propia de esta cuenta y se puede tocar. Lo que el ámbito ya dejó
-    /// afuera —las propias de otras cuentas— cae en el mismo `404` que un id inexistente.
+    /// **Todo lo que devuelve se puede tocar.** Hasta la feature 013 devolvía también las diez
+    /// predefinidas, que la cuenta veía y no poseía, y quien llamaba tenía que distinguir "no se
+    /// puede tocar" —`403`— de "no existe" —`404`—. Esa distinción se quedó sin casos: lo que no es
+    /// tuyo no lo ves, y lo que ves es tuyo (FR-016). Lo que el ámbito deja afuera —las de otras
+    /// cuentas— cae en el mismo `404` que un id inexistente, y **eso no cambió**: confirmar su
+    /// existencia sería la filtración que FR-013 de la 007 evita.
     /// </summary>
     public static IQueryable<Categoria> DelAmbitoPorId(
         GestionGastosDbContext contexto,
@@ -93,10 +99,10 @@ public static class CategoriasConsulta
     /// acá hace que el aislamiento se herede por construcción en vez de depender de que cada
     /// consulta nueva se acuerde de escribirlo.
     ///
-    /// `usuario_id IS NULL` son las diez predefinidas: se ven desde todas las cuentas y no son de
-    /// ninguna. Que se **vean** no significa que se puedan tocar — eso lo decide otra consulta, y
-    /// esa diferencia es exactamente FR-008.
+    /// **Desde la feature 013 es idéntico al predicado de movimientos.** Antes llevaba además
+    /// `usuario_id IS NULL`, que eran las diez predefinidas: se veían desde todas las cuentas y no
+    /// eran de ninguna. Esa mitad se fue con ellas — ahora cada cuenta tiene sus diez.
     /// </summary>
     private static IQueryable<Categoria> DelAmbito(GestionGastosDbContext contexto, long usuarioId) =>
-        contexto.Categorias.Where(c => c.UsuarioId == null || c.UsuarioId == usuarioId);
+        contexto.Categorias.Where(c => c.UsuarioId == usuarioId);
 }

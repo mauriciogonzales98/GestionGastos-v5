@@ -73,7 +73,6 @@ public class AislamientoDeCategoriasTests(BaseDeDatosFixture baseDeDatos)
         // Y la categoría de la dueña quedó intacta: ni renombrada ni dada de baja.
         var suya = (await CatalogoAsync(duena)).Single(c => c.Id == ajena);
         Assert.Equal("Gimnasio", suya.Nombre);
-        Assert.True(suya.EsPropia);
     }
 
     /// <summary>
@@ -100,6 +99,7 @@ public class AislamientoDeCategoriasTests(BaseDeDatosFixture baseDeDatos)
         using var intrusa = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
 
         var ajena = await CrearCategoriaAsync(duena, "Gimnasio");
+        var propia = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, intrusa.Id);
 
         // El alta apuntando a la categoría ajena se rechaza igual que apuntando a una inexistente.
         using (var conLaAjena = await RegistrarAsync(intrusa, ajena, 100m))
@@ -113,7 +113,7 @@ public class AislamientoDeCategoriasTests(BaseDeDatosFixture baseDeDatos)
 
         // La edición, igual. Se necesita un movimiento propio y válido para poder intentarlo.
         long movimiento;
-        using (var propio = await RegistrarAsync(intrusa, categoriaId: 1, monto: 100m))
+        using (var propio = await RegistrarAsync(intrusa, propia, monto: 100m))
         {
             Assert.Equal(HttpStatusCode.Created, propio.StatusCode);
             using var json = JsonDocument.Parse(await propio.Content.ReadAsStringAsync());
@@ -131,7 +131,7 @@ public class AislamientoDeCategoriasTests(BaseDeDatosFixture baseDeDatos)
 
         // Y no se movió.
         await using var contexto = _baseDeDatos.CrearContexto();
-        Assert.Equal(1, (await contexto.Movimientos.FindAsync(movimiento))!.CategoriaId);
+        Assert.Equal(propia, (await contexto.Movimientos.FindAsync(movimiento))!.CategoriaId);
     }
 
     private static async Task<int> CrearCategoriaAsync(CuentaDePrueba cuenta, string nombre)

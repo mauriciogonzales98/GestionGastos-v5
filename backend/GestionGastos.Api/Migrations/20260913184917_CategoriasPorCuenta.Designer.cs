@@ -4,6 +4,7 @@ using GestionGastos.Api.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GestionGastos.Api.Migrations
 {
     [DbContext(typeof(GestionGastosDbContext))]
-    partial class GestionGastosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260913184917_CategoriasPorCuenta")]
+    partial class CategoriasPorCuenta
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -58,9 +61,6 @@ namespace GestionGastos.Api.Migrations
                         .HasColumnName("usuario_id");
 
                     b.HasKey("Id");
-
-                    b.HasAlternateKey("Id", "UsuarioId")
-                        .HasName("ak_categoria_id_usuario");
 
                     b.HasIndex("UsuarioId", "Nombre", "Tipo", "Discriminador")
                         .IsUnique()
@@ -202,9 +202,9 @@ namespace GestionGastos.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MonedaId");
+                    b.HasIndex("CategoriaId");
 
-                    b.HasIndex("CategoriaId", "UsuarioId");
+                    b.HasIndex("MonedaId");
 
                     b.HasIndex("UsuarioId", "Fecha", "Id")
                         .IsDescending(false, true, true)
@@ -261,6 +261,12 @@ namespace GestionGastos.Api.Migrations
 
             modelBuilder.Entity("GestionGastos.Api.Dominio.Movimiento", b =>
                 {
+                    b.HasOne("GestionGastos.Api.Dominio.Categoria", "Categoria")
+                        .WithMany()
+                        .HasForeignKey("CategoriaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("GestionGastos.Api.Dominio.Moneda", "Moneda")
                         .WithMany()
                         .HasForeignKey("MonedaId")
@@ -272,14 +278,6 @@ namespace GestionGastos.Api.Migrations
                         .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("GestionGastos.Api.Dominio.Categoria", "Categoria")
-                        .WithMany()
-                        .HasForeignKey("CategoriaId", "UsuarioId")
-                        .HasPrincipalKey("Id", "UsuarioId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_movimiento_categoria_del_ambito");
 
                     b.Navigation("Categoria");
 

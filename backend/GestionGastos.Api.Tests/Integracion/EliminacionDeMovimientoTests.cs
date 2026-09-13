@@ -19,8 +19,6 @@ public class EliminacionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
     private static readonly DateOnly Hoy = new(2026, 8, 15);
     private static readonly DateOnly Fecha = new(2026, 8, 10);
 
-    private const int Comida = 1;
-
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
 
     /// <summary>
@@ -36,9 +34,10 @@ public class EliminacionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        var aBorrar = await RegistrarAsync(cuenta, 100m);
-        var aConservar = await RegistrarAsync(cuenta, 200m);
+        var aBorrar = await RegistrarAsync(cuenta, 100m, cat.Comida);
+        var aConservar = await RegistrarAsync(cuenta, 200m, cat.Comida);
 
         var borrado = await CrudoAsync(cuenta, HttpMethod.Delete, $"/api/movimientos/{aBorrar}");
         Assert.Equal(HttpStatusCode.NoContent, borrado.Estado);
@@ -70,14 +69,16 @@ public class EliminacionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var a = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         using var b = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catA = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, a.Id);
+        var catB = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, b.Id);
         Assert.NotEqual(a.Id, b.Id);
 
-        var deB = await RegistrarAsync(b, 500m);
+        var deB = await RegistrarAsync(b, 500m, catB.Comida);
         var antesDeB = await ListadoAsync(b);
         Assert.NotEmpty(antesDeB);
 
         // Un id que existió y ya no: A registra uno propio y lo borra.
-        var borrado = await RegistrarAsync(a, 1m);
+        var borrado = await RegistrarAsync(a, 1m, catA.Comida);
         Assert.Equal(
             HttpStatusCode.NoContent,
             (await CrudoAsync(a, HttpMethod.Delete, $"/api/movimientos/{borrado}")).Estado);
@@ -108,8 +109,9 @@ public class EliminacionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        var id = await RegistrarAsync(cuenta, 300m);
+        var id = await RegistrarAsync(cuenta, 300m, cat.Comida);
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -139,13 +141,14 @@ public class EliminacionDeMovimientoTests(BaseDeDatosFixture baseDeDatos)
             respuesta.Content.Headers.ContentType?.MediaType);
     }
 
-    private static async Task<long> RegistrarAsync(CuentaDePrueba cuenta, decimal monto)
+    private static async Task<long> RegistrarAsync(
+        CuentaDePrueba cuenta, decimal monto, int categoriaId)
     {
         var fecha = Fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         using var respuesta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto, categoriaId = Comida, fecha });
+            new { tipo = "gasto", monto, categoriaId, fecha });
 
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
 

@@ -22,12 +22,6 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
     private static readonly DateOnly Temprano = new(2026, 8, 5);
     private static readonly DateOnly Tarde = new(2026, 8, 25);
 
-    private const int Comida = 1;
-    private const int Transporte = 2;
-    private const int Vivienda = 3;
-    private const int Salud = 5;
-    private const int Sueldo = 8;
-
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
 
     /// <summary>
@@ -42,18 +36,19 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catalogo = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 1000m, Comida, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 2000m, Comida, Tarde);
-        await RegistrarAsync(cuenta, "gasto", 500m, Transporte, Tarde);
-        await RegistrarAsync(cuenta, "gasto", 750m, Vivienda, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 1000m, catalogo.Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 2000m, catalogo.Comida, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 500m, catalogo.Transporte, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 750m, catalogo.Vivienda, Temprano);
 
         var desglose = await DesgloseAsync(cuenta);
 
         Assert.Equal(3, desglose.Count);
-        Assert.Equal(3000m, desglose[Comida]);
-        Assert.Equal(500m, desglose[Transporte]);
-        Assert.Equal(750m, desglose[Vivienda]);
+        Assert.Equal(3000m, desglose[catalogo.Comida]);
+        Assert.Equal(500m, desglose[catalogo.Transporte]);
+        Assert.Equal(750m, desglose[catalogo.Vivienda]);
     }
 
     /// <summary>
@@ -68,11 +63,12 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catalogo = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 1234.56m, Comida, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 78.90m, Transporte, Tarde);
-        await RegistrarAsync(cuenta, "gasto", 1000m, Salud, Tarde);
-        await RegistrarAsync(cuenta, "ingreso", 9999m, Sueldo, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 1234.56m, catalogo.Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 78.90m, catalogo.Transporte, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 1000m, catalogo.Salud, Tarde);
+        await RegistrarAsync(cuenta, "ingreso", 9999m, catalogo.Sueldo, Temprano);
 
         using var resumen = await ResumenAsync(cuenta);
         var ars = Moneda(resumen, "ARS");
@@ -98,9 +94,10 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catalogo = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 300m, Comida, Temprano);
-        await RegistrarAsync(cuenta, "ingreso", 5000m, Sueldo, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 300m, catalogo.Comida, Temprano);
+        await RegistrarAsync(cuenta, "ingreso", 5000m, catalogo.Sueldo, Tarde);
 
         using var resumen = await ResumenAsync(cuenta);
         var ars = Moneda(resumen, "ARS");
@@ -109,8 +106,8 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
             .Select(c => c.GetProperty("categoriaId").GetInt32())
             .ToList();
 
-        Assert.DoesNotContain(Sueldo, categorias);
-        Assert.Equal([Comida], categorias);
+        Assert.DoesNotContain(catalogo.Sueldo, categorias);
+        Assert.Equal([catalogo.Comida], categorias);
 
         // Y el ingreso no se perdió: está donde tiene que estar.
         Assert.Equal(5000m, ars.GetProperty("totalIngresado").GetDecimal());
@@ -130,13 +127,14 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catalogo = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 100m, Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 100m, catalogo.Comida, Temprano);
 
         var desglose = await DesgloseAsync(cuenta);
 
-        Assert.Equal([Comida], desglose.Keys);
-        Assert.DoesNotContain(Transporte, desglose.Keys);
+        Assert.Equal([catalogo.Comida], desglose.Keys);
+        Assert.DoesNotContain(catalogo.Transporte, desglose.Keys);
     }
 
     /// <summary>
@@ -151,10 +149,11 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catalogo = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        var id = await RegistrarAsync(cuenta, "gasto", 900m, Comida, Temprano);
+        var id = await RegistrarAsync(cuenta, "gasto", 900m, catalogo.Comida, Temprano);
 
-        Assert.Equal(900m, (await DesgloseAsync(cuenta))[Comida]);
+        Assert.Equal(900m, (await DesgloseAsync(cuenta))[catalogo.Comida]);
 
         using (var edicion = await cuenta.Cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{id}", UriKind.Relative),
@@ -162,7 +161,7 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
             {
                 tipo = "gasto",
                 monto = 900m,
-                categoriaId = Transporte,
+                categoriaId = catalogo.Transporte,
                 fecha = Temprano.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 // Obligatoria al editar desde la feature 012, igual que `fecha`. Vacía: es el valor
                 // que este movimiento ya tiene, así que la edición sigue cambiando sólo la categoría.
@@ -174,8 +173,8 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
 
         var despues = await DesgloseAsync(cuenta);
 
-        Assert.DoesNotContain(Comida, despues.Keys);
-        Assert.Equal(900m, despues[Transporte]);
+        Assert.DoesNotContain(catalogo.Comida, despues.Keys);
+        Assert.Equal(900m, despues[catalogo.Transporte]);
     }
 
     /// <summary>AC-21: un gasto eliminado deja de sumar en todos lados.</summary>
@@ -185,9 +184,10 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catalogo = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, "gasto", 100m, Comida, Temprano);
-        var condenado = await RegistrarAsync(cuenta, "gasto", 5000m, Transporte, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 100m, catalogo.Comida, Temprano);
+        var condenado = await RegistrarAsync(cuenta, "gasto", 5000m, catalogo.Transporte, Tarde);
 
         using (var baja = await cuenta.Cliente.DeleteAsync(
             new Uri($"/api/movimientos/{condenado}", UriKind.Relative)))
@@ -200,7 +200,7 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
 
         Assert.Equal(100m, ars.GetProperty("totalGastado").GetDecimal());
         Assert.DoesNotContain(
-            Transporte,
+            catalogo.Transporte,
             ars.GetProperty("gastosPorCategoria").EnumerateArray()
                 .Select(c => c.GetProperty("categoriaId").GetInt32()));
     }
@@ -228,17 +228,18 @@ public class DesglosePorCategoriaTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var catalogo = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         // Las dos empatadas se cargan con el id MAYOR primero y con la fecha más nueva, para que el
         // orden natural de la consulta —si lo hubiera— sea el contrario al que se espera.
-        await RegistrarAsync(cuenta, "gasto", 500m, Salud, Tarde);
-        await RegistrarAsync(cuenta, "gasto", 500m, Transporte, Temprano);
-        await RegistrarAsync(cuenta, "gasto", 1000m, Comida, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 500m, catalogo.Salud, Tarde);
+        await RegistrarAsync(cuenta, "gasto", 500m, catalogo.Transporte, Temprano);
+        await RegistrarAsync(cuenta, "gasto", 1000m, catalogo.Comida, Temprano);
 
         using var resumen = await ResumenAsync(cuenta);
 
         Assert.Equal(
-            [Comida, Transporte, Salud],
+            [catalogo.Comida, catalogo.Transporte, catalogo.Salud],
             Moneda(resumen, "ARS").GetProperty("gastosPorCategoria").EnumerateArray()
                 .Select(c => c.GetProperty("categoriaId").GetInt32()));
     }

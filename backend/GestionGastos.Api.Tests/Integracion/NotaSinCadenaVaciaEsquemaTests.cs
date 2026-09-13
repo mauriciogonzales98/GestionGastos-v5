@@ -42,6 +42,7 @@ public class NotaSinCadenaVaciaEsquemaTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 11));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var gasto = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id);
 
         await using var contexto = _baseDeDatos.CrearContexto();
 
@@ -54,7 +55,7 @@ public class NotaSinCadenaVaciaEsquemaTests(BaseDeDatosFixture baseDeDatos)
             await Assert.ThrowsAnyAsync<DbException>(() =>
                 contexto.Database.ExecuteSqlInterpolatedAsync($@"
                     INSERT INTO movimiento (usuario_id, tipo, monto, moneda_id, categoria_id, fecha, nota)
-                    VALUES ({cuenta.Id}, 0, 100.00, 1, 1, '2026-09-11', '')"));
+                    VALUES ({cuenta.Id}, 0, 100.00, 1, {gasto}, '2026-09-11', '')"));
         }
         finally
         {
@@ -75,6 +76,7 @@ public class NotaSinCadenaVaciaEsquemaTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 11));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var gasto = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id);
 
         await using var contexto = _baseDeDatos.CrearContexto();
         var movimiento = new Movimiento
@@ -83,7 +85,7 @@ public class NotaSinCadenaVaciaEsquemaTests(BaseDeDatosFixture baseDeDatos)
             Tipo = TipoMovimiento.Gasto,
             Monto = 100m,
             MonedaId = 1,
-            CategoriaId = 1,
+            CategoriaId = gasto,
             Fecha = new DateOnly(2026, 9, 11),
             Nota = "una nota que existe",
         };
@@ -117,6 +119,7 @@ public class NotaSinCadenaVaciaEsquemaTests(BaseDeDatosFixture baseDeDatos)
         await _baseDeDatos.LimpiarCuentasAsync();
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 9, 11));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var gasto = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id);
 
         await using var contexto = _baseDeDatos.CrearContexto();
 
@@ -124,10 +127,10 @@ public class NotaSinCadenaVaciaEsquemaTests(BaseDeDatosFixture baseDeDatos)
         {
             await contexto.Database.ExecuteSqlInterpolatedAsync($@"
                 INSERT INTO movimiento (usuario_id, tipo, monto, moneda_id, categoria_id, fecha, nota)
-                VALUES ({cuenta.Id}, 0, 100.00, 1, 1, '2026-09-11', NULL)");
+                VALUES ({cuenta.Id}, 0, 100.00, 1, {gasto}, '2026-09-11', NULL)");
             await contexto.Database.ExecuteSqlInterpolatedAsync($@"
                 INSERT INTO movimiento (usuario_id, tipo, monto, moneda_id, categoria_id, fecha, nota)
-                VALUES ({cuenta.Id}, 0, 100.00, 1, 1, '2026-09-11', 'una nota que existe')");
+                VALUES ({cuenta.Id}, 0, 100.00, 1, {gasto}, '2026-09-11', 'una nota que existe')");
 
             var cuantos = await contexto.Movimientos
                 .CountAsync(m => m.UsuarioId == cuenta.Id);

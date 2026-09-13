@@ -33,8 +33,6 @@ public class RendimientoListadoTests(BaseDeDatosFixture baseDeDatos, ITestOutput
     /// <summary>El largo de las notas sembradas. Realista, y cerca del techo sin tocarlo.</summary>
     private const int LargoDeLaNota = 100;
 
-    private static readonly int[] CategoriasDeGasto = [1, 2, 3, 4, 5, 6, 7];
-    private static readonly int[] CategoriasDeIngreso = [8, 9, 10];
 
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
     private readonly ITestOutputHelper _salida = salida;
@@ -106,6 +104,12 @@ public class RendimientoListadoTests(BaseDeDatosFixture baseDeDatos, ITestOutput
     private async Task SembrarConNotaAsync(long usuarioId, DateOnly hoy, int filas)
     {
         await using var contexto = _baseDeDatos.CrearContexto();
+        // Las diez categorías salen del catálogo de ESA cuenta: desde la feature 013 los números
+        // 1 a 10 ya no son el catálogo de nadie en particular.
+        var catalogo = await Integracion.CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, usuarioId);
+        var categoriasDeGasto = catalogo.Gastos();
+        var categoriasDeIngreso = catalogo.Ingresos();
+
         var fechas = SembradoDeRendimiento.GenerarFechasSembradas(hoy, filas);
 
         contexto.Movimientos.AddRange(fechas.Select((fecha, i) =>
@@ -120,8 +124,8 @@ public class RendimientoListadoTests(BaseDeDatosFixture baseDeDatos, ITestOutput
                 Monto = 100m + (i % 97),
                 MonedaId = 1,
                 CategoriaId = esGasto
-                    ? CategoriasDeGasto[i % CategoriasDeGasto.Length]
-                    : CategoriasDeIngreso[i % CategoriasDeIngreso.Length],
+                    ? categoriasDeGasto[i % categoriasDeGasto.Length]
+                    : categoriasDeIngreso[i % categoriasDeIngreso.Length],
                 Fecha = fecha,
                 Nota = prefijo + new string('x', LargoDeLaNota - prefijo.Length),
             };

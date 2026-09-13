@@ -26,10 +26,11 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         var cliente = cuenta.Cliente;
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         using var creacion = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 10m, categoriaId = 1, fecha = "2026-08-23" });
+            new { tipo = "gasto", monto = 10m, categoriaId = cat.Comida, fecha = "2026-08-23" });
         Assert.Equal(HttpStatusCode.Created, creacion.StatusCode);
 
         using var json = JsonDocument.Parse(await creacion.Content.ReadAsStringAsync());
@@ -70,6 +71,7 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
             using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
             var cliente = cuenta.Cliente;
+            var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
             // Se manda un cuerpo armado con los nombres QUE DECLARA EL CONTRATO, no con los del DTO.
             // Si la API dejara de aceptar alguno —un cambio de política de nombres, un rename— este
@@ -81,7 +83,7 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
                 {
                     "tipo" => "gasto",
                     "monto" => 77.77m,
-                    "categoriaId" => 1,
+                    "categoriaId" => cat.Comida,
                     "monedaId" => moneda.Id,
                     "fecha" => "2026-08-23",
                     // La nota entra con la feature 012. Se ejercita con un valor NO vacío: con la
@@ -107,7 +109,7 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
             // pasar exactamente el error que esta barrera existe para atrapar.
             Assert.Equal("gasto", json.RootElement.GetProperty("tipo").GetString());
             Assert.Equal(77.77m, json.RootElement.GetProperty("monto").GetDecimal());
-            Assert.Equal(1, json.RootElement.GetProperty("categoriaId").GetInt32());
+            Assert.Equal(cat.Comida, json.RootElement.GetProperty("categoriaId").GetInt32());
             Assert.Equal("2026-08-23", json.RootElement.GetProperty("fecha").GetString());
             Assert.Equal("viaje al aeropuerto", json.RootElement.GetProperty("nota").GetString());
 
@@ -125,11 +127,12 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
         var cliente = cuenta.Cliente;
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         // Un tipo inválido: el error se produce de verdad, no se construye a mano en el test.
         using var respuesta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "invalido", monto = 10m, categoriaId = 1 });
+            new { tipo = "invalido", monto = 10m, categoriaId = cat.Comida });
 
         Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
 
@@ -185,10 +188,11 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
             using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 23));
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
             var cliente = cuenta.Cliente;
+            var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
             using var creado = await cliente.PostAsJsonAsync(
                 new Uri("/api/movimientos", UriKind.Relative),
-                new { tipo = "gasto", monto = 10m, categoriaId = 1, fecha = "2026-08-23" });
+                new { tipo = "gasto", monto = 10m, categoriaId = cat.Comida, fecha = "2026-08-23" });
             Assert.Equal(HttpStatusCode.Created, creado.StatusCode);
 
             using var creadoJson = JsonDocument.Parse(await creado.Content.ReadAsStringAsync());
@@ -201,7 +205,7 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
                 {
                     "tipo" => "gasto",
                     "monto" => 88.88m,
-                    "categoriaId" => 2,
+                    "categoriaId" => cat.Transporte,
                     "monedaId" => moneda.Id,
                     "fecha" => "2026-08-11",
                     "nota" => "nota corregida",
@@ -221,7 +225,7 @@ public class ContratoMovimientosTests(BaseDeDatosFixture baseDeDatos)
 
             Assert.Equal("gasto", json.RootElement.GetProperty("tipo").GetString());
             Assert.Equal(88.88m, json.RootElement.GetProperty("monto").GetDecimal());
-            Assert.Equal(2, json.RootElement.GetProperty("categoriaId").GetInt32());
+            Assert.Equal(cat.Transporte, json.RootElement.GetProperty("categoriaId").GetInt32());
             Assert.Equal("2026-08-11", json.RootElement.GetProperty("fecha").GetString());
             Assert.Equal("nota corregida", json.RootElement.GetProperty("nota").GetString());
 

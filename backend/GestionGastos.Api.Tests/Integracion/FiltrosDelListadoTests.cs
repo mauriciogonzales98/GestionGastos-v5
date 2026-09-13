@@ -25,8 +25,6 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
     private static readonly DateOnly Tarde = new(2026, 8, 25);
     private static readonly DateOnly OtroMes = new(2026, 5, 20);
 
-    private const int Comida = 1;
-    private const int Transporte = 2;
 
     private readonly BaseDeDatosFixture _baseDeDatos = baseDeDatos;
 
@@ -44,10 +42,11 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        var enElMes = await RegistrarAsync(cuenta, 100m, Comida, Medio);
-        var tambienEnElMes = await RegistrarAsync(cuenta, 200m, Comida, Temprano);
-        await RegistrarAsync(cuenta, 300m, Comida, OtroMes);
+        var enElMes = await RegistrarAsync(cuenta, 100m, cat.Comida, Medio);
+        var tambienEnElMes = await RegistrarAsync(cuenta, 200m, cat.Comida, Temprano);
+        await RegistrarAsync(cuenta, 300m, cat.Comida, OtroMes);
 
         var ids = await IdsAsync(cuenta);
 
@@ -69,9 +68,10 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        var soloEseDia = await RegistrarAsync(cuenta, 100m, Comida, Temprano);
-        await RegistrarAsync(cuenta, 200m, Comida, Tarde);
+        var soloEseDia = await RegistrarAsync(cuenta, 100m, cat.Comida, Temprano);
+        await RegistrarAsync(cuenta, 200m, cat.Comida, Tarde);
 
         // Un solo día: desde y hasta son la misma fecha, y el movimiento cae justo ahí.
         Assert.Equal([soloEseDia], await IdsAsync(cuenta, desde: Temprano, hasta: Temprano));
@@ -91,12 +91,13 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        var deComida = await RegistrarAsync(cuenta, 100m, Comida, Medio);
-        var deTransporte = await RegistrarAsync(cuenta, 200m, Transporte, Medio);
+        var deComida = await RegistrarAsync(cuenta, 100m, cat.Comida, Medio);
+        var deTransporte = await RegistrarAsync(cuenta, 200m, cat.Transporte, Medio);
 
-        Assert.Equal([deComida], await IdsAsync(cuenta, categoriaId: Comida));
-        Assert.Equal([deTransporte], await IdsAsync(cuenta, categoriaId: Transporte));
+        Assert.Equal([deComida], await IdsAsync(cuenta, categoriaId: cat.Comida));
+        Assert.Equal([deTransporte], await IdsAsync(cuenta, categoriaId: cat.Transporte));
 
         var sinFiltro = await IdsAsync(cuenta);
         Assert.Contains(deComida, sinFiltro);
@@ -116,17 +117,18 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        var cumpleLasDos = await RegistrarAsync(cuenta, 100m, Comida, Medio);
+        var cumpleLasDos = await RegistrarAsync(cuenta, 100m, cat.Comida, Medio);
 
         // Cumple sólo la categoría: misma categoría, fuera del rango.
-        await RegistrarAsync(cuenta, 200m, Comida, Tarde);
+        await RegistrarAsync(cuenta, 200m, cat.Comida, Tarde);
 
         // Cumple sólo el rango: dentro del rango, otra categoría.
-        await RegistrarAsync(cuenta, 300m, Transporte, Medio);
+        await RegistrarAsync(cuenta, 300m, cat.Transporte, Medio);
 
         var resultado = await IdsAsync(
-            cuenta, desde: Temprano, hasta: Medio, categoriaId: Comida);
+            cuenta, desde: Temprano, hasta: Medio, categoriaId: cat.Comida);
 
         Assert.Equal([cumpleLasDos], resultado);
     }
@@ -143,8 +145,9 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, 100m, Comida, Medio);
+        await RegistrarAsync(cuenta, 100m, cat.Comida, Medio);
 
         var (estado, cuerpo) = await CrudoAsync(
             cuenta, "?desde=2020-01-01&hasta=2020-01-31");
@@ -168,8 +171,9 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, 100m, Comida, Medio);
+        await RegistrarAsync(cuenta, 100m, cat.Comida, Medio);
 
         var (inexistente, cuerpoInexistente) = await CrudoAsync(cuenta, "?categoriaId=999999");
         Assert.Equal(HttpStatusCode.OK, inexistente);
@@ -181,7 +185,7 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
 
         // Y una que existe pero sin movimientos propios responde exactamente igual: el resultado no
         // permite distinguir "esa categoría no existe" de "no tenés nada ahí".
-        var (existente, cuerpoExistente) = await CrudoAsync(cuenta, $"?categoriaId={Transporte}");
+        var (existente, cuerpoExistente) = await CrudoAsync(cuenta, $"?categoriaId={cat.Transporte}");
         Assert.Equal(HttpStatusCode.OK, existente);
         Assert.Equal(cuerpoInexistente, cuerpoExistente);
     }
@@ -205,8 +209,9 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
         using var factoria = new FactoriaConReloj(Hoy);
         await _baseDeDatos.LimpiarCuentasAsync();
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, 100m, Comida, Medio);
+        await RegistrarAsync(cuenta, 100m, cat.Comida, Medio);
 
         var (estado, _) = await CrudoAsync(cuenta, consulta);
 
@@ -234,9 +239,10 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
         {
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-            var enLaNueva = await RegistrarAsync(cuenta, 100m, Comida, Medio, moneda.Id);
-            var enLaPredeterminada = await RegistrarAsync(cuenta, 200m, Comida, Medio);
+            var enLaNueva = await RegistrarAsync(cuenta, 100m, cat.Comida, Medio, moneda.Id);
+            var enLaPredeterminada = await RegistrarAsync(cuenta, 200m, cat.Comida, Medio);
 
             Assert.Equal([enLaNueva], await IdsAsync(cuenta, monedaId: moneda.Id));
 
@@ -262,23 +268,24 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
         {
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-            var cumpleLasTres = await RegistrarAsync(cuenta, 100m, Comida, Medio, moneda.Id);
+            var cumpleLasTres = await RegistrarAsync(cuenta, 100m, cat.Comida, Medio, moneda.Id);
 
             // Falla sólo la fecha.
-            await RegistrarAsync(cuenta, 200m, Comida, Tarde, moneda.Id);
+            await RegistrarAsync(cuenta, 200m, cat.Comida, Tarde, moneda.Id);
 
             // Falla sólo la categoría.
-            await RegistrarAsync(cuenta, 300m, Transporte, Medio, moneda.Id);
+            await RegistrarAsync(cuenta, 300m, cat.Transporte, Medio, moneda.Id);
 
             // Falla sólo la moneda: queda en la predeterminada.
-            await RegistrarAsync(cuenta, 400m, Comida, Medio);
+            await RegistrarAsync(cuenta, 400m, cat.Comida, Medio);
 
             var resultado = await IdsAsync(
                 cuenta,
                 desde: Temprano,
                 hasta: Medio,
-                categoriaId: Comida,
+                categoriaId: cat.Comida,
                 monedaId: moneda.Id);
 
             Assert.Equal([cumpleLasTres], resultado);
@@ -300,8 +307,9 @@ public class FiltrosDelListadoTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
-        await RegistrarAsync(cuenta, 100m, Comida, Medio);
+        await RegistrarAsync(cuenta, 100m, cat.Comida, Medio);
 
         short inexistente;
         await using (var contexto = _baseDeDatos.CrearContexto())

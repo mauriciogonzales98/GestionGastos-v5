@@ -76,7 +76,7 @@ public class SinSesionTests(BaseDeDatosFixture baseDeDatos)
         Assert.Equal(HttpStatusCode.Unauthorized, respuesta.StatusCode);
 
         await using var contexto = _baseDeDatos.CrearContexto();
-        Assert.Equal(0, await contexto.Categorias.CountAsync(c => c.UsuarioId != null));
+        Assert.Equal(0, await contexto.Categorias.CountAsync());
     }
 
     [Fact]

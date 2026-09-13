@@ -378,5 +378,224 @@ public class AltaDeCuentaTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>Un email distinto por llamada: la base es compartida y el UNIQUE no perdona.</summary>
+
+    /// <summary>
+    /// FR-002 y SC-001: una cuenta recién registrada queda con **diez categorías propias**, siete de
+    /// gasto y tres de ingreso, todas activas — y puede cargar un movimiento con cualquiera de ellas
+    /// sin crear nada a mano.
+    ///
+    /// Se mira el catálogo que la API ofrece y no la tabla: es lo que la persona ve. Y se carga un
+    /// movimiento con **cada una de las diez**, no con una: una sola pasaría en verde aunque las
+    /// otras nueve hubieran nacido de otra cuenta.
+    /// </summary>
+    [Fact]
+    public async Task Una_Cuenta_Nueva_Nace_Con_Sus_Diez_Categorias_FR002_SC001()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        var catalogo = await CatalogoAsync(cuenta);
+
+        Assert.Equal(10, catalogo.Count);
+        Assert.Equal(7, catalogo.Count(c => c.Tipo == "gasto"));
+        Assert.Equal(3, catalogo.Count(c => c.Tipo == "ingreso"));
+
+        // Todas son de esta cuenta y todas están activas. `activa` no viaja en el contrato, así que
+        // esta mitad se comprueba contra la tabla: el catálogo ya viene filtrado por activa, y que
+        // las diez aparezcan ahí es justamente la prueba.
+        await using (var contexto = _baseDeDatos.CrearContexto())
+        {
+            var suyas = await contexto.Categorias
+                .Where(c => c.UsuarioId == cuenta.Id)
+                .ToListAsync();
+
+            Assert.Equal(10, suyas.Count);
+            Assert.All(suyas, c => Assert.True(c.Activa));
+        }
+
+        // SC-001: se puede cargar un movimiento con cualquiera de las diez, sin crear nada a mano.
+        foreach (var categoria in catalogo)
+        {
+            using var alta = await cuenta.Cliente.PostAsJsonAsync(
+                new Uri("/api/movimientos", UriKind.Relative),
+                new
+                {
+                    tipo = categoria.Tipo,
+                    monto = 100m,
+                    categoriaId = categoria.Id,
+                    fecha = "2026-08-24",
+                });
+
+            Assert.Equal(HttpStatusCode.Created, alta.StatusCode);
+        }
+    }
+
+    /// <summary>
+    /// SC-006: dos cuentas recién registradas reciben cada una **sus** diez, distintas de las de la
+    /// otra aunque los nombres coincidan, y ninguna ve las ajenas.
+    ///
+    /// Los nombres tienen que coincidir y los identificadores tienen que no coincidir: si sólo se
+    /// comprobara lo primero, un catálogo compartido pasaría en verde; si sólo lo segundo, dos
+    /// catálogos distintos también.
+    /// </summary>
+    [Fact]
+    public async Task Dos_Cuentas_Reciben_Catalogos_Distintos_Con_Los_Mismos_Nombres_SC006()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var una = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        using var otra = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        var deUna = await CatalogoAsync(una);
+        var deOtra = await CatalogoAsync(otra);
+
+        // Los mismos nombres y tipos...
+        Assert.Equal(
+            deUna.Select(c => $"{c.Nombre}|{c.Tipo}").ToArray(),
+            deOtra.Select(c => $"{c.Nombre}|{c.Tipo}").ToArray());
+
+        // ...y ni un identificador en común.
+        Assert.Empty(deUna.Select(c => c.Id).Intersect(deOtra.Select(c => c.Id)));
+    }
+
+    /// <summary>
+    /// FR-003: si el alta falla, no queda ni la cuenta ni el catálogo.
+    ///
+    /// El fallo se fabrica con la carrera del email: otra petición crea la cuenta justo antes del
+    /// <c>INSERT</c>, el índice único la frena, y el alta termina como cualquier alta con un email
+    /// ya registrado. Lo que este test agrega a la carrera que ya se probaba es **la segunda mitad**:
+    /// que tampoco hayan quedado diez categorías huérfanas de una cuenta que no se creó.
+    /// </summary>
+    [Fact]
+    public async Task Si_El_Alta_Falla_No_Queda_Ni_La_Cuenta_Ni_El_Catalogo_FR003()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        var email = Unico();
+
+        var carrera = new CreaLaCuentaAntesDeGuardar(_baseDeDatos.Cadena);
+        using var factoria = new FactoriaConReloj(
+            new DateOnly(2026, 8, 24),
+            servicios => servicios.ConfigureDbContext<GestionGastosDbContext>(
+                o => o.AddInterceptors(carrera)));
+        using var cliente = factoria.CreateClient();
+
+        using var alta = await cliente.PostAsJsonAsync(
+            new Uri("/api/cuentas", UriKind.Relative),
+            new { email, contrasena = "una frase larga y buena" });
+
+        Assert.True(carrera.Intervino, "el interceptor no llegó a crear la cuenta rival");
+        Assert.Equal(HttpStatusCode.Created, alta.StatusCode);
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+
+        // La cuenta que quedó es la que ganó la carrera, y esa no pasó por el alta: no tiene
+        // catálogo. La que sí lo habría tenido no llegó a existir.
+        var ganadora = await contexto.Usuarios.SingleAsync(u => u.Email == email);
+        Assert.Equal(0, await contexto.Categorias.CountAsync(c => c.UsuarioId == ganadora.Id));
+
+        // Y no hay categorías de nadie más: si el alta hubiera escrito las diez antes de fallar,
+        // estarían acá.
+        Assert.Equal(0, await contexto.Categorias.CountAsync());
+    }
+
+    /// <summary>
+    /// **research D-07**: el <c>catch</c> del <c>1062</c> del email no se traga un fallo de las
+    /// categorías haciéndolo pasar por email ya registrado.
+    ///
+    /// Es el único lugar de esta feature donde un <c>catch</c> existente cambia de alcance: hasta
+    /// ahora ese <c>SaveChanges</c> escribía una fila, y ahora escribe once. Un <c>catch</c> que
+    /// mire sólo el número de error atraparía el choque del índice de categorías y respondería
+    /// <c>201</c> con el mensaje de siempre — la cuenta no se crearía, la persona creería que sí, y
+    /// no habría nada en ningún lado que lo dijera.
+    ///
+    /// Lo que se exige es que **no** responda como un alta exitosa. Que el fallo salga a la
+    /// superficie es correcto: es un error del sistema, no del email que la persona escribió.
+    /// </summary>
+    [Fact]
+    public async Task Un_Fallo_Del_Catalogo_No_Se_Hace_Pasar_Por_Email_Duplicado_FR003()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        var email = Unico();
+
+        var choque = new ChocaElCatalogoAntesDeGuardar();
+        using var factoria = new FactoriaConReloj(
+            new DateOnly(2026, 8, 24),
+            servicios => servicios.ConfigureDbContext<GestionGastosDbContext>(
+                o => o.AddInterceptors(choque)));
+        using var cliente = factoria.CreateClient();
+
+        using var alta = await cliente.PostAsJsonAsync(
+            new Uri("/api/cuentas", UriKind.Relative),
+            new { email, contrasena = "una frase larga y buena" });
+
+        Assert.True(choque.Intervino, "el interceptor no llegó a romper el catálogo");
+
+        Assert.NotEqual(HttpStatusCode.Created, alta.StatusCode);
+
+        // Y no quedó nada a medias: ni la cuenta ni categorías sueltas.
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Equal(0, await contexto.Usuarios.CountAsync(u => u.Email == email));
+        Assert.Equal(0, await contexto.Categorias.CountAsync());
+    }
+
+    /// <summary>
+    /// **Un `1062` que EF no pudo atribuir a ninguna entidad no se hace pasar por email duplicado.**
+    ///
+    /// Es el borde del `catch` que el test de arriba deja abierto. Aquél comprueba que un choque
+    /// atribuido a las **categorías** no se confunda con el del email; éste comprueba el caso en que
+    /// no hay a qué atribuirlo: `DbUpdateException.Entries` llega vacío.
+    ///
+    /// **Y no es un detalle de estilo: es cómo se comporta `All` sobre una lista vacía.** Devuelve
+    /// `true` —"todas las entradas son un `Usuario`" es cierto cuando no hay ninguna—, así que el
+    /// `catch` se lo tragaría y el alta respondería `201` con el mensaje de siempre sin haber creado
+    /// nada. La persona se iría creyendo que tiene cuenta.
+    /// </summary>
+    [Fact]
+    public async Task Un_1062_Sin_Entradas_No_Se_Hace_Pasar_Por_Email_Duplicado_FR003()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+        var email = Unico();
+
+        var sinEntradas = new FallaConUnMilSesentaYDosSinEntradas();
+        using var factoria = new FactoriaConReloj(
+            new DateOnly(2026, 8, 24),
+            servicios => servicios.ConfigureDbContext<GestionGastosDbContext>(
+                o => o.AddInterceptors(sinEntradas)));
+        using var cliente = factoria.CreateClient();
+
+        using var alta = await cliente.PostAsJsonAsync(
+            new Uri("/api/cuentas", UriKind.Relative),
+            new { email, contrasena = "una frase larga y buena" });
+
+        Assert.True(sinEntradas.Intervino, "el interceptor no llegó a fallar el guardado");
+
+        Assert.NotEqual(HttpStatusCode.Created, alta.StatusCode);
+
+        await using var contexto = _baseDeDatos.CrearContexto();
+        Assert.Equal(0, await contexto.Usuarios.CountAsync(u => u.Email == email));
+    }
+
+    /// <summary>El catálogo que la API le ofrece a esa cuenta.</summary>
+    private static async Task<List<CategoriaDelCatalogo>> CatalogoAsync(CuentaDePrueba cuenta)
+    {
+        using var respuesta = await cuenta.Cliente.GetAsync(
+            new Uri("/api/categorias", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+
+        using var json = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+
+        return [.. json.RootElement.EnumerateArray().Select(c => new CategoriaDelCatalogo(
+            c.GetProperty("id").GetInt32(),
+            c.GetProperty("nombre").GetString()!,
+            c.GetProperty("tipo").GetString()!))];
+    }
+
+    /// <summary>Una fila del catálogo, con lo que el contrato devuelve de ella.</summary>
+    private sealed record CategoriaDelCatalogo(int Id, string Nombre, string Tipo);
+
     private static string Unico() => $"cuenta-{Guid.NewGuid():N}@ejemplo.com";
 }

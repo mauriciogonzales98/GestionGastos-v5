@@ -6,11 +6,11 @@ import { PantallaCategorias } from '../src/categorias/PantallaCategorias';
 import type { Categoria } from '../src/api/tipos';
 import { CATEGORIAS } from './categorias.fixture';
 
-/** Las diez predefinidas más dos propias, que es el caso que la pantalla tiene que distinguir. */
+/** Las diez del catálogo inicial más dos creadas a mano: doce filas y ninguna diferencia entre ellas. */
 const CON_PROPIAS: Categoria[] = [
   ...CATEGORIAS,
-  { id: 43, nombre: 'Gimnasio', tipo: 'gasto', esPropia: true },
-  { id: 44, nombre: 'Alquileres', tipo: 'ingreso', esPropia: true },
+  { id: 43, nombre: 'Gimnasio', tipo: 'gasto' },
+  { id: 44, nombre: 'Alquileres', tipo: 'ingreso' },
 ];
 
 function renderizar(props: Partial<Parameters<typeof PantallaCategorias>[0]> = {}) {
@@ -32,7 +32,7 @@ function fila(nombre: string) {
 }
 
 describe('PantallaCategorias — qué se lista y qué se ofrece', () => {
-  it('lista las propias y las predefinidas juntas', () => {
+  it('lista las creadas a mano y las del catálogo inicial juntas', () => {
     renderizar();
 
     expect(fila('Gimnasio')).toBeInTheDocument();
@@ -42,26 +42,33 @@ describe('PantallaCategorias — qué se lista y qué se ofrece', () => {
   });
 
   /**
-   * AC-03 en la pantalla (FR-008): una predefinida **no ofrece** renombrar ni dar de baja.
+   * FR-017: **todas** las filas ofrecen renombrar y dar de baja, sin excepciones.
    *
-   * El servidor responde `403` de todas formas, así que esto no es la barrera — es no ofrecer un
-   * botón que sólo puede terminar en un error. Que la regla esté en los dos lados es a propósito:
-   * el de acá evita el viaje, el de allá es el que manda.
+   * Este test decía lo contrario hasta la feature 013: comprobaba que una predefinida no ofreciera
+   * botones. Esas filas eran del sistema y el servidor respondía `403`, así que esconderlos evitaba
+   * un viaje que sólo podía terminar en error. Desde que cada cuenta recibe su propio catálogo no
+   * hay ninguna fila de solo lectura, y una condición que siempre da lo mismo es una que esconde
+   * botones sin motivo.
+   *
+   * Se recorren **todas** las filas y no una: comprobar sólo "Comida" pasaría en verde con la
+   * condición vieja puesta sobre cualquier otra.
    */
-  it('no ofrece renombrar ni dar de baja una predefinida AC-03', () => {
+  it('ofrece renombrar y dar de baja en todas las filas FR-017', () => {
     renderizar();
 
-    const predefinida = fila('Comida');
-    expect(
-      within(predefinida).queryByRole('button', { name: /Renombrar/ }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(predefinida).queryByRole('button', { name: /Dar de baja/ }),
-    ).not.toBeInTheDocument();
+    // Se recorren por posición y no por nombre: "Otros" está dos veces —en gasto y en ingreso— y
+    // buscarla por nombre encontraría dos filas.
+    const filas = screen.getAllByRole('listitem');
+    expect(filas).toHaveLength(CON_PROPIAS.length);
 
-    const propia = fila('Gimnasio');
-    expect(within(propia).getByRole('button', { name: /Renombrar/ })).toBeInTheDocument();
-    expect(within(propia).getByRole('button', { name: /Dar de baja/ })).toBeInTheDocument();
+    filas.forEach((suya, i) => {
+      const nombre = CON_PROPIAS[i].nombre;
+
+      expect(within(suya).getByRole('button', { name: `Renombrar ${nombre}` })).toBeInTheDocument();
+      expect(
+        within(suya).getByRole('button', { name: `Dar de baja ${nombre}` }),
+      ).toBeInTheDocument();
+    });
   });
 });
 

@@ -47,11 +47,12 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
         {
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
             var cliente = cuenta.Cliente;
 
             using var creacion = await cliente.PostAsJsonAsync(
                 new Uri("/api/movimientos", UriKind.Relative),
-                new { tipo = "gasto", monto = 123.45m, categoriaId = 1, monedaId = moneda.Id, fecha = "2026-09-04" });
+                new { tipo = "gasto", monto = 123.45m, categoriaId = cat.Comida, monedaId = moneda.Id, fecha = "2026-09-04" });
 
             Assert.Equal(HttpStatusCode.Created, creacion.StatusCode);
 
@@ -104,10 +105,11 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
         using var creacion = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 50m, categoriaId = 1, fecha = "2026-09-04" });
+            new { tipo = "gasto", monto = 50m, categoriaId = cat.Comida, fecha = "2026-09-04" });
 
         Assert.Equal(HttpStatusCode.Created, creacion.StatusCode);
 
@@ -141,11 +143,12 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
         var cliente = cuenta.Cliente;
 
         using var respuesta = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 10m, categoriaId = 1, monedaId = inexistente, fecha = "2026-09-04" });
+            new { tipo = "gasto", monto = 10m, categoriaId = cat.Comida, monedaId = inexistente, fecha = "2026-09-04" });
 
         Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
 
@@ -188,6 +191,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
 
             using var respuesta = await cuenta.Cliente.GetAsync(new Uri("/api/monedas", UriKind.Relative));
             Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
@@ -220,18 +224,19 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
         {
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
             var cliente = cuenta.Cliente;
 
             using var creacion = await cliente.PostAsJsonAsync(
                 new Uri("/api/movimientos", UriKind.Relative),
-                new { tipo = "gasto", monto = 321.99m, categoriaId = 3, fecha = "2026-09-02" });
+                new { tipo = "gasto", monto = 321.99m, categoriaId = cat.Vivienda, fecha = "2026-09-02" });
 
             using var creado = JsonDocument.Parse(await creacion.Content.ReadAsStringAsync());
             var id = creado.RootElement.GetProperty("id").GetInt64();
 
             using var edicion = await cliente.PutAsJsonAsync(
                 new Uri($"/api/movimientos/{id}", UriKind.Relative),
-                new { tipo = "gasto", monto = 321.99m, categoriaId = 3, monedaId = moneda.Id, fecha = "2026-09-02", nota = "" });
+                new { tipo = "gasto", monto = 321.99m, categoriaId = cat.Vivienda, monedaId = moneda.Id, fecha = "2026-09-02", nota = "" });
 
             Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
 
@@ -239,7 +244,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
             Assert.Equal(moneda.Codigo, editado.RootElement.GetProperty("monedaCodigo").GetString());
             Assert.Equal(321.99m, editado.RootElement.GetProperty("monto").GetDecimal());
-            Assert.Equal(3, editado.RootElement.GetProperty("categoriaId").GetInt32());
+            Assert.Equal(cat.Vivienda, editado.RootElement.GetProperty("categoriaId").GetInt32());
             Assert.Equal("2026-09-02", editado.RootElement.GetProperty("fecha").GetString());
         });
     }
@@ -275,11 +280,12 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
             var cliente = cuenta.Cliente;
 
             using var creacion = await cliente.PostAsJsonAsync(
                 new Uri("/api/movimientos", UriKind.Relative),
-                new { tipo = "gasto", monto = 100m, categoriaId = 1, fecha = "2026-09-04" });
+                new { tipo = "gasto", monto = 100m, categoriaId = cat.Comida, fecha = "2026-09-04" });
 
             using var creado = JsonDocument.Parse(await creacion.Content.ReadAsStringAsync());
             var id = creado.RootElement.GetProperty("id").GetInt64();
@@ -290,7 +296,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
             using var edicion = await cliente.PutAsJsonAsync(
                 new Uri($"/api/movimientos/{id}", UriKind.Relative),
-                new { tipo = "gasto", monto = 100m, categoriaId = 1, monedaId = moneda.Id, fecha = "2026-09-04", nota = "" });
+                new { tipo = "gasto", monto = 100m, categoriaId = cat.Comida, monedaId = moneda.Id, fecha = "2026-09-04", nota = "" });
 
             Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
 
@@ -318,20 +324,21 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
         {
             using var factoria = new FactoriaConReloj(Hoy);
             using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+            var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
             var cliente = cuenta.Cliente;
 
             // Nace en la moneda NO predeterminada: si naciera en la predeterminada, una edición que
             // la reponga se vería igual que una que la conserva.
             using var creacion = await cliente.PostAsJsonAsync(
                 new Uri("/api/movimientos", UriKind.Relative),
-                new { tipo = "gasto", monto = 10m, categoriaId = 1, monedaId = moneda.Id, fecha = "2026-09-04" });
+                new { tipo = "gasto", monto = 10m, categoriaId = cat.Comida, monedaId = moneda.Id, fecha = "2026-09-04" });
 
             using var creado = JsonDocument.Parse(await creacion.Content.ReadAsStringAsync());
             var id = creado.RootElement.GetProperty("id").GetInt64();
 
             using var edicion = await cliente.PutAsJsonAsync(
                 new Uri($"/api/movimientos/{id}", UriKind.Relative),
-                new { tipo = "gasto", monto = 20m, categoriaId = 1, fecha = "2026-09-04", nota = "" });
+                new { tipo = "gasto", monto = 20m, categoriaId = cat.Comida, fecha = "2026-09-04", nota = "" });
 
             Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
 
@@ -362,11 +369,12 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
         using var factoria = new FactoriaConReloj(Hoy);
         using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        var cat = await CatalogoDeCategorias.DeLaCuentaAsync(_baseDeDatos, cuenta.Id);
         var cliente = cuenta.Cliente;
 
         using var creacion = await cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative),
-            new { tipo = "gasto", monto = 10m, categoriaId = 1, fecha = "2026-09-04" });
+            new { tipo = "gasto", monto = 10m, categoriaId = cat.Comida, fecha = "2026-09-04" });
 
         using var creado = JsonDocument.Parse(await creacion.Content.ReadAsStringAsync());
         var id = creado.RootElement.GetProperty("id").GetInt64();
@@ -374,7 +382,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
         using var edicion = await cliente.PutAsJsonAsync(
             new Uri($"/api/movimientos/{id}", UriKind.Relative),
-            new { tipo = "gasto", monto = 999m, categoriaId = 2, monedaId = inexistente, fecha = "2026-09-05", nota = "" });
+            new { tipo = "gasto", monto = 999m, categoriaId = cat.Transporte, monedaId = inexistente, fecha = "2026-09-05", nota = "" });
 
         Assert.Equal(HttpStatusCode.BadRequest, edicion.StatusCode);
 
@@ -386,7 +394,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
         Assert.Equal(monedaOriginal, actual.RootElement.GetProperty("monedaCodigo").GetString());
         Assert.Equal(10m, actual.RootElement.GetProperty("monto").GetDecimal());
-        Assert.Equal(1, actual.RootElement.GetProperty("categoriaId").GetInt32());
+        Assert.Equal(cat.Comida, actual.RootElement.GetProperty("categoriaId").GetInt32());
         Assert.Equal("2026-09-04", actual.RootElement.GetProperty("fecha").GetString());
     }
 
