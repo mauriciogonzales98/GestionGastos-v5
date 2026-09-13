@@ -401,10 +401,7 @@ describe('App — lo que la sesión se lleva al cerrarse', () => {
    */
   it('el catálogo de una cuenta no se le muestra a la siguiente FR-002', async () => {
     const usuario = userEvent.setup();
-    const deAna: Categoria[] = [
-      ...CATEGORIAS,
-      { id: 40, nombre: 'Psicólogo', tipo: 'gasto' },
-    ];
+    const deAna: Categoria[] = [...CATEGORIAS, { id: 40, nombre: 'Psicólogo', tipo: 'gasto' }];
     vi.mocked(cliente.obtenerCategorias).mockResolvedValueOnce(deAna);
     vi.mocked(cliente.iniciarSesion).mockResolvedValue({ email: 'bruno@ejemplo.com' });
 

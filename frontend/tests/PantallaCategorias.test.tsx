@@ -65,7 +65,9 @@ describe('PantallaCategorias — qué se lista y qué se ofrece', () => {
       const nombre = CON_PROPIAS[i].nombre;
 
       expect(within(suya).getByRole('button', { name: `Renombrar ${nombre}` })).toBeInTheDocument();
-      expect(within(suya).getByRole('button', { name: `Dar de baja ${nombre}` })).toBeInTheDocument();
+      expect(
+        within(suya).getByRole('button', { name: `Dar de baja ${nombre}` }),
+      ).toBeInTheDocument();
     });
   });
 });

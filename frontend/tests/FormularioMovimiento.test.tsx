@@ -185,10 +185,7 @@ describe('FormularioMovimiento', () => {
  * eligió nada—. La salida es sacarla de la selección, que es lo que el control ya está mostrando.
  */
 describe('FormularioMovimiento — la categoría elegida deja de estar disponible FR-022', () => {
-  const CON_GIMNASIO: Categoria[] = [
-    ...CATEGORIAS,
-    { id: 43, nombre: 'Gimnasio', tipo: 'gasto' },
-  ];
+  const CON_GIMNASIO: Categoria[] = [...CATEGORIAS, { id: 43, nombre: 'Gimnasio', tipo: 'gasto' }];
 
   it('saca de la selección la categoría que desapareció del catálogo', async () => {
     const usuario = userEvent.setup();

@@ -197,84 +197,82 @@ export function PantallaCategorias({
                 propio catálogo al registrarse, así que todo lo que se ve en esta lista es de quien
                 la está mirando. */}
             {renombrando?.id === categoria.id ? (
-                <>
-                  {/* Mismo componente que el alta: el mensaje queda dentro de esta fila, con su
+              <>
+                {/* Mismo componente que el alta: el mensaje queda dentro de esta fila, con su
                       `aria-invalid` y su `role="alert"`, en vez de arriba de la pantalla. El
                       `campo` lleva el id porque es el `id` del control, y sólo hay una fila en
                       modo renombre a la vez. */}
-                  <CampoConError
-                    campo={`renombre-${categoria.id}`}
-                    etiqueta="Nombre nuevo"
-                    error={errorDelRenombre}
-                  >
-                    {(props) => (
-                      <input
-                        {...props}
-                        type="text"
-                        value={renombrando.nombre}
-                        onChange={(e) =>
-                          setRenombrando({ id: categoria.id, nombre: e.target.value })
-                        }
-                      />
-                    )}
-                  </CampoConError>
-                  <button
-                    type="button"
-                    onClick={() => void guardarRenombre(categoria.id, renombrando.nombre)}
-                  >
-                    Guardar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      limpiarErrores();
-                      setRenombrando(null);
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      limpiarErrores();
-                      setConfirmandoLaBaja(null);
-                      setRenombrando({ id: categoria.id, nombre: categoria.nombre });
-                    }}
-                  >
-                    Renombrar {categoria.nombre}
-                  </button>
-                  {confirmandoLaBaja === categoria.id ? (
-                    <>
-                      {/* Dicho entero y no "¿Seguro?": lo que hay que saber antes de apretar es
+                <CampoConError
+                  campo={`renombre-${categoria.id}`}
+                  etiqueta="Nombre nuevo"
+                  error={errorDelRenombre}
+                >
+                  {(props) => (
+                    <input
+                      {...props}
+                      type="text"
+                      value={renombrando.nombre}
+                      onChange={(e) => setRenombrando({ id: categoria.id, nombre: e.target.value })}
+                    />
+                  )}
+                </CampoConError>
+                <button
+                  type="button"
+                  onClick={() => void guardarRenombre(categoria.id, renombrando.nombre)}
+                >
+                  Guardar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    limpiarErrores();
+                    setRenombrando(null);
+                  }}
+                >
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    limpiarErrores();
+                    setConfirmandoLaBaja(null);
+                    setRenombrando({ id: categoria.id, nombre: categoria.nombre });
+                  }}
+                >
+                  Renombrar {categoria.nombre}
+                </button>
+                {confirmandoLaBaja === categoria.id ? (
+                  <>
+                    {/* Dicho entero y no "¿Seguro?": lo que hay que saber antes de apretar es
                           que no se puede deshacer, y ése es el dato que una pregunta genérica se
                           guarda. */}
-                      <span role="alert">
-                        Se deja de ofrecer y no se puede reactivar. Los movimientos ya registrados
-                        la conservan.
-                      </span>
-                      <button type="button" onClick={() => void darDeBaja(categoria.id)}>
-                        Confirmar la baja
-                      </button>
-                      <button type="button" onClick={() => setConfirmandoLaBaja(null)}>
-                        No dar de baja
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        limpiarErrores();
-                        setConfirmandoLaBaja(categoria.id);
-                      }}
-                    >
-                      Dar de baja {categoria.nombre}
+                    <span role="alert">
+                      Se deja de ofrecer y no se puede reactivar. Los movimientos ya registrados la
+                      conservan.
+                    </span>
+                    <button type="button" onClick={() => void darDeBaja(categoria.id)}>
+                      Confirmar la baja
                     </button>
-                  )}
-                </>
-              )}
+                    <button type="button" onClick={() => setConfirmandoLaBaja(null)}>
+                      No dar de baja
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      limpiarErrores();
+                      setConfirmandoLaBaja(categoria.id);
+                    }}
+                  >
+                    Dar de baja {categoria.nombre}
+                  </button>
+                )}
+              </>
+            )}
           </li>
         ))}
       </ul>
