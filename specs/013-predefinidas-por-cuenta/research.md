@@ -86,6 +86,20 @@ tiene ese borde.
 homónimas conviven por diseño); ids determinísticos para las copias (obliga a reservar rangos y a
 que la migración sepa cuántas cuentas hay).
 
+> **Revisado en el PR #40 (2026-09-13).** La columna temporal se eliminó —ver D-04, mezclaba DDL con
+> pasos de datos y eso rompía la atomicidad— y el emparejamiento pasó a incluir `discriminador = 0`
+> además de `(usuario_id, nombre, tipo)`. Da la misma precisión y por un motivo más fuerte: el índice
+> único `(usuario_id, nombre, tipo, discriminador)` **garantiza** que haya a lo sumo una candidata,
+> así que la desambiguación la sostiene una restricción del esquema y no una columna que hay que
+> acordarse de poner y sacar.
+>
+> **Y este análisis tenía un hueco.** Cubría la homónima **dada de baja** y daba por imposible la
+> homónima **activa**, porque `FR-005` de la 007 la rechaza. Esa regla la hacía cumplir la
+> aplicación: el índice único no podía, que es exactamente la deuda D-02 que esta misma feature cita.
+> Por SQL directo ese estado entra, y entonces la migración falla —correctamente, `FR-014` pide
+> fallar antes que completarse a medias— con el `1062` del índice, que nombra la cuenta y el nombre
+> de la fila culpable. Queda como edge case en la spec y con test propio.
+
 ---
 
 ## D-04 — El orden de la migración, y quién verifica que salió bien
