@@ -81,19 +81,6 @@ if ! sql "SELECT 1;" > /dev/null; then
   exit 1
 fi
 
-# La restauración va en un `trap`: si el script muere a la mitad —una aserción, un Ctrl-C—, la base
-# NO puede quedarse sin la restricción. Sería el peor resultado posible de una barrera: dejar
-# desarmado justamente lo que vino a comprobar.
-restaurar() {
-  sql "
-    ALTER TABLE movimiento
-      ADD CONSTRAINT $FORANEA
-      FOREIGN KEY (categoria_id, usuario_id)
-      REFERENCES categoria (id, usuario_id);
-  " > /dev/null 2>&1 || true
-}
-trap restaurar EXIT
-
 existe_la_foranea() {
   local cuantas
   cuantas="$(sql "
@@ -106,6 +93,40 @@ existe_la_foranea() {
 
   [[ "$cuantas" == "1" ]]
 }
+
+# La restauración va en un `trap`: si el script muere a la mitad —una aserción, un Ctrl-C—, la base
+# NO puede quedarse sin la restricción. Sería el peor resultado posible de una barrera: dejar
+# desarmado justamente lo que vino a comprobar.
+#
+# **Y si la restauración falla, se dice.** La primera versión terminaba en `|| true`, que es un catch
+# silencioso escrito en bash — lo que `AGENTS.md` prohíbe y lo que la barrera de monedas ya tiene
+# documentado. En el camino feliz no se notaba, porque el paso 4 comprueba aparte que la foránea
+# volvió; el problema era el otro camino: si el script moría entre el DROP y el final, el `trap`
+# intentaba restaurar, fallaba, y **nadie se enteraba**. La base quedaba sin la restricción y el rojo
+# aparecía dos corridas después, en otro test y sin ninguna pista.
+#
+# El `if` distingue los dos motivos de fallo que tiene este ALTER, que no son lo mismo: que la
+# foránea YA esté puesta —el caso normal al salir bien, porque el paso 4 ya la restauró— y que no se
+# haya podido poner. Sólo el segundo es un problema.
+restaurar() {
+  if existe_la_foranea; then
+    return 0
+  fi
+
+  if ! sql "
+    ALTER TABLE movimiento
+      ADD CONSTRAINT $FORANEA
+      FOREIGN KEY (categoria_id, usuario_id)
+      REFERENCES categoria (id, usuario_id);
+  " > /dev/null; then
+    echo "ERROR: no se pudo restaurar \`$FORANEA\`. **La base quedó SIN la restricción**: hasta" >&2
+    echo "       que se reponga, un movimiento puede quedar clasificado con la categoría de otra" >&2
+    echo "       cuenta, y los tests de esquema van a dar rojo sin que la causa esté a la vista." >&2
+    echo "       El error de mysql está arriba de estas líneas." >&2
+    return 1
+  fi
+}
+trap restaurar EXIT
 
 correr_tests() {
   dotnet test "$RAIZ/backend/GestionGastos.slnx" --filter "$FILTRO" --nologo --verbosity quiet
