@@ -23,10 +23,7 @@ public static class CategoriasEndpoints
                 .Select(c => new CategoriaDto(
                     c.Id,
                     c.Nombre,
-                    c.Tipo == TipoMovimiento.Gasto ? TipoMovimientoTexto.Gasto : TipoMovimientoTexto.Ingreso,
-                    // Propia es tener dueño. Se calcula acá y no se compara del lado del cliente:
-                    // el `usuario_id` no viaja, justamente para que no haya nada que comparar.
-                    c.UsuarioId != null))
+                    c.Tipo == TipoMovimiento.Gasto ? TipoMovimientoTexto.Gasto : TipoMovimientoTexto.Ingreso))
                 .ToListAsync();
 
             return Results.Ok(categorias);
@@ -171,17 +168,17 @@ public static class CategoriasEndpoints
     /// <summary>
     /// Busca la categoría que la cuenta puede MODIFICAR, o el rechazo que corresponde.
     ///
-    /// Los tres desenlaces son los del contrato, y la diferencia entre ellos es el aislamiento
+    /// Los dos desenlaces son los del contrato, y la diferencia entre ellos es el aislamiento
     /// entero de esta feature (D-06):
     ///
-    /// · **Existe y es propia** → se devuelve para tocarla.
-    /// · **Existe y es predefinida** → `403`. La persona la está VIENDO en su selector, así que
-    ///   decirle que no existe sería mentirle sobre algo que tiene a la vista. No hay nada que
-    ///   ocultar: el catálogo predefinido es igual para todas las cuentas (FR-008).
-    /// · **No existe, o es propia de otra cuenta** → `404`, el MISMO para los dos casos. Acá sí hay
-    ///   algo que ocultar, y cualquier diferencia entre las dos respuestas confirmaría que esa fila
+    /// · **Existe y es del ámbito** → se devuelve para tocarla. **Toda categoría que la cuenta ve
+    ///   es suya** desde la feature 013: ya no hay filas del sistema, y con ellas desapareció el
+    ///   `403` que separaba "la ves pero no la podés tocar" de "no existe" (FR-016).
+    /// · **No existe, o es de otra cuenta** → `404`, el MISMO para los dos casos. Acá sí hay algo
+    ///   que ocultar, y cualquier diferencia entre las dos respuestas confirmaría que esa fila
     ///   existe. Los ids son autoincrementales y contiguos, así que confirmarlo permite contar las
-    ///   categorías de otra cuenta sin ver ninguna (FR-013).
+    ///   categorías de otra cuenta sin ver ninguna (FR-013). **Esta regla no cambió**: una
+    ///   categoría de otra cuenta sigue respondiendo `404` y no `403`.
     ///
     /// La búsqueda pasa por el canal, que acota por ámbito en la consulta. Traer la fila por `Id` y
     /// comprobar el dueño en memoria daría el mismo 404 visible y dejaría el `WHERE` sin
@@ -213,14 +210,6 @@ public static class CategoriasEndpoints
         if (categoria is null)
         {
             return (null, NoExiste());
-        }
-
-        if (categoria.UsuarioId is null)
-        {
-            return (null, Results.Problem(
-                statusCode: StatusCodes.Status403Forbidden,
-                title: "Categoría del sistema",
-                detail: "Las categorías predefinidas no se pueden modificar ni dar de baja."));
         }
 
         if (debeEstarActiva && !categoria.Activa)
@@ -262,6 +251,5 @@ public static class CategoriasEndpoints
     private static CategoriaDto AlDto(Categoria categoria) => new(
         categoria.Id,
         categoria.Nombre,
-        categoria.Tipo.ATexto(),
-        categoria.UsuarioId != null);
+        categoria.Tipo.ATexto());
 }

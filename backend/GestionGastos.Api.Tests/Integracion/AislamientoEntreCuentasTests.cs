@@ -37,7 +37,8 @@ public class AislamientoEntreCuentasTests(BaseDeDatosFixture baseDeDatos)
     /// </summary>
     private static readonly DateOnly FechaCompartida = new(2026, 8, 10);
 
-    private const int CategoriaCompartida = 1;
+    // Ya no hay ninguna categoría compartida: cada cuenta tiene las suyas (feature 013). El
+    // movimiento se registra con un gasto del catálogo de LA cuenta que lo manda.
 
     /// <summary>Los montos sí difieren: es lo que permite señalar cuál es cuál al leer un fallo.</summary>
     private const decimal MontoDeA = 111m;
@@ -167,7 +168,7 @@ public class AislamientoEntreCuentasTests(BaseDeDatosFixture baseDeDatos)
     /// Es el riesgo que el PRD nombra —"un test de aislamiento puede dar verde sin probar nada"— y
     /// se cierra acá o no se cierra en ningún lado.
     /// </summary>
-    private static async Task<(long DeA, long DeB)> SembrarEnLasDosAsync(
+    private async Task<(long DeA, long DeB)> SembrarEnLasDosAsync(
         CuentaDePrueba a, CuentaDePrueba b)
     {
         // 1 · Son realmente dos cuentas.
@@ -195,14 +196,15 @@ public class AislamientoEntreCuentasTests(BaseDeDatosFixture baseDeDatos)
     /// que hoy se descarta al deserializar; el escenario lo manda igual para que el test siga
     /// valiendo el día que <c>NuevoMovimientoDto</c> gane un campo.
     /// </param>
-    private static async Task<long> RegistrarAsync(
+    private async Task<long> RegistrarAsync(
         CuentaDePrueba cuenta, decimal monto, long? propietarioEnElCuerpo = null)
     {
         var fecha = FechaCompartida.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var categoriaId = await CatalogoDeCategorias.UnGastoAsync(_baseDeDatos, cuenta.Id);
 
         object cuerpo = propietarioEnElCuerpo is { } ajeno
-            ? new { tipo = "gasto", monto, categoriaId = CategoriaCompartida, fecha, usuarioId = ajeno }
-            : new { tipo = "gasto", monto, categoriaId = CategoriaCompartida, fecha };
+            ? new { tipo = "gasto", monto, categoriaId, fecha, usuarioId = ajeno }
+            : new { tipo = "gasto", monto, categoriaId, fecha };
 
         using var respuesta = await cuenta.Cliente.PostAsJsonAsync(
             new Uri("/api/movimientos", UriKind.Relative), cuerpo);

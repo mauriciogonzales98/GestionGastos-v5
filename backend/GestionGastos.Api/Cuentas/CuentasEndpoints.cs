@@ -1,3 +1,4 @@
+using GestionGastos.Api.Categorias;
 using GestionGastos.Api.Dominio;
 using GestionGastos.Api.Persistencia;
 using Microsoft.EntityFrameworkCore;
@@ -44,12 +45,27 @@ public static class CuentasEndpoints
 
             if (!yaExiste)
             {
-                contexto.Usuarios.Add(new Usuario
+                var cuenta = new Usuario
                 {
                     // `email` no es null acá: la validación de arriba ya rechazó el vacío.
                     Email = email!,
                     ContrasenaHash = hash,
-                });
+                };
+
+                contexto.Usuarios.Add(cuenta);
+
+                // Las diez categorías iniciales de esta cuenta (FR-002). Quedan enlazadas al usuario
+                // recién construido, que todavía no tiene identificador: lo propaga EF dentro del
+                // mismo `SaveChanges`.
+                //
+                // **Un solo `SaveChangesAsync`, el que ya había.** Es una sola transacción implícita,
+                // y eso es exactamente lo que FR-003 pide: la cuenta y su catálogo quedan las dos o
+                // no queda ninguna. No hace falta abrir una explícita.
+                //
+                // La escritura vive dentro de `CatalogoInicial` y no acá: la barrera de aislamiento
+                // nombra archivo por archivo quién puede escribir categorías, y este archivo hace
+                // muchas otras cosas (D-06).
+                CatalogoInicial.EntregarA(contexto, cuenta);
 
                 try
                 {
@@ -83,8 +99,19 @@ public static class CuentasEndpoints
     /// Se mira el número de error de MySQL —1062, clave duplicada— y no el texto del mensaje, que
     /// cambia con la versión y con el idioma del servidor. `MySqlConnector` llega con Pomelo; no es
     /// una dependencia nueva.
+    ///
+    /// **El 1062 solo dejó de alcanzar con la feature 013** (research D-07). Hasta entonces este
+    /// `SaveChanges` escribía una fila y el único índice único que podía saltar era el del email.
+    /// Ahora escribe once —la cuenta y sus diez categorías—, y `ux_categoria_ambito_nombre_tipo`
+    /// también contesta 1062. Un `catch` que se quedara en el número atraparía un fallo del catálogo
+    /// y lo haría pasar por "email ya registrado": la cuenta no se crearía, la respuesta diría que
+    /// quizá sí, y no quedaría rastro en ningún lado.
+    ///
+    /// Por eso se mira **sobre qué entidad** falló, que es información que EF da estructurada. Es
+    /// más preciso que el nombre del índice dentro del mensaje, que sí depende del texto.
     /// </summary>
     private static bool EsEmailDuplicado(DbUpdateException excepcion) =>
         excepcion.InnerException is MySqlException mysql
-        && mysql.ErrorCode == MySqlErrorCode.DuplicateKeyEntry;
+        && mysql.ErrorCode == MySqlErrorCode.DuplicateKeyEntry
+        && excepcion.Entries.All(entrada => entrada.Entity is Usuario);
 }

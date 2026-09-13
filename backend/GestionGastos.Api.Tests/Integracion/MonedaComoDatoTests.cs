@@ -179,8 +179,12 @@ public class MonedaComoDatoTests(BaseDeDatosFixture baseDeDatos)
         var ars = Assert.Single(monedas, m => m.MonedaCodigo == "ARS");
         var usd = Assert.Single(monedas, m => m.MonedaCodigo == "USD");
 
-        Assert.Equal(10_000m, Assert.Single(ars.GastosPorCategoria, c => c.CategoriaId == 1).Total);
-        Assert.Equal(50m, Assert.Single(usd.GastosPorCategoria, c => c.CategoriaId == 1).Total);
+        Assert.Equal(
+            10_000m,
+            Assert.Single(ars.GastosPorCategoria, c => c.CategoriaId == cat.Comida).Total);
+        Assert.Equal(
+            50m,
+            Assert.Single(usd.GastosPorCategoria, c => c.CategoriaId == cat.Comida).Total);
         Assert.Equal(10_000m, ars.TotalGastado);
         Assert.Equal(50m, usd.TotalGastado);
 

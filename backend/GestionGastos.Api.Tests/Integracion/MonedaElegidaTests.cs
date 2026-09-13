@@ -244,7 +244,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
             Assert.Equal(moneda.Codigo, editado.RootElement.GetProperty("monedaCodigo").GetString());
             Assert.Equal(321.99m, editado.RootElement.GetProperty("monto").GetDecimal());
-            Assert.Equal(3, editado.RootElement.GetProperty("categoriaId").GetInt32());
+            Assert.Equal(cat.Vivienda, editado.RootElement.GetProperty("categoriaId").GetInt32());
             Assert.Equal("2026-09-02", editado.RootElement.GetProperty("fecha").GetString());
         });
     }
@@ -394,7 +394,7 @@ public class MonedaElegidaTests(BaseDeDatosFixture baseDeDatos)
 
         Assert.Equal(monedaOriginal, actual.RootElement.GetProperty("monedaCodigo").GetString());
         Assert.Equal(10m, actual.RootElement.GetProperty("monto").GetDecimal());
-        Assert.Equal(1, actual.RootElement.GetProperty("categoriaId").GetInt32());
+        Assert.Equal(cat.Comida, actual.RootElement.GetProperty("categoriaId").GetInt32());
         Assert.Equal("2026-09-04", actual.RootElement.GetProperty("fecha").GetString());
     }
 

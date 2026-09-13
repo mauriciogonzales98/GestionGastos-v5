@@ -4,7 +4,7 @@ namespace GestionGastos.Api.Categorias;
 /// Una categoría como la ve el cliente. `tipo` viaja como cadena y no como el <c>tinyint</c> de la
 /// base: el número obligaría al frontend a conocer el mapeo del esquema.
 ///
-/// **`activa` y `usuarioId` no salen, y `esPropia` sí** (D-07). No es lo mismo:
+/// **Ni `activa`, ni `usuarioId`, ni `esPropia` salen**, cada uno por su motivo:
 ///
 /// · `activa` no viaja porque el listado ya devuelve sólo activas — un campo que siempre vale lo
 ///   mismo no informa nada y sí invita a filtrar del lado del cliente por algo que ya vino filtrado.
@@ -12,17 +12,15 @@ namespace GestionGastos.Api.Categorias;
 /// · `usuarioId` no viaja porque el número de cuenta no le sirve a nadie de este lado: obligaría al
 ///   cliente a saber cuál es la suya para poder compararlo, y es un dato de más en la red.
 ///
-/// · `esPropia` sí viaja porque responde la única pregunta que la pantalla de gestión se hace sobre
-///   cada fila: ¿esto lo puedo renombrar y dar de baja, o es del sistema? (FR-008). Es la respuesta
-///   ya calculada, no el dato crudo con el que calcularla.
+/// · `esPropia` **viajaba hasta la feature 013** y se fue por el primero de esos motivos. Respondía
+///   una sola pregunta —¿esto lo puedo renombrar y dar de baja, o es del sistema?— y desde que cada
+///   cuenta recibe su propio catálogo la respuesta es siempre que sí. Un campo que siempre vale lo
+///   mismo invita a escribir del lado del cliente una condición que ya no existe (FR-016).
 /// </summary>
 /// <param name="Id">Identificador de la categoría.</param>
 /// <param name="Nombre">Nombre visible.</param>
 /// <param name="Tipo">"gasto" o "ingreso".</param>
-/// <param name="EsPropia">
-/// <c>true</c> si la creó la cuenta de la sesión; <c>false</c> si es una de las diez predefinidas.
-/// </param>
-public record CategoriaDto(int Id, string Nombre, string Tipo, bool EsPropia);
+public record CategoriaDto(int Id, string Nombre, string Tipo);
 
 /// <summary>
 /// Lo que se manda al crear una categoría (FR-004).

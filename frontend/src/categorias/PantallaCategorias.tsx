@@ -191,9 +191,12 @@ export function PantallaCategorias({
             <span>{categoria.nombre}</span>
             <span>{categoria.tipo === 'gasto' ? 'Gasto' : 'Ingreso'}</span>
 
-            {/* FR-008: una predefinida se ve y no se toca. */}
-            {categoria.esPropia ? (
-              renombrando?.id === categoria.id ? (
+            {/* FR-017: **todas** las filas ofrecen renombrar y dar de baja. Hasta la feature 013
+                acá había una condición —`categoria.esPropia`— que le escondía los botones a las
+                diez predefinidas del sistema. Esas filas dejaron de existir: cada cuenta recibe su
+                propio catálogo al registrarse, así que todo lo que se ve en esta lista es de quien
+                la está mirando. */}
+            {renombrando?.id === categoria.id ? (
                 <>
                   {/* Mismo componente que el alta: el mensaje queda dentro de esta fila, con su
                       `aria-invalid` y su `role="alert"`, en vez de arriba de la pantalla. El
@@ -271,11 +274,7 @@ export function PantallaCategorias({
                     </button>
                   )}
                 </>
-              )
-            ) : (
-              // Dicho, no sólo omitido: sin esto, la ausencia de botones parece un error de carga.
-              <span>Del sistema</span>
-            )}
+              )}
           </li>
         ))}
       </ul>

@@ -25,16 +25,6 @@ export interface Categoria {
   id: number;
   nombre: string;
   tipo: TipoMovimiento;
-  /**
-   * `true` = la creó esta cuenta y puede renombrarla o darla de baja; `false` = predefinida del
-   * sistema, de solo lectura (FR-008).
-   *
-   * Es lo único que la pantalla de gestión necesita para saber qué ofrecer sobre cada fila, y por
-   * eso viaja en vez de `usuarioId` (D-07): un número de cuenta no le sirve a nadie de este lado y
-   * obligaría al cliente a saber cuál es la suya para poder compararlo. `activa` tampoco viaja —
-   * el listado ya devuelve sólo activas.
-   */
-  esPropia: boolean;
 }
 
 /**
@@ -69,7 +59,7 @@ export interface CategoriaEditada {
  *
  * `esPredeterminada` viaja porque responde la única pregunta que el formulario se hace sobre el
  * catálogo —cuál propongo—, y viaja como la respuesta ya calculada y no como el dato con el que
- * calcularla. Es el mismo criterio que `esPropia` en `Categoria`.
+ * calcularla.
  *
  * `decimales` **viaja desde la feature 011**, que es el ticket 6. Hasta acá no salía a la red porque
  * no lo consumía nadie —un campo que nadie usa es un dato que salió sin que nadie lo decidiera— y

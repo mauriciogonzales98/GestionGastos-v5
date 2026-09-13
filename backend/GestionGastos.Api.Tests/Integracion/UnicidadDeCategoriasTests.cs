@@ -104,45 +104,56 @@ public class UnicidadDeCategoriasTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>
-    /// SC-005: la migración no le movió nada a las diez sembradas.
+    /// SC-005, reformulado por la feature 013: **el catálogo que recibe una cuenta nueva** son las
+    /// diez de siempre, activas y con el discriminador en cero.
     ///
-    /// Se compara el catálogo entero contra la lista literal —id, nombre y tipo, en orden— y no
-    /// sólo la cantidad: diez filas siguen siendo diez aunque una haya cambiado de nombre, y ése es
-    /// justo el daño que este test tiene que ver. El `discriminador` en 0 es lo que las deja
-    /// compartiendo el casillero de las activas, que es donde tienen que estar.
+    /// Hasta esta feature esto se comprobaba sobre las diez filas sembradas por la migración, que
+    /// eran de todo el mundo. Ya no existen: cada cuenta recibe su copia al registrarse, así que lo
+    /// que hay que vigilar se mudó del esquema al alta — y el daño que evita es el mismo, porque la
+    /// migración de esta feature es justamente la que pudo haberlas tocado.
     ///
-    /// Es la comprobación de D-10: si algún día una migración toca la semilla, esto se pone en rojo
-    /// antes de que alguien lo descubra mirando su propio selector.
+    /// Se compara el catálogo entero contra la lista literal —nombre y tipo, en orden— y no sólo la
+    /// cantidad: diez filas siguen siendo diez aunque una haya cambiado de nombre, y ése es justo el
+    /// daño que este test tiene que ver. El identificador queda afuera de la comparación porque
+    /// ahora depende de cuántas cuentas se registraron antes en esa base.
+    ///
+    /// El `discriminador` en 0 es lo que las deja compartiendo el casillero de las activas, que es
+    /// donde tienen que estar.
     /// </summary>
     [Fact]
-    public async Task Las_Diez_Predefinidas_Sobreviven_A_La_Migracion_SC005()
+    public async Task El_Catalogo_De_Una_Cuenta_Nueva_Son_Las_Diez_Activas_SC005()
     {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(new DateOnly(2026, 8, 24));
+        using var cuenta = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
         await using var contexto = _baseDeDatos.CrearContexto();
 
-        var predefinidas = await contexto.Categorias
-            .Where(c => c.UsuarioId == null)
+        var suyas = await contexto.Categorias
+            .Where(c => c.UsuarioId == cuenta.Id)
             .OrderBy(c => c.Id)
             .Select(c => new { c.Id, c.Nombre, c.Tipo, c.Activa, c.Discriminador })
             .ToListAsync();
 
         Assert.Equal(
             [
-                (1, "Comida", TipoMovimiento.Gasto),
-                (2, "Transporte", TipoMovimiento.Gasto),
-                (3, "Vivienda", TipoMovimiento.Gasto),
-                (4, "Servicios", TipoMovimiento.Gasto),
-                (5, "Salud", TipoMovimiento.Gasto),
-                (6, "Ocio", TipoMovimiento.Gasto),
-                (7, "Otros", TipoMovimiento.Gasto),
-                (8, "Sueldo", TipoMovimiento.Ingreso),
-                (9, "Ingreso extra", TipoMovimiento.Ingreso),
-                (10, "Otros", TipoMovimiento.Ingreso),
+                ("Comida", TipoMovimiento.Gasto),
+                ("Transporte", TipoMovimiento.Gasto),
+                ("Vivienda", TipoMovimiento.Gasto),
+                ("Servicios", TipoMovimiento.Gasto),
+                ("Salud", TipoMovimiento.Gasto),
+                ("Ocio", TipoMovimiento.Gasto),
+                ("Otros", TipoMovimiento.Gasto),
+                ("Sueldo", TipoMovimiento.Ingreso),
+                ("Ingreso extra", TipoMovimiento.Ingreso),
+                ("Otros", TipoMovimiento.Ingreso),
             ],
-            predefinidas.Select(c => (c.Id, c.Nombre, c.Tipo)));
+            suyas.Select(c => (c.Nombre, c.Tipo)));
 
-        Assert.All(predefinidas, c =>
+        Assert.All(suyas, c =>
         {
-            Assert.True(c.Activa, $"La predefinida {c.Id} ({c.Nombre}) quedó dada de baja.");
+            Assert.True(c.Activa, $"La categoría {c.Id} ({c.Nombre}) nació dada de baja.");
             Assert.Equal(0, c.Discriminador);
         });
     }

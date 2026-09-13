@@ -187,7 +187,7 @@ describe('FormularioMovimiento', () => {
 describe('FormularioMovimiento — la categoría elegida deja de estar disponible FR-022', () => {
   const CON_GIMNASIO: Categoria[] = [
     ...CATEGORIAS,
-    { id: 43, nombre: 'Gimnasio', tipo: 'gasto', esPropia: true },
+    { id: 43, nombre: 'Gimnasio', tipo: 'gasto' },
   ];
 
   it('saca de la selección la categoría que desapareció del catálogo', async () => {

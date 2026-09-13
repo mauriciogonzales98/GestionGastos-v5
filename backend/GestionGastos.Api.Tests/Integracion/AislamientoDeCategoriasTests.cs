@@ -73,7 +73,6 @@ public class AislamientoDeCategoriasTests(BaseDeDatosFixture baseDeDatos)
         // Y la categoría de la dueña quedó intacta: ni renombrada ni dada de baja.
         var suya = (await CatalogoAsync(duena)).Single(c => c.Id == ajena);
         Assert.Equal("Gimnasio", suya.Nombre);
-        Assert.True(suya.EsPropia);
     }
 
     /// <summary>

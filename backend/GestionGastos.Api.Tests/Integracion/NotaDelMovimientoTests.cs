@@ -390,7 +390,7 @@ public class NotaDelMovimientoTests(BaseDeDatosFixture baseDeDatos)
         var fila = await contexto.Movimientos.SingleAsync();
         Assert.Equal("la original", fila.Nota);
         Assert.Equal(1200m, fila.Monto);
-        Assert.Equal(1, fila.CategoriaId);
+        Assert.Equal(cat.Comida, fila.CategoriaId);
         Assert.Equal(new DateOnly(2026, 9, 10), fila.Fecha);
     }
 
