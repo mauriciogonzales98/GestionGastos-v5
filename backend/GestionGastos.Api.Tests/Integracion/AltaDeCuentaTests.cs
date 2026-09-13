@@ -498,7 +498,7 @@ public class AltaDeCuentaTests(BaseDeDatosFixture baseDeDatos)
 
         // Y no hay categorías de nadie más: si el alta hubiera escrito las diez antes de fallar,
         // estarían acá.
-        Assert.Equal(0, await contexto.Categorias.CountAsync(c => c.UsuarioId != null));
+        Assert.Equal(0, await contexto.Categorias.CountAsync());
     }
 
     /// <summary>
@@ -538,7 +538,7 @@ public class AltaDeCuentaTests(BaseDeDatosFixture baseDeDatos)
         // Y no quedó nada a medias: ni la cuenta ni categorías sueltas.
         await using var contexto = _baseDeDatos.CrearContexto();
         Assert.Equal(0, await contexto.Usuarios.CountAsync(u => u.Email == email));
-        Assert.Equal(0, await contexto.Categorias.CountAsync(c => c.UsuarioId != null));
+        Assert.Equal(0, await contexto.Categorias.CountAsync());
     }
 
     /// <summary>El catálogo que la API le ofrece a esa cuenta.</summary>

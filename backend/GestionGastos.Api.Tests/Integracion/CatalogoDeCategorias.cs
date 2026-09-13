@@ -101,11 +101,9 @@ public static class CatalogoDeCategorias
     /// <summary>
     /// La búsqueda, escrita una sola vez.
     ///
-    /// El <c>|| c.UsuarioId == null</c> es **transitorio y se va con la migración**: mientras las
-    /// diez predefinidas sigan siendo filas compartidas sin dueño, el catálogo que una cuenta ve son
-    /// las suyas más aquéllas — el mismo ámbito que <c>CategoriasConsulta.DelAmbito</c>. En cuanto
-    /// la migración le ponga dueño a todas, esta mitad deja de encontrar nada y se elimina junto con
-    /// su gemela de producción.
+    /// El ámbito es el mismo que el de <c>CategoriasConsulta.DelAmbito</c>: las de esa cuenta y
+    /// ninguna más. Durante la migración llevó además un <c>|| c.UsuarioId == null</c> para
+    /// encontrar las diez compartidas que todavía existían; se fue con ellas.
     /// </summary>
     private static async Task<int?> BuscarAsync(
         Api.Persistencia.GestionGastosDbContext contexto,
@@ -114,10 +112,7 @@ public static class CatalogoDeCategorias
         TipoMovimiento tipo)
     {
         var categoria = await contexto.Categorias
-            .Where(c => (c.UsuarioId == usuarioId || c.UsuarioId == null)
-                && c.Nombre == nombre
-                && c.Tipo == tipo
-                && c.Activa)
+            .Where(c => c.UsuarioId == usuarioId && c.Nombre == nombre && c.Tipo == tipo && c.Activa)
             .OrderBy(c => c.Id)
             .FirstOrDefaultAsync();
 

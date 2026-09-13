@@ -249,6 +249,41 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>
+    /// **FR-005 de la feature 013, de frente**: dos cuentas distintas pueden tener cada una su
+    /// "Comida" de gasto, y dentro de una misma cuenta una segunda activa con ese nombre y ese tipo
+    /// se rechaza con `400` y la clave de su campo.
+    ///
+    /// **Es el requisito cuyo mecanismo de garantía cambió en silencio.** Hasta la feature 013 el
+    /// índice único no alcanzaba: para MySQL "sin dueño" y "dueño 7" son claves distintas, así que
+    /// una propia podía llamarse igual que una predefinida y quien lo impedía era la comprobación de
+    /// la aplicación (D-02 de la 007). Al desaparecer el `NULL`, el índice empieza a cubrirlo de
+    /// verdad. Este test fija **qué se espera**, independientemente de quién lo garantice — que es
+    /// lo que lo deja seguir sirviendo si mañana el mecanismo vuelve a moverse.
+    /// </summary>
+    [Fact]
+    public async Task La_Unicidad_Es_Por_Ambito_Y_No_Global_FR005()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var una = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        using var otra = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        // Las dos tienen su "Comida" de gasto desde el alta, y son filas distintas.
+        var deUna = (await CatalogoAsync(una)).Single(c => c.Nombre == "Comida" && c.Tipo == "gasto");
+        var deOtra = (await CatalogoAsync(otra)).Single(c => c.Nombre == "Comida" && c.Tipo == "gasto");
+
+        Assert.NotEqual(deUna.Id, deOtra.Id);
+
+        // Dentro de una misma cuenta, una segunda activa con ese nombre y tipo se rechaza.
+        using var repetida = await CrearAsync(una, "Comida", "gasto");
+        await AssertRechazadoAsync(repetida, "nombre", "segunda activa con el mismo nombre y tipo");
+
+        // Y la de la otra cuenta no se tocó: el rechazo fue por ámbito, no global.
+        Assert.Contains(await CatalogoAsync(otra), c => c.Id == deOtra.Id && c.Nombre == "Comida");
+    }
+
+    /// <summary>
     /// El mismo nombre con OTRO tipo se acepta: la unicidad es por `(nombre, tipo)`, igual que
     /// "Otros" existe en gasto y en ingreso desde la primera migración.
     /// </summary>
