@@ -89,8 +89,8 @@ public static class CategoriasEndpoints
         // PUT /api/categorias/{id} — el renombre (FR-007).
         //
         // Se BUSCA primero y se valida después, igual que en la edición de movimientos: al revés,
-        // una categoría intocable con un nombre inválido respondería 400 en vez de 403 o 404, y ese
-        // 400 confirma que se llegó a mirar el cuerpo.
+        // una categoría de otra cuenta con un nombre inválido respondería 400 en vez de 404, y ese
+        // 400 confirma que se llegó a mirar el cuerpo — o sea, que ese identificador existe.
         //
         // **El tipo no viaja en la petición** y no se toca: cambiarlo movería de tipo a todos los
         // movimientos que la usan, que es reescribir la historia por la puerta de atrás.

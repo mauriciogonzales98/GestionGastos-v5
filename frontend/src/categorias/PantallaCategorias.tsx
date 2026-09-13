@@ -21,9 +21,11 @@ const ERROR_GENERICO = 'No se pudo completar la operación. Volvé a intentarlo.
 /**
  * La gestión del catálogo propio (FR-017): crear, renombrar y dar de baja.
  *
- * **Las predefinidas se listan pero no ofrecen botones** (AC-03, FR-008). El servidor responde
- * `403` igual, así que esto no es la barrera: es no ofrecer un botón que sólo puede terminar en un
- * error que la persona no pidió.
+ * **Todas las filas ofrecen renombrar y dar de baja** (FR-017). Hasta la feature 013 las diez
+ * predefinidas se listaban sin botones —eran del sistema y el servidor respondía `403`—, así que
+ * esconderlos evitaba un viaje que sólo podía terminar en un error que la persona no pidió. Desde
+ * que cada cuenta recibe su propio catálogo al registrarse no queda ninguna fila de solo lectura, y
+ * una condición que siempre da lo mismo esconde botones sin motivo.
  *
  * No hace peticiones por su cuenta. Todo lo que modifica el catálogo entra por props, y quien las
  * ejecuta es la raíz — que es también la que tiene el estado, así que un alta acá se ve en el
