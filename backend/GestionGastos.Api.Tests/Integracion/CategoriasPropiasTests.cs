@@ -402,8 +402,8 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>
-    /// **FR-015 y SC-007**: renombrar una de las diez que la cuenta recibió al registrarse
-    /// funciona, con las mismas reglas que para una creada a mano.
+    /// **FR-015, SC-007 y `PRD:AC-11`**: renombrar una de las diez que la cuenta recibió al
+    /// registrarse funciona, con las mismas reglas que para una creada a mano.
     ///
     /// **Este test decía lo contrario hasta la feature 013.** Esperaba un `403` sobre una
     /// predefinida, porque esas diez eran filas del sistema que la cuenta veía y no poseía. Desde
@@ -439,6 +439,44 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
         var fila = (await ListadoAsync(cuenta)).Single(m => m.GetProperty("id").GetInt64() == movimiento);
         Assert.Equal(comida.Id, fila.GetProperty("categoriaId").GetInt32());
         Assert.Equal("Comida casera", fila.GetProperty("categoriaNombre").GetString());
+    }
+
+    /// <summary>
+    /// **`PRD:AC-11`, la mitad que le faltaba**: la cuenta A renombra una de las diez que recibió al
+    /// registrarse y la copia de la cuenta B queda intacta.
+    ///
+    /// Es la afirmación que la versión 6 del PRD agregó al invertir ese criterio —hasta entonces
+    /// pedía rechazar la modificación— y la que ningún test existente hacía. El del renombre mira
+    /// una sola cuenta, y el del `404` sobre una categoría ajena prueba que no se puede tocar lo que
+    /// no se ve, que es otra cosa. Sin ésta, "cada cuenta tiene su copia" quedaba verificado en el
+    /// alta y no después de una escritura, que es donde una fila compartida se delataría.
+    ///
+    /// Se compara por identificador y no sólo por nombre: las dos copias arrancan llamándose igual,
+    /// así que un test que mirara el nombre pasaría también si las dos cuentas compartieran la misma
+    /// fila y el renombre no hubiera hecho nada.
+    /// </summary>
+    [Fact]
+    public async Task Renombrar_Una_Del_Catalogo_Inicial_No_Toca_La_De_Otra_Cuenta_PRDAC11()
+    {
+        await _baseDeDatos.LimpiarCuentasAsync();
+
+        using var factoria = new FactoriaConReloj(Hoy);
+        using var una = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+        using var otra = await CuentaDePrueba.CrearYEntrarAsync(factoria, _baseDeDatos);
+
+        var deUna = (await CatalogoAsync(una)).First(c => c.Nombre == "Comida" && c.Tipo == "gasto");
+        var deOtra = (await CatalogoAsync(otra)).First(c => c.Nombre == "Comida" && c.Tipo == "gasto");
+
+        // Dos filas distintas con el mismo nombre: es la copia por cuenta, no una fila compartida.
+        Assert.NotEqual(deUna.Id, deOtra.Id);
+
+        var renombrada = await RenombrarYLeerAsync(una, deUna.Id, "Comida casera");
+        Assert.Equal("Comida casera", renombrada.Nombre);
+
+        var catalogoDeOtra = await CatalogoAsync(otra);
+        Assert.Equal("Comida", catalogoDeOtra.Single(c => c.Id == deOtra.Id).Nombre);
+        Assert.Equal(10, catalogoDeOtra.Count);
+        Assert.DoesNotContain(catalogoDeOtra, c => c.Nombre == "Comida casera");
     }
 
     /// <summary>
@@ -740,8 +778,8 @@ public class CategoriasPropiasTests(BaseDeDatosFixture baseDeDatos)
     }
 
     /// <summary>
-    /// **FR-015 y SC-007 en el `DELETE`**: dar de baja una de las diez del catálogo inicial
-    /// funciona, deja de ofrecerse en el formulario y sus movimientos siguen contando.
+    /// **FR-015, SC-007 y `PRD:AC-11` en el `DELETE`**: dar de baja una de las diez del catálogo
+    /// inicial funciona, deja de ofrecerse en el formulario y sus movimientos siguen contando.
     ///
     /// Como su gemelo del renombre, este test esperaba un `403` hasta la feature 013. La tercera
     /// aserción es la que importa más: una baja que además borrara plata de los totales sería una
