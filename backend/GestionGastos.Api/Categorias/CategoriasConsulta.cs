@@ -12,12 +12,13 @@ namespace GestionGastos.Api.Categorias;
 /// por ámbito pasa a ser una condición que hay que acordarse de escribir — que es exactamente el
 /// olvido que un canal con barrera existe para atrapar.
 ///
-/// **Lo que se comparte con movimientos es la vigilancia, no el acotado.** Una categoría puede ser
-/// de nadie —`usuario_id IS NULL` son las predefinidas del sistema—, así que su predicado no es
-/// `usuario_id = @yo` a secas y no se puede reusar el de movimientos. Lo que sí se reusa es la
-/// regla: toda lectura vive acá adentro, devuelve `IQueryable` para que la barrera pueda
-/// inspeccionar su SQL antes de que se ejecute, y `BarreraDeAislamientoTests` se pone en rojo si
-/// alguna deja de nombrar `usuario_id`.
+/// **Con movimientos se comparten la vigilancia y, desde la feature 013, también el acotado.**
+/// Mientras existieron las predefinidas del sistema —`usuario_id IS NULL`, filas que todas las
+/// cuentas veían y ninguna poseía— el predicado no era `usuario_id = @yo` a secas y no se podía
+/// reusar el de movimientos. Hoy sí lo es: no hay categorías de nadie, y el detalle está en
+/// `DelAmbito`. Lo que ya se reusaba es la regla: toda lectura vive acá adentro, devuelve
+/// `IQueryable` para que la barrera pueda inspeccionar su SQL antes de que se ejecute, y
+/// `BarreraDeAislamientoTests` se pone en rojo si alguna deja de nombrar `usuario_id`.
 ///
 /// Si hace falta una lectura nueva, va acá adentro y acotada. Agregar una excepción a la barrera es
 /// desarmar la barrera.
@@ -25,8 +26,10 @@ namespace GestionGastos.Api.Categorias;
 public static class CategoriasConsulta
 {
     /// <summary>
-    /// El catálogo que una cuenta puede usar (FR-002): las predefinidas del sistema más las propias
-    /// de esa cuenta, todas activas, ordenadas por tipo y después por identificador.
+    /// El catálogo que una cuenta puede usar (FR-002): las categorías activas de esa cuenta,
+    /// ordenadas por tipo y después por identificador. Son todas suyas —las diez que recibió al
+    /// registrarse y las que haya creado después—, porque desde la feature 013 no hay categorías
+    /// de nadie.
     ///
     /// El orden se pide explícitamente aunque hoy el motor lo devuelva parecido: es parte del
     /// contrato, y heredarlo del plan de ejecución lo deja a merced de que el plan cambie.
