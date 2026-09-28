@@ -1,5 +1,15 @@
 # PRD-001: Gestion de Gastos — Aplicacion para el registro y gestion de gastos personales
 
+> Versión 6 del PRD: las categorías iniciales dejan de ser un catálogo del sistema de solo
+> lectura y pasan a ser propias de cada cuenta desde el alta (RF-06, AC-10, AC-11). **Es el único
+> cambio de esta versión que corrige el PRD en vez de ampliarlo**: la feature 013 lo implementó así
+> en 2026-09-13 para poder sostener con una restricción de la base que ningún movimiento apunte a la
+> categoría de otra cuenta, y el PRD se quedó describiendo el comportamiento anterior. AC-11
+> quedó **reescrito en su lugar y con el sentido invertido** —antes pedía rechazar la modificación,
+> ahora pide aceptarla— en lugar de numerarse al final: era el único criterio que había pasado a ser
+> imposible de cumplir, y dejarlo en pie con un AC nuevo al lado que lo contradijera es peor que
+> corregirlo. Las specs de las features 001 y 007 lo citan con su texto viejo y **no se tocan**: son
+> el registro de lo que se construyó entonces.
 > Versión 5 del PRD: agrega límite de intentos de autenticación (RNF-05) y mínimos de
 > accesibilidad (RNF-06), surgidos de la revisión de checklists de la spec 001. Los RNF y AC
 > nuevos se numeran al final (RNF-05+, AC-54+).
@@ -45,7 +55,7 @@ datos son privados y solo él los ve.
 
 ### Categorías
 
-- RF-06: El sistema debe ofrecer un catálogo de categorías predefinidas, no modificables por el usuario, diferenciadas por tipo (gasto o ingreso).
+- RF-06: El sistema debe entregarle a cada cuenta, al momento de crearse, un conjunto inicial de categorías diferenciadas por tipo (gasto o ingreso), para que pueda registrar movimientos sin tener que crear ninguna. Esas categorías son propias de la cuenta desde el primer día: RF-08 y RF-09 se les aplican igual que a las que el usuario cree después, y ninguna cuenta comparte categorías con otra.
 - RF-07: El sistema debe permitir al usuario crear categorías propias, indicando nombre y tipo (gasto o ingreso).
 - RF-08: El sistema debe permitir al usuario modificar el nombre de una categoría propia.
 - RF-09: El sistema debe permitir al usuario eliminar una categoría propia mediante baja lógica, conservando su nombre en los movimientos ya registrados.
@@ -108,8 +118,8 @@ datos son privados y solo él los ve.
 
 ### Categorías
 
-- AC-10 (RF-06): Dado un usuario recién registrado sin categorías propias, cuando abre el formulario de registro de un gasto, entonces el selector ofrece las categorías predefinidas de tipo gasto y ninguna de tipo ingreso.
-- AC-11 (RF-06): Dada una categoría predefinida del sistema, cuando el usuario intenta modificarla o eliminarla, entonces el sistema rechaza la operación y la categoría queda sin cambios.
+- AC-10 (RF-06): Dado un usuario recién registrado que todavía no creó ninguna categoría, cuando abre el formulario de registro de un gasto, entonces el selector ofrece las categorías iniciales de tipo gasto que recibió con su cuenta y ninguna de tipo ingreso.
+- AC-11 (RF-06): Dada una de las categorías iniciales que su cuenta recibió al crearse, cuando el usuario la renombra o la elimina, entonces el sistema acepta la operación, el cambio vale para esa cuenta y las categorías de las demás cuentas quedan sin cambios.
 - AC-12 (RF-07): Dado un usuario autenticado, cuando crea una categoría propia de tipo gasto, entonces esa categoría aparece en el selector de gastos de ese usuario y no aparece para ningún otro usuario.
 - AC-13 (RF-08): Dada una categoría propia con movimientos asociados, cuando el usuario cambia su nombre, entonces el listado y el dashboard muestran el nombre nuevo en esos movimientos.
 - AC-14 (RF-09): Dada una categoría propia con movimientos asociados, cuando el usuario la elimina, entonces deja de ofrecerse en el formulario de registro, los movimientos existentes siguen mostrando su nombre y sus montos siguen sumando en el total por categoría del dashboard.
@@ -180,7 +190,6 @@ datos son privados y solo él los ve.
 - Entrada de datos por voz o imagen (ej: foto de un ticket/recibo)
 - Registro de movimientos por texto libre en lenguaje natural con extracción por IA
 - Recuperación de contraseña olvidada y cambio de contraseña
-- Modificación o eliminación de las categorías predefinidas del sistema
 - Movimientos recurrentes o programados
 - Conversión de divisas: no hay cotización, ni total consolidado, ni balance único. Los montos de cada moneda se suman por separado y se muestran por separado (RF-29). Lo que sí entra es registrar en varias monedas (RF-24)
 - Alta, edición y baja de monedas desde la interfaz: el catálogo se administra como dato (RF-32), no hay pantalla para gestionarlo
@@ -190,9 +199,9 @@ datos son privados y solo él los ve.
 
 ## Riesgos y Dependencias
 
-- Riesgo: la categorización manual repetitiva puede generar la misma fricción que se buscaba evitar → mitigación: catálogo de categorías predefinido y acotado (RF-06). El único campo libre del formulario es la nota (RF-33), que es opcional y no clasifica: el usuario nunca tiene que escribir nada para registrar un movimiento.
+- Riesgo: la categorización manual repetitiva puede generar la misma fricción que se buscaba evitar → mitigación: cada cuenta arranca con un conjunto de categorías acotado y ya cargado (RF-06), así que clasificar es elegir de una lista corta y no inventar. El único campo libre del formulario es la nota (RF-33), que es opcional y no clasifica: el usuario nunca tiene que escribir nada para registrar un movimiento.
 - Riesgo: la nota libre (RF-33) puede convertirse en una segunda taxonomía informal ("alquiler", "Alquiler", "alq") que el sistema no entiende y que da una falsa sensación de estar clasificando → mitigación: la nota no se busca, no se filtra y no se agrupa (ver Fuera de Alcance). La categoría sigue siendo el único eje de análisis del dashboard. Si aparece la necesidad real de totalizar por algo más fino, se resuelve con un catálogo de etiquetas, no estirando la nota.
-- Riesgo: permitir categorías propias (RF-07) reintroduce esa fricción si el usuario crea muchas categorías casi iguales → mitigación: las predefinidas son la opción por defecto y la creación de una categoría propia es una acción aparte, fuera del camino rápido de carga.
+- Riesgo: permitir categorías propias (RF-07) reintroduce esa fricción si el usuario crea muchas categorías casi iguales → mitigación: las que vienen con la cuenta son la opción por defecto y crear una categoría nueva es una acción aparte, fuera del camino rápido de carga.
 - Riesgo: la baja lógica de categorías (RF-09) puede hacer reaparecer categorías eliminadas en selectores o filtros si las consultas no excluyen las dadas de baja → mitigación: AC-14 verifica explícitamente el comportamiento en formulario, listado y dashboard.
 - Riesgo: el objetivo de RNF-01 con 10000 movimientos puede no alcanzarse si los totales se calculan en el cliente → mitigación: agregar los totales en la consulta a la base de datos, no en el frontend.
 - Riesgo: con dos monedas, un total puede sumar montos de ambas por descuido y dar un número sin significado → mitigación: RF-29 lo prohíbe explícitamente y AC-41, AC-42 y AC-43 lo verifican sobre datos cargados en las dos monedas.
@@ -207,11 +216,11 @@ fueron pedidos explícitamente y conviene confirmarlos:
 
 - Las categorías tienen tipo (gasto o ingreso) y el formulario solo ofrece las del tipo que
   se está cargando. Se deriva de que las listas de gastos e ingresos son distintas.
-- Catálogo predefinido propuesto — gastos: Comida, Transporte, Vivienda, Servicios, Salud,
-  Ocio, Otros; ingresos: Sueldo, Ingreso extra, Otros.
+- Conjunto inicial propuesto, el que cada cuenta recibe al crearse — gastos: Comida, Transporte,
+  Vivienda, Servicios, Salud, Ocio, Otros; ingresos: Sueldo, Ingreso extra, Otros.
 - Las categorías son compartidas entre monedas: "Comida" es la misma categoría se gaste en
   pesos o en dólares, y el dashboard la abre por moneda al totalizar. La alternativa
-  (una categoría por moneda) duplicaría el catálogo predefinido.
+  (una categoría por moneda) duplicaría el conjunto inicial.
 - Los decimales admitidos son un dato de cada moneda y no una constante: pesos y dólares
   usan dos (RF-13), pero una moneda sin centavos usaría cero.
 - Las monedas se identifican por su código ISO 4217 ("ARS", "USD"). "Pesos" sería ambiguo:

@@ -5,8 +5,9 @@ import { CampoConError } from '../ui/CampoConError';
 
 export interface PropsPantallaCategorias {
   /**
-   * El catálogo completo, predefinidas incluidas. Baja por props y no se pide acá: vive en la raíz
-   * para que el selector del formulario y esta pantalla miren la MISMA lista (D-08, AC-12).
+   * El catálogo completo de la cuenta: las que recibió al registrarse y las que creó después, que
+   * desde la feature 013 son todas suyas por igual. Baja por props y no se pide acá: vive en la
+   * raíz para que el selector del formulario y esta pantalla miren la MISMA lista (D-08, AC-12).
    */
   categorias: Categoria[];
   /** Crea. Lanza `ErrorDeValidacion` si el servidor la rechaza; esta pantalla lo muestra. */
