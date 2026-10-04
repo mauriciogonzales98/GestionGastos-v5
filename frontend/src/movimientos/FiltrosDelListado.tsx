@@ -97,50 +97,48 @@ export function FiltrosDelListado({
   const [moneda, setMoneda] = useState('');
 
   return (
-    <section className="l-pila" aria-label="Acotar el listado">
-      <div className="l-fila l-filtros">
-        <div className="l-pila c-campo">
-          <label htmlFor={idCategoria}>Acotar por categoría</label>
-          <select
-            id={idCategoria}
-            value={categoria}
-            onChange={(evento) => setCategoria(evento.target.value)}
-          >
-            {/* "Todas" es el valor por omisión (`PRD:RF-17`), y es la opción vacía: no se manda
+    /* Un solo renglón para los cuatro acotados y su botón. Antes eran dos —los dos selectores
+       arriba y el rango abajo—, y la barra ocupaba el doble de alto para decir una sola cosa.
+       `l-filtros` se envuelve, así que en un teléfono vuelve a partirse en los renglones que
+       hagan falta. */
+    <section className="l-fila l-filtros" aria-label="Acotar el listado">
+      <div className="l-pila c-campo">
+        <label htmlFor={idCategoria}>Acotar por categoría</label>
+        <select
+          id={idCategoria}
+          value={categoria}
+          onChange={(evento) => setCategoria(evento.target.value)}
+        >
+          {/* "Todas" es el valor por omisión (`PRD:RF-17`), y es la opción vacía: no se manda
                 ningún `categoriaId` y el servidor devuelve todo. */}
-            <option value="">Todas las categorías</option>
-            {/* El catálogo trae **sólo las activas**, que es lo que corresponde: una categoría dada
+          <option value="">Todas las categorías</option>
+          {/* El catálogo trae **sólo las activas**, que es lo que corresponde: una categoría dada
                 de baja no se puede elegir, pero sus movimientos siguen existiendo y aparecen cuando
                 no se acota. Acotar no es el desglose del resumen — allá filtrar por activa está
                 prohibido y `verificar-desglose.sh` lo vigila. */}
-            {categorias.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
+          {categorias.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        <div className="l-pila c-campo">
-          <label htmlFor={idMoneda}>Acotar por moneda</label>
-          <select
-            id={idMoneda}
-            value={moneda}
-            onChange={(evento) => setMoneda(evento.target.value)}
-          >
-            <option value="">Todas las monedas</option>
-            {monedas.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="l-pila c-campo">
+        <label htmlFor={idMoneda}>Acotar por moneda</label>
+        <select id={idMoneda} value={moneda} onChange={(evento) => setMoneda(evento.target.value)}>
+          <option value="">Todas las monedas</option>
+          {monedas.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.nombre}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* El rango y el botón: el mismo componente que usa el dashboard, con su mensaje de rechazo
           al lado de los campos que lo produjeron (D-05, FR-018). El "Aplicar" de este formulario es
-          el de los TRES acotados: los dos selectores de arriba no aplican solos. */}
+          el de los CUATRO acotados: los dos selectores de al lado no aplican solos. */}
       <ControlesDelPeriodo
         /**
          * **`key` con el período inicial, para que llegue cuando llega.**
@@ -158,6 +156,9 @@ export function FiltrosDelListado({
         desdeInicial={semilla?.desde}
         hastaInicial={semilla?.hasta}
         error={errorDelPeriodo}
+        /* Con el rótulo encima, como los dos selectores de al lado: es lo que hace que los cuatro
+           acotados y el botón entren en un renglón. */
+        rotulos="encima"
         onAplicar={(desde, hasta) => {
           setYaSeAplico(true);
 

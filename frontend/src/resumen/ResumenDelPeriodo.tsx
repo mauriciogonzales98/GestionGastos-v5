@@ -1,6 +1,7 @@
 import type { Resumen } from '../api/tipos';
 import type { Moneda } from '../api/tipos';
 import { TotalesDeUnaMoneda } from './TotalesDeUnaMoneda';
+import { formatearFecha } from '../ui/formatearFecha';
 
 export interface PropsResumenDelPeriodo {
   resumen: Resumen;
@@ -23,6 +24,18 @@ export interface PropsResumenDelPeriodo {
    * decide acá es dónde va.
    */
   aviso?: string;
+  /**
+   * Si se muestra el desglose por categoría de cada moneda.
+   *
+   * **`false` en la pantalla de movimientos** (`FR-035`): ahí el resumen muestra ingresado, gastado
+   * y balance, que es lo que `PRD:RF-22` pide para la pantalla principal. El desglose es
+   * `PRD:RF-19`, que el PRD ubica en el dashboard, y ocupaba tanto alto que empujaba el formulario
+   * y el listado —lo que se usa todos los días— fuera de la pantalla.
+   *
+   * Por defecto `true`, así que **el dashboard no cambia su llamada**. El servidor tampoco cambia:
+   * sigue mandando el desglose en las dos respuestas (`FR-040`).
+   */
+  conDesglose?: boolean;
 }
 
 /**
@@ -41,13 +54,19 @@ export function ResumenDelPeriodo({
   titulo = 'Resumen del mes',
   monedas,
   aviso,
+  conDesglose = true,
 }: PropsResumenDelPeriodo) {
   return (
     <section className="l-pila c-resumen" aria-label={titulo}>
-      <h2>{titulo}</h2>
-      <p>
-        Del {resumen.desde} al {resumen.hasta}
-      </p>
+      {/* Encabezado en **un** renglón: el título y el período al lado, en texto secundario
+          (`FR-039`). Antes eran dos renglones completos arriba de todo, y el período es contexto,
+          no el dato. Se envuelve si no entra, en vez de desbordar. */}
+      <div className="l-fila c-resumen__encabezado">
+        <h2>{titulo}</h2>
+        <p className="c-resumen__periodo">
+          Del {formatearFecha(resumen.desde)} al {formatearFecha(resumen.hasta)}
+        </p>
+      </div>
 
       {/* `role="status"` y no `alert`: nada está roto y no hay nada que reparar. Aparece en
           respuesta a algo que la persona acaba de hacer —acotar el listado— y se anuncia sin
@@ -73,7 +92,12 @@ export function ResumenDelPeriodo({
         <p>No hay ninguna moneda para mostrar en este período.</p>
       ) : (
         resumen.monedas.map((moneda) => (
-          <TotalesDeUnaMoneda key={moneda.monedaId} moneda={moneda} monedas={monedas} />
+          <TotalesDeUnaMoneda
+            key={moneda.monedaId}
+            moneda={moneda}
+            monedas={monedas}
+            conDesglose={conDesglose}
+          />
         ))
       )}
     </section>

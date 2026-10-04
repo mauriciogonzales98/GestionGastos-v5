@@ -41,25 +41,278 @@ main {
 }
 
 /*
- * La cabecera de la pantalla: el título a la izquierda, la cuenta y el cierre de sesión a la
- * derecha. El `margin-left: auto` va sobre el hueco y no sobre el botón: un `c-` no define su
- * propio margen externo.
+ * **Acá vivía `l-cabecera`, y la feature 014 la borró.**
  *
- * **El empuje se apaga cuando la fila se envolvió.** A 360 px los botones caen a una segunda línea
- * y un `margin-left: auto` ahí dentro los mandaría al borde derecho, separados del título que
- * encabezan. `@media` por ancho de ventana es lo más cerca que se puede estar de "cuando envolvió"
- * sin consultas de contenedor.
+ * Empujaba al segundo hijo de la cabecera contra el borde derecho: el título a la izquierda, la
+ * cuenta y el cierre de sesión a la derecha. Esos controles se mudaron al marco de la app
+ * (`FR-022`), así que las dos cabeceras que quedan —categorías y dashboard— tienen un solo hijo y
+ * la regla alineaba a un segundo hijo que no existe en ninguna.
+ *
+ * Queda anotado y no borrado en silencio porque **era invisible para los dos verificadores**:
+ * `clasesSinRegla` busca clases usadas sin regla, y ésta tenía las dos cosas —estaba escrita en el
+ * CSS y nombrada en dos `className`—. Lo único que le faltaba era hacer algo. Es la clase de CSS
+ * muerto que la próxima feature lee como si significara una decisión.
  */
-@media (width >= 40rem) {
-  .l-cabecera > :nth-child(2) {
-    margin-left: auto;
+
+/*
+ * La barra de filtros del listado: los cuatro acotados y su botón, en una fila que se envuelve.
+ * Nace en la feature 011 y es donde la deuda D9-01 se salda.
+ *
+ * **Un solo renglón.** Eran dos —los dos selectores arriba, el rango con su botón abajo—, y la barra
+ * se comía el doble de alto para decir una sola cosa, justo arriba del listado que es lo que la
+ * persona vino a mirar. Los cinco controles entran en los 888 px que la barra mide en escritorio
+ * porque el rango lleva sus rótulos **encima** y no al lado (`ControlesDelPeriodo`, prop `rotulos`).
+ * En una pantalla angosta se envuelve, que es lo que `l-fila` hace: `FiltrosEnUnRenglon` mide las
+ * dos cosas.
+ *
+ * `align-items: end` alinea los controles por abajo, que es lo único que tienen en común: los
+ * rótulos ocupan una o dos líneas según el ancho, así que alinearlos por arriba los dejaría a
+ * distintas alturas.
+ */
+.l-filtros {
+  align-items: end;
+}
+
+/*
+ * Centrar un bloque en la pantalla: la pantalla de acceso (`FR-008`).
+ *
+ * `place-items: center` horizontal y `start` vertical con un relleno proporcional, en lugar de
+ * centrado también en vertical. El centrado vertical se ve mejor en una pantalla grande y es un
+ * problema en una chica: con el teclado del teléfono abierto, o con el texto al 200 %, el bloque
+ * crece y un centrado vertical le corta la cabeza — el título queda arriba del borde y no hay forma
+ * de desplazarse hasta él. Anclado arriba, crece hacia abajo y el desplazamiento alcanza (caso
+ * borde de la spec: pantalla apaisada y baja).
+ */
+.l-centrado {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  min-height: 100dvh;
+  padding: var(--espacio-enorme) var(--espacio);
+  box-sizing: border-box;
+}
+
+/*
+ * ## El marco de la app con sesión (`FR-023`, research D-05)
+ *
+ * **Una sola estructura, dos disposiciones.** El DOM es siempre el mismo —marca, nav, cuenta,
+ * contenido— y lo único que cambia con el ancho es dónde los pone la grilla. Así no hay dos
+ * `<nav>` que puedan desincronizarse, ni nada oculto que un lector de pantalla siga anunciando.
+ *
+ * El corte es **48rem (768 px)**. A 40rem —el que usaba `.l-cabecera` hasta que esta feature la
+ * borró— no alcanza: con 14rem de barra lateral quedarían 26rem de contenido, y la tabla del
+ * listado empieza a desplazarse de costado apenas se abre.
+ */
+
+/*
+ * ### Por debajo de 48rem: franja arriba, barra abajo
+ *
+ * Una columna: la marca y la cuenta arriba, el contenido en el medio, y las secciones en una barra
+ * fija al pie — al alcance del pulgar, que es por qué va abajo y no arriba.
+ */
+.l-marco {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'marca'
+    'cuenta'
+    'contenido';
+
+  /*
+   * **La marca y la cuenta ocupan lo suyo; el que crece es el contenido.**
+   *
+   * Sin estas tres medidas explícitas, las filas `auto` se reparten el alto sobrante en partes
+   * iguales —`align-content` normal estira las filas automáticas— y el contenido terminaba
+   * empezando a 447 px de una ventana de 740, con dos huecos enormes arriba. Medido en una captura
+   * a 360 px.
+   */
+  grid-template-rows: auto auto 1fr;
+  min-height: 100dvh;
+}
+
+/*
+ * **En el teléfono el panel lateral no existe**: `display: contents` lo borra de la caja, así que
+ * sus tres hijos pasan a ser hijos directos de esta grilla y caen cada uno en su área. Es lo que
+ * permite tener un solo DOM para las dos disposiciones sin duplicar nada.
+ */
+.c-lateral {
+  display: contents;
+}
+
+.l-marco .c-marca--barra {
+  grid-area: marca;
+}
+
+.l-marco .c-cuenta {
+  grid-area: cuenta;
+}
+
+.l-marco__contenido {
+  grid-area: contenido;
+  min-width: 0;
+
+  /*
+   * **`width: 100%` porque es un `<main>`, y la regla general de `main` le pone `margin: 0 auto`.**
+   *
+   * En una grilla, las márgenes automáticas en el eje horizontal **anulan el estirado al track**:
+   * el item deja de medir lo que mide su columna y pasa a dimensionarse por contenido. Y como el
+   * contenido puede tener un min-content mayor que la ventana, el item **crece** en lugar de
+   * quedarse en su track y dejar que lo de adentro desborde.
+   *
+   * Medido a 360 px: la columna era de 360, el `<main>` medía 436 y la página entera se desplazaba
+   * de costado. No se veía hasta que el renglón de monto y moneda subió el min-content del
+   * formulario a 388 — o sea que el defecto estaba desde que existe el marco y esperaba contenido
+   * que lo destapara.
+   *
+   * `width: 100%` lo devuelve a su columna. El `max-width` de la regla general sigue valiendo, así
+   * que en una pantalla ancha el contenido se sigue acotando y centrando.
+   */
+  width: 100%;
+  padding: var(--espacio);
+
+  /*
+   * **El relleno que evita que la barra tape el final del contenido** (`FR-026`).
+   *
+   * Son tres cosas sumadas y las tres hacen falta: el alto de la barra, el `safe-area-inset` del
+   * teléfono —la franja que el sistema operativo se reserva para sus gestos— y un respiro. Sin
+   * esto, el último control de una pantalla larga queda debajo de la barra y no hay forma de
+   * alcanzarlo: se puede desplazar hasta el fondo y sigue tapado.
+   *
+   * `env()` devuelve cero si el teléfono no reserva nada, así que en un escritorio no sobra nada.
+   * Para que devuelva algo donde sí corresponde hace falta `viewport-fit=cover` en `index.html`.
+   */
+  padding-bottom: calc(var(--alto-tactil) + env(safe-area-inset-bottom) + var(--espacio-grande));
+}
+
+/*
+ * ### Desde 48rem: barra al costado
+ *
+ * Dos columnas. La barra se apila en vertical con la marca arriba y la cuenta al pie, y queda
+ * `sticky` a la altura de la ventana: se ve mientras el contenido se desplaza.
+ */
+@media (width >= 48rem) {
+  .l-marco {
+    grid-template-columns: var(--ancho-barra-lateral) minmax(0, 1fr);
+    grid-template-areas: 'lateral contenido';
+    /* Sin hueco entre columnas: lo que separa la barra del contenido es el borde del panel, no un
+       espacio. Un hueco deja el borde flotando y vuelve a leerse como un corte. */
+    column-gap: 0;
+  }
+
+  /*
+   * Desde el corte el panel **sí existe**: deja de ser `display: contents` y pasa a ser una caja
+   * con su propia superficie, su borde y su posición pegajosa.
+   */
+  .c-lateral {
+    display: flex;
+    flex-direction: column;
+    grid-area: lateral;
+
+    /*
+     * `FR-023`: permanece a la vista mientras el contenido se desplaza.
+     *
+     * `sticky` con `top: 0` y el alto de la ventana. Es lo que exige que el panel sea **una** caja
+     * y no tres elementos sueltos en tres filas de la grilla: tres cajas pegajosas se pegan cada
+     * una por su cuenta y el conjunto se desarma al desplazar.
+     */
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    overflow-y: auto;
+
+    /* El panel es una superficie continua de arriba abajo, y el borde la separa del contenido. */
+    background-color: var(--color-superficie);
+    border-right: 1px solid var(--color-borde);
+  }
+
+  /* La cuenta al pie del panel, y las secciones arriba: el hueco crece en el medio. */
+  .l-marco .c-cuenta {
+    margin-top: auto;
+  }
+
+  .l-marco__contenido {
+    padding: var(--espacio-grande);
   }
 }
 
 /*
- * La barra de filtros del listado: los tres acotados y su botón, en una fila que se envuelve.
- * Nace en la feature 011 y es donde la deuda D9-01 se salda.
+ * ## Un renglón con algo en cada punta (`FR-033`)
+ *
+ * El encabezado del formulario de carga: el tipo del movimiento a la izquierda y la fecha a la
+ * derecha. Se envuelve si no entran, y entonces cada uno ocupa su renglón — que es lo que pasa en
+ * un teléfono angosto o con el texto agrandado.
+ *
+ * Alineados por abajo y no por arriba: el control de la izquierda no tiene etiqueta a la vista y el
+ * de la derecha sí, así que alineados por arriba el primero quedaría flotando a la altura del
+ * rótulo del segundo. Por la base los dos apoyan en la misma línea.
  */
-.l-filtros {
+.l-extremos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: end;
+  gap: var(--espacio);
+}
+
+/*
+ * ## Dos controles en un renglón, que se apilan si no entran (`FR-029`, `FR-030`)
+ *
+ * **La decisión de apilarse la toma el navegador, no un `@media` escrito a mano.** Con un corte
+ * fijo habría que elegir un ancho y mantenerlo de acuerdo con el ancho real de los campos; con
+ * `flex-wrap` y un ancho base, el par se parte exactamente cuando sus dos mitades dejan de entrar
+ * con su mínimo legible. Es lo que `FR-030` pide, dicho en CSS.
+ */
+.l-par {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio);
+  /* Sin esto, un hijo ancho estira el par por encima de su contenedor. */
+  min-width: 0;
+}
+
+.l-par > * {
+  /*
+   * Cada mitad parte de 9rem y crece hasta repartirse el renglón. 9rem (144px) es el **ancho
+   * mínimo legible** de `FR-030`: por debajo, un `<select>` de categorías no muestra ni media
+   * palabra y un campo de fecha se corta.
+   *
+   * A 360 px el ancho útil son 336px menos el hueco: dos mitades de 144 entran, así que categoría
+   * y fecha **comparten** renglón hasta ahí. Research D-07 había calculado 10rem y que se
+   * apilaran; la medición dijo que con 9rem entran y se leen bien, así que entran. La cuenta estaba
+   * cerca y era una cuenta.
+   */
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+
+/*
+ * El par de monto y moneda no se apila **nunca** (`FR-030`): se leen juntos, y la moneda es un
+ * código de tres letras que entra en cualquier ancho. La moneda no crece; el monto se queda con lo
+ * que sobra.
+ */
+.l-par--monto {
+  flex-wrap: nowrap;
+}
+
+.l-par--monto > :first-child {
+  flex: 1 1 0;
+}
+
+.l-par--monto > :last-child {
+  /*
+   * **La moneda ocupa lo que necesite su nombre, no un ancho escrito a mano.**
+   *
+   * Research D-07 había calculado 6rem dando por hecho que el selector muestra "un código de tres
+   * letras". No: muestra el **nombre** — "Peso argentino", "Dólar estadounidense"—, y con un ancho
+   * fijo salía cortado. Medido con los datos reales de la base.
+   *
+   * Y no se arregla poniendo 9rem o 12rem, porque sería un ancho ajustado a los nombres de hoy: el
+   * día que alguien agregue "Franco suizo" al catálogo —que según `RF-32` tiene que costar sólo un
+   * dato, sin tocar código— volvería a cortarse. `auto` lo resuelve por contenido y no hay nada que
+   * mantener de acuerdo.
+   *
+   * Puede encogerse (`1` en la posición de `flex-shrink`) si el renglón no da: el par no se parte
+   * nunca, así que entre cortar el nombre y apilar, se corta.
+   */
+  flex: 0 1 auto;
 }

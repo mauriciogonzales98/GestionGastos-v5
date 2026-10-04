@@ -23,7 +23,7 @@ beforeEach(() => {
 });
 
 function renderizar(monedas = MONEDAS) {
-  render(<PantallaDashboard monedas={monedas} onVolver={() => {}} onSesionVencida={() => {}} />);
+  render(<PantallaDashboard monedas={monedas} onSesionVencida={() => {}} />);
 }
 
 describe('PantallaDashboard', () => {
@@ -47,8 +47,8 @@ describe('PantallaDashboard', () => {
   it('titula el período con el desde y el hasta que devolvió el servidor', async () => {
     renderizar();
 
-    expect(await screen.findByText(/2026-09-01/)).toBeVisible();
-    expect(screen.getByText(/2026-09-30/)).toBeVisible();
+    expect(await screen.findByText(/01\/09\/2026/)).toBeVisible();
+    expect(screen.getByText(/30\/09\/2026/)).toBeVisible();
   });
 
   /**
@@ -78,7 +78,7 @@ describe('PantallaDashboard', () => {
     const alVencer = vi.fn();
     vi.mocked(cliente.obtenerResumen).mockRejectedValue(new cliente.ErrorDeSesion());
 
-    render(<PantallaDashboard monedas={MONEDAS} onVolver={() => {}} onSesionVencida={alVencer} />);
+    render(<PantallaDashboard monedas={MONEDAS} onSesionVencida={alVencer} />);
 
     await vi.waitFor(() => expect(alVencer).toHaveBeenCalled());
     expect(screen.queryByText(/no se pudo cargar/i)).not.toBeInTheDocument();
@@ -198,12 +198,12 @@ describe('PantallaDashboard — el período', () => {
 
     vi.mocked(cliente.obtenerResumen).mockResolvedValueOnce(nuevo);
     await elegirRango('2026-07-01', '2026-07-31');
-    await screen.findByText(/2026-07-31/);
+    await screen.findByText(/31\/07\/2026/);
 
     // Y AHORA llega la vieja, tarde.
     resolverViejo(viejo);
 
-    await waitFor(() => expect(screen.getByText(/2026-07-31/)).toBeVisible());
+    await waitFor(() => expect(screen.getByText(/31\/07\/2026/)).toBeVisible());
     expect(screen.queryByText(/2026-01-31/)).not.toBeInTheDocument();
   });
 });
@@ -404,13 +404,7 @@ describe('PantallaDashboard — la escala del monto FR-019', () => {
       ],
     });
 
-    render(
-      <PantallaDashboard
-        monedas={[...MONEDAS, SIN_CENTAVOS]}
-        onVolver={() => {}}
-        onSesionVencida={() => {}}
-      />,
-    );
+    render(<PantallaDashboard monedas={[...MONEDAS, SIN_CENTAVOS]} onSesionVencida={() => {}} />);
 
     await screen.findByRole('region', { name: /resumen del período/i });
 

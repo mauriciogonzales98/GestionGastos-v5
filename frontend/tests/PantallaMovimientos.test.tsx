@@ -52,14 +52,10 @@ async function renderizar(monedas = MONEDAS) {
   render(
     <PantallaMovimientos
       hoy={HOY}
-      email="ana@ejemplo.com"
       categorias={CATEGORIAS}
       monedas={monedas}
       errorDelCatalogo={null}
       errorDelCatalogoDeMonedas={null}
-      onCerrarSesion={() => {}}
-      onGestionarCategorias={() => {}}
-      onVerDashboard={() => {}}
       onSesionVencida={() => {}}
     />,
   );
@@ -68,12 +64,54 @@ async function renderizar(monedas = MONEDAS) {
   await screen.findByRole('table', { name: /movimientos del mes/i });
 }
 
+/**
+ * Las fechas de la primera columna, **como se ven**: `dd/MM/yyyy` desde que el listado las formatea.
+ *
+ * Lo que estas pruebas verifican con esto es el ORDEN y la PERTENENCIA de las filas, no el formato
+ * —eso lo mide `ListadoMovimientos.test.tsx`—, pero leen la celda, así que dicen lo que la celda
+ * dice.
+ */
 function fechasDelListado() {
   return within(screen.getByRole('table', { name: /movimientos del mes/i }))
     .getAllByRole('row')
     .slice(1)
     .map((f) => within(f).getAllByRole('cell')[0].textContent);
 }
+
+/**
+ * FR-035 — en la pantalla de movimientos, el resumen **no** muestra el desglose por categoría.
+ *
+ * Es un **agregado** y no un cambio: revisado contra el código, ninguna prueba de este archivo
+ * afirmaba hoy sobre el desglose, así que el verde actual no decía nada sobre él (research D-11).
+ *
+ * El desglose es `PRD:RF-19`, que el PRD ubica en el dashboard; lo que esta pantalla tiene que
+ * mostrar es `PRD:RF-22` —ingresado y gastado del mes, por moneda—. O sea que sacarlo de acá no es
+ * una concesión: **alinea la app con el PRD**, que estaba describiendo otra cosa.
+ */
+describe('FR-035 · el resumen de movimientos no trae el desglose por categoría', () => {
+  it('no muestra ninguna categoría del desglose (FR-035, PRD:RF-19, PRD:RF-22)', async () => {
+    await renderizar();
+
+    // **Acotado a la región del resumen, y no a la pantalla entera.** Los nombres de categoría
+    // también están en el `<option>` del selector del formulario y en el del acotado del listado,
+    // así que buscarlos en toda la pantalla encuentra lo que no es. El desglose es una tabla
+    // DENTRO del resumen: lo que `FR-035` saca es esa tabla, no los nombres.
+    const resumen = screen.getByRole('region', { name: /resumen/i });
+
+    expect(within(resumen).queryByRole('table')).not.toBeInTheDocument();
+    expect(within(resumen).queryByText(/Vivienda/)).not.toBeInTheDocument();
+  });
+
+  it('pero sigue mostrando ingresado, gastado y balance de cada moneda (PRD:RF-22)', async () => {
+    await renderizar();
+
+    const resumen = screen.getByRole('region', { name: /resumen/i });
+
+    for (const etiqueta of ['Ingresado', 'Gastado', 'Balance']) {
+      expect(within(resumen).getAllByText(etiqueta).length).toBeGreaterThan(0);
+    }
+  });
+});
 
 describe('PantallaMovimientos', () => {
   it('muestra formulario y listado en una sola pantalla FR-013', async () => {
@@ -107,7 +145,7 @@ describe('PantallaMovimientos', () => {
 
     // Entre el 20 y el 10, no al final ni recargando la lista entera.
     await waitFor(() =>
-      expect(fechasDelListado()).toEqual(['2026-08-20', '2026-08-15', '2026-08-10']),
+      expect(fechasDelListado()).toEqual(['20/08/2026', '15/08/2026', '10/08/2026']),
     );
     expect(cliente.obtenerMovimientos).toHaveBeenCalledTimes(1);
   });
@@ -159,10 +197,10 @@ describe('PantallaMovimientos', () => {
     // Se guardó: decir sólo "no aparece" haría creer que se perdió.
     expect(confirmacion).toHaveTextContent(/registrado/i);
     expect(confirmacion).toHaveTextContent(/no aparece en el listado/i);
-    expect(confirmacion).toHaveTextContent(/2026-05-04/);
+    expect(confirmacion).toHaveTextContent(/04\/05\/2026/);
 
     // Y efectivamente no está en el listado del mes.
-    expect(fechasDelListado()).toEqual(['2026-08-20', '2026-08-10']);
+    expect(fechasDelListado()).toEqual(['20/08/2026', '10/08/2026']);
   });
 
   /**
@@ -285,7 +323,7 @@ describe('PantallaMovimientos', () => {
       resolverLenta([soloDolares]);
     });
 
-    expect(fechasDelListado()).toEqual(['2026-08-20', '2026-08-10']);
+    expect(fechasDelListado()).toEqual(['20/08/2026', '10/08/2026']);
   });
 });
 
@@ -428,14 +466,10 @@ describe('PantallaMovimientos — el resumen del mes en curso', () => {
     render(
       <PantallaMovimientos
         hoy={HOY}
-        email="ana@ejemplo.com"
         categorias={CATEGORIAS}
         monedas={MONEDAS}
         errorDelCatalogo={null}
         errorDelCatalogoDeMonedas={null}
-        onCerrarSesion={() => {}}
-        onGestionarCategorias={() => {}}
-        onVerDashboard={() => {}}
         onSesionVencida={alVencer}
       />,
     );
@@ -488,12 +522,12 @@ describe('PantallaMovimientos — la carrera del resumen', () => {
     await usuario.type(screen.getByLabelText('Monto'), '700');
     await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
     await usuario.click(screen.getByRole('button', { name: 'Registrar' }));
-    await screen.findByText(/2030-12-31/);
+    await screen.findByText(/31\/12\/2030/);
 
     // Y AHORA llega la primera, tarde.
     primera.cumplir(VIEJO);
 
-    await waitFor(() => expect(screen.getByText(/2030-12-31/)).toBeVisible());
+    await waitFor(() => expect(screen.getByText(/31\/12\/2030/)).toBeVisible());
     expect(screen.queryByText(/2020-01-31/)).not.toBeInTheDocument();
   });
 });
