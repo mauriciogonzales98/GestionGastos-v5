@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ErrorDeCredenciales, ErrorDeValidacion, crearCuenta, iniciarSesion } from '../api/cliente';
 import type { SesionActual } from '../api/tipos';
 import { CampoConError } from '../ui/CampoConError';
+import { IconoError, IconoExito } from '../ui/iconos';
 
 export interface PropsFormularioAcceso {
   /** Se llama con la cuenta recién autenticada. Quién guarda ese estado es la raíz, no este form. */
@@ -117,63 +118,83 @@ export function FormularioAcceso({ onEntrar }: PropsFormularioAcceso) {
   const textoEnviando = esAlta ? 'Creando…' : 'Entrando…';
 
   return (
-    <main className="l-pila">
-      <h1>Gestión de gastos</h1>
+    /* La tarjeta centrada de Lila (`FR-008`): marca y formulario en UN bloque visual. Nada del
+       comportamiento cambia acá — los textos, los roles y los atributos son los mismos que antes,
+       porque `NFR-004` exige que `FormularioAcceso.test.tsx` siga en verde sin editarse. */
+    <main className="l-centrado">
+      <div className="c-tarjeta">
+        <h1 className="c-marca">Gestión de gastos</h1>
 
-      {/* El conmutador son dos `<button>` con `aria-pressed` y no un enlace ni un radio: cambian
-          lo que hace este formulario, no navegan a ningún lado ni son un dato a enviar. */}
-      <div className="l-fila c-conmutador-acceso">
-        <button type="button" aria-pressed={!esAlta} onClick={() => cambiarModo('entrar')}>
-          Iniciar sesión
-        </button>
-        <button type="button" aria-pressed={esAlta} onClick={() => cambiarModo('crear')}>
-          Crear cuenta
-        </button>
+        {/* El conmutador son dos `<button>` con `aria-pressed` y no un enlace ni un radio: cambian
+            lo que hace este formulario, no navegan a ningún lado ni son un dato a enviar. */}
+        <div className="c-segmentado c-conmutador-acceso">
+          <button type="button" aria-pressed={!esAlta} onClick={() => cambiarModo('entrar')}>
+            Iniciar sesión
+          </button>
+          <button type="button" aria-pressed={esAlta} onClick={() => cambiarModo('crear')}>
+            Crear cuenta
+          </button>
+        </div>
+
+        <form className="l-pila c-formulario-acceso" onSubmit={(e) => void enviar(e)} noValidate>
+          <CampoConError campo="email" etiqueta="Email" error={errores.email?.[0]}>
+            {(props) => (
+              <input
+                {...props}
+                type="email"
+                // `username` en los dos modos: es lo que un gestor de contraseñas espera para
+                // asociar la credencial a la cuenta.
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            )}
+          </CampoConError>
+
+          <CampoConError campo="contrasena" etiqueta="Contraseña" error={errores.contrasena?.[0]}>
+            {(props) => (
+              <input
+                {...props}
+                type="password"
+                // `new-password` en el alta hace que el gestor ofrezca generar una;
+                // `current-password` en el login, que ofrezca la guardada. Invertirlos rompe las
+                // dos cosas.
+                autoComplete={esAlta ? 'new-password' : 'current-password'}
+                value={contrasena}
+                onChange={(e) => setContrasena(e.target.value)}
+              />
+            )}
+          </CampoConError>
+
+          {/* La región de error del formulario: sólo para lo que no corresponde a ningún campo.
+
+              **El ícono es la distinción que no es el color** (`FR-005`, `SC-004`): este bloque y
+              el de la confirmación llevan dibujos distintos, así que se reconocen en escala de
+              grises. Va `aria-hidden` porque el nombre lo da el texto del mensaje; anunciarlo
+              también sería dos nombres para lo mismo. */}
+          {errorGeneral ? (
+            <p role="alert" className="c-mensaje c-mensaje--error c-formulario-acceso__error">
+              <IconoError />
+              <span>{errorGeneral}</span>
+            </p>
+          ) : null}
+
+          {/* role="status" y no "alert": es una confirmación, no un error. */}
+          {confirmacion ? (
+            <p role="status" className="c-mensaje c-mensaje--exito">
+              <IconoExito />
+              <span>{confirmacion}</span>
+            </p>
+          ) : null}
+
+          {/* **El único botón principal de la pantalla** (`FR-003`): es la acción que completa lo
+              que la persona vino a hacer. Los dos del conmutador eligen un modo, no completan
+              nada, así que son secundarios. */}
+          <button type="submit" className="c-boton--principal" disabled={enviando}>
+            {enviando ? textoEnviando : textoDelBoton}
+          </button>
+        </form>
       </div>
-
-      <form className="l-pila c-formulario-acceso" onSubmit={(e) => void enviar(e)} noValidate>
-        <CampoConError campo="email" etiqueta="Email" error={errores.email?.[0]}>
-          {(props) => (
-            <input
-              {...props}
-              type="email"
-              // `username` en los dos modos: es lo que un gestor de contraseñas espera para
-              // asociar la credencial a la cuenta.
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          )}
-        </CampoConError>
-
-        <CampoConError campo="contrasena" etiqueta="Contraseña" error={errores.contrasena?.[0]}>
-          {(props) => (
-            <input
-              {...props}
-              type="password"
-              // `new-password` en el alta hace que el gestor ofrezca generar una; `current-password`
-              // en el login, que ofrezca la guardada. Invertirlos rompe las dos cosas.
-              autoComplete={esAlta ? 'new-password' : 'current-password'}
-              value={contrasena}
-              onChange={(e) => setContrasena(e.target.value)}
-            />
-          )}
-        </CampoConError>
-
-        {/* La región de error del formulario: sólo para lo que no corresponde a ningún campo. */}
-        {errorGeneral ? (
-          <p role="alert" className="c-formulario-acceso__error">
-            {errorGeneral}
-          </p>
-        ) : null}
-
-        {/* role="status" y no "alert": es una confirmación, no un error. */}
-        {confirmacion ? <p role="status">{confirmacion}</p> : null}
-
-        <button type="submit" disabled={enviando}>
-          {enviando ? textoEnviando : textoDelBoton}
-        </button>
-      </form>
     </main>
   );
 }

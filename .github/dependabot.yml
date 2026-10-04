@@ -15,6 +15,18 @@ updates:
       frontend-menores:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+      # Los majors de Vitest y su proveedor de navegador, juntos y no de a uno.
+      #
+      # `@vitest/browser-playwright` declara `vitest` como peerDependency a versión **exacta**
+      # (5.0.2 pide 5.0.2), así que un PR que suba el major de uno solo no instala: `pnpm install
+      # --frozen-lockfile` falla y el PR llega roto sin que el cambio tenga nada de malo. Agrupados,
+      # suben en el mismo PR y el CI dice algo útil.
+      #
+      # Playwright queda afuera a propósito: su major es independiente del de Vitest y lo que trae
+      # es un Chromium nuevo, o sea un cambio en lo que las pruebas miden. Ése conviene verlo solo.
+      vitest-majores:
+        patterns: ["vitest", "@vitest/*"]
+        update-types: ["major"]
     commit-message:
       prefix: "chore(deps)"
 

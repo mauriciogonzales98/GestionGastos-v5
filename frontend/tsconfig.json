@@ -20,5 +20,13 @@
     // dejaba pasar; el 6 lo corta con TS2882.
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src", "tests", "vite.config.ts"]
+  "include": ["src", "tests", "vite.config.ts"],
+  // Las pruebas que miden quedan afuera y tienen su propio tsconfig.navegador.json.
+  //
+  // **No es prolijidad, es que no entran en el mismo programa** (feature 014, D-12): importar
+  // `vitest/browser` reemplaza la interfaz `Assertion` por la suya, de estilo Playwright
+  // —`toHaveTextContent` pasa a aceptar `string | number`—, y entonces los 19 usos de
+  // `toHaveTextContent(/regex/)` que tienen hoy las pruebas con `@testing-library/jest-dom` dejan
+  // de compilar. Los dos juegos de matchers no conviven en un `tsc`; sí conviven en dos.
+  "exclude": ["tests/**/*.navegador.test.tsx", "tests/anchos.ts", "tests/setup.navegador.ts"]
 }

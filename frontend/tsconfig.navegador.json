@@ -1,0 +1,26 @@
+{
+  // El programa de las pruebas que miden, separado del principal.
+  //
+  // Comparte todas las opciones del compilador menos una: `types` carga `vitest/browser` en lugar
+  // de `@testing-library/jest-dom`. Los dos declaran matchers sobre la misma interfaz `Assertion`
+  // con firmas distintas, así que tienen que vivir en programas distintos (D-12).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // `@vitest/browser-playwright` entra porque es el proveedor que corre estas pruebas
+    // (`vite.config.ts`) y porque es él quien le pone tipo de verdad a lo que `vitest/browser`
+    // declara vacío: `cdp()` devuelve un `CDPSession` sin un solo método hasta que su augmentación
+    // de módulo lo extiende con la sesión de Playwright. Sin esto, `cdp().send(...)` —lo que
+    // `ModoOscuro.navegador.test.tsx` usa para emular la preferencia de esquema de color— no
+    // compila.
+    "types": ["vite/client", "vitest/globals", "vitest/browser", "@vitest/browser-playwright"]
+  },
+  // `src` entra porque estas pruebas montan los componentes de verdad; lo que no entra son las
+  // pruebas del otro proyecto, que son las que usan los matchers de jest-dom.
+  "include": [
+    "src",
+    "tests/anchos.ts",
+    "tests/setup.navegador.ts",
+    "tests/**/*.navegador.test.tsx"
+  ],
+  "exclude": []
+}

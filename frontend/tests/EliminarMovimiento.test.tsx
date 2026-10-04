@@ -73,14 +73,10 @@ function renderizar() {
   render(
     <PantallaMovimientos
       hoy="2026-09-08"
-      email="ana@ejemplo.com"
       categorias={CATEGORIAS}
       monedas={MONEDAS}
       errorDelCatalogo={null}
       errorDelCatalogoDeMonedas={null}
-      onCerrarSesion={() => {}}
-      onGestionarCategorias={() => {}}
-      onVerDashboard={() => {}}
       onSesionVencida={() => {}}
     />,
   );
@@ -319,14 +315,10 @@ describe('FR-013 · lo que pasa cuando el servidor dice que no', () => {
     render(
       <PantallaMovimientos
         hoy="2026-09-08"
-        email="ana@ejemplo.com"
         categorias={CATEGORIAS}
         monedas={MONEDAS}
         errorDelCatalogo={null}
         errorDelCatalogoDeMonedas={null}
-        onCerrarSesion={() => {}}
-        onGestionarCategorias={() => {}}
-        onVerDashboard={() => {}}
         onSesionVencida={alVencer}
       />,
     );

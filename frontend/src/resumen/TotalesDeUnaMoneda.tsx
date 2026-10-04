@@ -10,6 +10,8 @@ export interface PropsTotalesDeUnaMoneda {
    * deduzca del código ISO, que es lo que se hacía hasta la feature 011.
    */
   monedas?: Moneda[];
+  /** Si se muestra el desglose por categoría. `false` en movimientos (`FR-035`). */
+  conDesglose?: boolean;
 }
 
 /**
@@ -23,12 +25,48 @@ export interface PropsTotalesDeUnaMoneda {
  * para que un período vacío devuelva ceros, y esconder acá la que está en cero se leería como si
  * esa moneda no existiera en el catálogo (FR-009).
  */
-export function TotalesDeUnaMoneda({ moneda, monedas }: PropsTotalesDeUnaMoneda) {
+export function TotalesDeUnaMoneda({
+  moneda,
+  monedas,
+  conDesglose = true,
+}: PropsTotalesDeUnaMoneda) {
+  /**
+   * **Una moneda sin ningún movimiento en el período** (`FR-038`).
+   *
+   * Se deduce de los dos totales y no del balance: `PRD:RF-13` exige montos mayores a cero, así que
+   * con un solo movimiento alguno de los dos deja de ser cero. Mirar el balance sería distinto —una
+   * moneda con movimientos cuyo ingreso y gasto se empatan da balance cero— y ésa tiene que
+   * mostrarse entera.
+   */
+  const sinMovimientos = moneda.totalIngresado === 0 && moneda.totalGastado === 0;
+
+  if (sinMovimientos) {
+    return (
+      /*
+       * Una línea, no un bloque de tres ceros.
+       *
+       * **Sigue apareciendo**, que es lo que la feature 006 quería proteger con `FR-009` y lo que
+       * `PRD:AC-31` describe: esconderla se leería como si la moneda no existiera en el catálogo.
+       * Lo que cambia es el espacio que ocupa — tres ceros ocupaban lo mismo que una moneda con
+       * datos y empujaban el formulario fuera de la pantalla.
+       */
+      <section
+        className="c-totales-moneda c-totales-moneda--vacia"
+        aria-label={`Totales en ${moneda.monedaCodigo}`}
+      >
+        <h3>{moneda.monedaCodigo}</h3>
+        <p>sin movimientos en el período</p>
+      </section>
+    );
+  }
+
   return (
     <section className="l-pila c-totales-moneda" aria-label={`Totales en ${moneda.monedaCodigo}`}>
       <h3>{moneda.monedaCodigo}</h3>
 
-      <dl className="l-fila">
+      {/* Las tres cifras en **un** renglón, cada una con su nombre arriba (`FR-037`). Sigue siendo
+          un `<dl>`, así que lo que un lector de pantalla anuncia no cambia. */}
+      <dl className="c-cifras">
         <div>
           <dt>Ingresado</dt>
           <dd>
@@ -63,11 +101,13 @@ export function TotalesDeUnaMoneda({ moneda, monedas }: PropsTotalesDeUnaMoneda)
         </div>
       </dl>
 
-      <GastosPorCategoria
-        gastos={moneda.gastosPorCategoria}
-        monedaCodigo={moneda.monedaCodigo}
-        monedas={monedas}
-      />
+      {conDesglose ? (
+        <GastosPorCategoria
+          gastos={moneda.gastosPorCategoria}
+          monedaCodigo={moneda.monedaCodigo}
+          monedas={monedas}
+        />
+      ) : null}
     </section>
   );
 }

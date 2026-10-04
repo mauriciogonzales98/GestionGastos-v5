@@ -123,7 +123,6 @@ const SUPERFICIES: { nombre: string; montar: () => void }[] = [
           onCrear={vi.fn()}
           onRenombrar={vi.fn()}
           onDarDeBaja={vi.fn()}
-          onVolver={vi.fn()}
         />,
       );
     },
@@ -143,14 +142,10 @@ const SUPERFICIES: { nombre: string; montar: () => void }[] = [
       render(
         <PantallaMovimientos
           hoy={HOY}
-          email="ana@ejemplo.com"
           categorias={CATEGORIAS}
           monedas={MONEDAS}
           errorDelCatalogo={null}
           errorDelCatalogoDeMonedas={null}
-          onCerrarSesion={vi.fn()}
-          onGestionarCategorias={vi.fn()}
-          onVerDashboard={vi.fn()}
           onSesionVencida={vi.fn()}
         />,
       );
@@ -159,7 +154,7 @@ const SUPERFICIES: { nombre: string; montar: () => void }[] = [
   {
     nombre: 'el dashboard',
     montar: () => {
-      render(<PantallaDashboard monedas={MONEDAS} onVolver={vi.fn()} onSesionVencida={vi.fn()} />);
+      render(<PantallaDashboard monedas={MONEDAS} onSesionVencida={vi.fn()} />);
     },
   },
 ];

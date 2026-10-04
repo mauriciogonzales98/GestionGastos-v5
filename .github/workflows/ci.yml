@@ -68,9 +68,24 @@ jobs:
 
       # El type checker va aparte de los tests: Vitest transpila sin chequear tipos, así que un
       # error de tipos no aparecería en la suite.
+      # Dos programas de TypeScript y no uno (feature 014, D-12): importar `vitest/browser`
+      # reemplaza la interfaz `Assertion` por la suya, de estilo Playwright, y los matchers de
+      # `@testing-library/jest-dom` dejan de compilar. El script corre los dos.
       - name: Type checker
-        run: pnpm exec tsc --noEmit
+        run: pnpm typecheck
 
+      # El navegador que mide (feature 014, NFR-003). `--with-deps` instala las bibliotecas del
+      # sistema que Chromium necesita, que en Ubuntu limpio no están: sin esto el proyecto
+      # `navegador` de Vitest falla al lanzar, y falla en rojo, no se saltea.
+      #
+      # Va antes de Tests y después del type checker: es una descarga de ~130 MB y no tiene sentido
+      # pagarla si los tipos ya están rotos.
+      - name: Instalar Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Corre los dos proyectos de Vitest: `dom` (happy-dom, la suite de siempre) y `navegador`
+      # (Chromium, el que mide anchos, alturas y áreas tocables). NFR-005: las pruebas que miden
+      # tamaños no pueden excluirse del CI.
       - name: Tests
         run: pnpm test
 

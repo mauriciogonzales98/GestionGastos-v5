@@ -8,6 +8,11 @@
  * `tests/ClasesConRegla.test.ts` lo comprueba recorriendo el código, no una lista. Antes de la
  * feature 011 había cinco escritas y sin respaldo: la pantalla se sostenía por el flujo por defecto
  * del navegador.
+ *
+ * **Ningún color, tamaño ni espaciado se escribe acá con su valor**: todos salen de los tokens de
+ * Lila, que viven en `base.css` (`FR-001` de la feature 014). Un `#fff` escrito en este archivo se
+ * vería claro con el dispositivo en modo oscuro, y es lo que `tests/ModoOscuro.navegador.test.tsx`
+ * mide pantalla por pantalla.
  */
 
 /* El campo: etiqueta, control y su error, apilados por `l-pila`. Acá va sólo lo que es del campo. */
@@ -21,10 +26,77 @@
   font-weight: 600;
 }
 
-.c-formulario-acceso {
-  /* El formulario de acceso es lo único en su pantalla y no compite con nada: se centra y se acota,
-     porque una línea de campo de 1200 px de ancho no la lee nadie. */
+/*
+ * **La tarjeta: un bloque visual con marca y formulario adentro** (`FR-008`, research D-09).
+ *
+ * Es lo que la feature 014 vino a arreglar en la pantalla de acceso, que estaba *"totalmente cruda,
+ * sin colores ni nada"*: un formulario suelto sobre el fondo de la página no se lee como una
+ * pantalla terminada, se lee como una pantalla a medio hacer.
+ *
+ * El ancho máximo es **24rem y está acá**, no en el formulario. Antes lo declaraba
+ * `.c-formulario-acceso`, y con la tarjeta puesta el tope tiene que ser de la tarjeta: si lo
+ * conservara el formulario, el bloque mediría lo que midiera la marca y su ancho cambiaría al
+ * alternar entre "Iniciar sesión" y "Crear cuenta" — que es justamente lo que `US1:AC2` prohíbe.
+ *
+ * En `rem` y no en píxeles: así el bloque escala con la tipografía de la persona en lugar de
+ * quedarse fijo cuando el texto crece.
+ */
+.c-tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-grande);
+
+  width: 100%;
   max-width: 24rem;
+  /*
+   * **Puede encogerse por debajo del ancho de su contenido**, y sin esto el caso borde del texto al
+   * 200 % rompe la pantalla.
+   *
+   * La tarjeta es un elemento de la grilla de `l-centrado`, y una pista automática no baja del
+   * ancho **mínimo de contenido** de lo que lleva adentro. Ese mínimo lo fija el campo más ancho:
+   * un `<input>` sin `size` propio pide unos 20 caracteres, que con la letra al doble son más de
+   * 400 px dentro de una ventana de 360. La tarjeta se iba a 531 px y la página se corría de
+   * costado. Medido por `CasosBorde.navegador.test.tsx`.
+   *
+   * `min-width: 0` le saca ese piso: la pista se queda en el ancho disponible y los campos, que ya
+   * traen su propio `min-width: 0` de `base.css`, se encogen con ella. El texto largo se desplaza
+   * adentro del campo, que es lo que el otro caso borde pide.
+   */
+  min-width: 0;
+  padding: var(--espacio-grande);
+  box-sizing: border-box;
+
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-grande);
+  background-color: var(--color-superficie);
+}
+
+/*
+ * La marca de la app: "Gestión de gastos", en acento y al tamaño mayor de la escala.
+ *
+ * **Se parte en varias líneas si no entra** en lugar de ensanchar su contenedor: a 360 px, o con el
+ * texto del navegador al 200 %, un título que no puede cortarse empuja la tarjeta y la página se
+ * corre de costado.
+ *
+ * **`anywhere` y no `break-word`**, que es la diferencia que importa acá: los dos parten una palabra
+ * que no entra, pero sólo `anywhere` baja el **ancho mínimo de contenido** del elemento. Con
+ * `break-word`, "Gestión" a 56 px seguía pidiendo 242 px y la tarjeta no podía encogerse por debajo
+ * de eso, así que la página desbordaba igual — con el título partido y todo. Lo encontró
+ * `CasosBorde.navegador.test.tsx` midiendo el 200 %.
+ */
+.c-marca {
+  margin: 0;
+  font-size: var(--texto-marca);
+  color: var(--color-acento);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.c-formulario-acceso {
+  /*
+   * Ocupa el ancho de la tarjeta, y nada más. **El tope de 24rem se mudó a `.c-tarjeta`**: con el
+   * formulario acotado y la tarjeta sin tope, el bloque medía lo que midiera el texto de adentro.
+   */
   width: 100%;
 }
 
@@ -33,11 +105,148 @@
   margin: 0;
 }
 
-/* El bloque del resumen: los totales de cada moneda, uno debajo del otro. */
-.c-resumen {
+/*
+ * **Los dos bloques que se apoyan sobre la página**: el resumen del mes y el formulario de carga.
+ *
+ * Una sola regla para los dos y no dos reglas iguales: son el mismo objeto visual —un panel sobre
+ * superficie, con su borde y su radio— y escribirlo dos veces es garantizar que dentro de dos
+ * features uno tenga el borde de un color y el otro de otro.
+ *
+ * Sobre superficie y no sobre el fondo de la página: son bloques apoyados encima, igual que la
+ * tarjeta del acceso o el panel lateral. Es lo que los separa de lo que tienen debajo sin dibujar
+ * otra línea.
+ */
+.c-resumen,
+.c-formulario-movimiento {
   padding: var(--espacio);
   border: 1px solid var(--color-borde);
   border-radius: var(--radio);
+  background-color: var(--color-superficie);
+}
+
+/*
+ * **El encabezado en UN renglón**: el título y el período al lado (`FR-039`, research D-08).
+ *
+ * Antes eran dos renglones completos arriba de todo. El período es contexto, no el dato, así que
+ * acompaña al título en lugar de ocupar su propia línea. La fila la pone `l-fila`, que se envuelve
+ * si no entra en vez de desbordar; lo único que agrega esta clase es el alineado.
+ *
+ * `baseline` y no `center`: el título y el período tienen tamaños distintos, y alineados por el
+ * centro el período queda flotando a media altura de la letra del título. Por la línea de base se
+ * leen como un solo renglón, que es lo que son.
+ */
+.c-resumen__encabezado {
+  align-items: baseline;
+  gap: var(--espacio-chico);
+}
+
+.c-resumen__periodo {
+  margin: 0;
+  font-size: var(--texto-chico);
+  color: var(--color-texto-secundario);
+}
+
+/*
+ * **Las tres cifras de una moneda en un renglón** (`FR-037`, research D-08).
+ *
+ * Sigue siendo un `<dl>` —lo que un lector de pantalla anuncia no cambia—, y lo que cambia es que
+ * las tres parejas se reparten el ancho en vez de apilarse. Es la mitad de lo que hace que el
+ * resumen ocupe menos de la mitad del alto que ocupaba (`SC-011`).
+ *
+ * `minmax(0, 1fr)` y no `1fr`: una columna `1fr` no baja de su ancho mínimo de contenido, así que
+ * una cifra larga la ensancha y las otras dos se encogen. Con el mínimo en cero las tres miden lo
+ * mismo siempre, y lo que no entra lo resuelve el tamaño de letra de la regla de abajo.
+ */
+.c-cifras {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--espacio-chico);
+  margin: 0;
+}
+
+.c-cifras dt {
+  font-size: var(--texto-chico);
+  color: var(--color-texto-secundario);
+}
+
+.c-cifras dd {
+  margin: 0;
+  /*
+   * Cifras de ancho tabular: cada dígito ocupa lo mismo, así que las tres columnas quedan a plomo y
+   * dos montos del mismo orden de magnitud se comparan por su largo. Con la fuente proporcional,
+   * un 1 mide menos que un 8 y los números se desalinean.
+   */
+  font-variant-numeric: tabular-nums;
+  /* Un monto no se parte en dos líneas: `$ 1.234,56` cortado después del punto se lee como otro
+     número. */
+  white-space: nowrap;
+}
+
+/*
+ * **En el teléfono las tres cifras se apilan** (`FR-037`, research D-13).
+ *
+ * Tres columnas y siete dígitos no entran en 360 px, y no es cuestión de ajustar: cada monto
+ * necesita 107 px y la columna mide 90. Para que entraran habría que bajar la letra a unos 12 px,
+ * por debajo del escalón más chico de Lila y justo en el dato más importante de la pantalla.
+ *
+ * **Y no entraban en silencio.** Con `white-space: nowrap`, un monto que no entra no se corta: se
+ * sale de su columna y pinta encima del de al lado — `$ 1.850.000,0` y `0$ 764.850,75` pegados, un
+ * número ilegible donde había dos. La página no desbordaba y las tres seguían compartiendo renglón,
+ * así que las dos pruebas que existían daban verde describiendo una pantalla rota. Se vio
+ * **levantando la app y mirándola**; ahora lo mide `ResumenCompacto.navegador.test.tsx`, que
+ * comprueba que ningún monto invada el espacio del siguiente.
+ *
+ * Apiladas, cada cifra conserva su tamaño —vuelve a `--texto`, porque ya hay lugar— y su nombre al
+ * lado, y **no hay monto que pueda romperlas**: el nombre se encoge y el monto se queda entero, que
+ * es el orden de prioridades correcto cuando lo que está en juego es un número de plata.
+ *
+ * El corte es el mismo 48rem de la navegación: por debajo no hay barra lateral y el contenido tiene
+ * toda la ventana, que es exactamente el ancho que esta cuenta mira.
+ */
+@media (width < 48rem) {
+  .c-cifras {
+    grid-template-columns: 1fr;
+  }
+
+  /* Cada pareja pasa a ser un renglón: el nombre a la izquierda, el monto pegado a la derecha. */
+  .c-cifras > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--espacio-chico);
+  }
+
+  /* El que cede es el nombre, nunca el número. */
+  .c-cifras dt {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/*
+ * **Una moneda sin ningún movimiento en el período: una línea, no un bloque de tres ceros**
+ * (`FR-038`).
+ *
+ * Sigue apareciendo —esconderla se leería como si la moneda no existiera en el catálogo, que es lo
+ * que `FR-009` de la feature 006 protege—; lo que cambia es el espacio que ocupa. Tres ceros
+ * ocupaban lo mismo que una moneda con datos y empujaban el formulario fuera de la pantalla.
+ *
+ * Es una fila que se envuelve y no una grilla: son dos cosas —el código y la aclaración—, y a 360 px
+ * con el texto agrandado la aclaración cae a la línea de abajo en lugar de cortarse.
+ */
+.c-totales-moneda--vacia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--espacio-chico);
+}
+
+.c-totales-moneda--vacia p {
+  margin: 0;
+  font-size: var(--texto-chico);
+  color: var(--color-texto-secundario);
 }
 
 /*
@@ -81,6 +290,23 @@
  */
 .c-listado-movimientos__desborde {
   overflow-x: auto;
+
+  /*
+   * **Y es el bloque contenedor de lo que tenga adentro.**
+   *
+   * Sin esto el envoltorio recortaba la tabla y **no recortaba el texto oculto del encabezado de
+   * acciones**: `.u-solo-lectores` es `position: absolute`, y un elemento posicionado se ubica
+   * contra el bloque contenedor más cercano **que esté posicionado**. Acá no había ninguno, así que
+   * ese bloque era la página entera: el span quedaba en su posición estática —x ≈ 675, dentro de la
+   * tabla desplazada— pero colgado de la página, y el recorte de este envoltorio no lo alcanzaba.
+   * La página se desplazaba de costado a 360 px con el listado lleno.
+   *
+   * **Estuvo roto desde que existe esa columna** (feature 011) y ninguna prueba lo vio, porque las
+   * que miden el desborde montaban el listado **vacío** y entonces no había tabla. Lo encontró el
+   * barrido de cierre de la 014 (`Responsive.navegador.test.tsx`), que monta las cuatro pantallas
+   * con datos: es exactamente la clase de cruce que ninguna historia mira.
+   */
+  position: relative;
 }
 
 .c-listado-movimientos th,
@@ -97,13 +323,83 @@
 }
 
 /*
- * El conmutador del acceso. `aria-pressed` es lo que dice cuál de los dos modos está activo, así
- * que también es de donde el estilo lo toma: una clase aparte podría quedar desincronizada del
- * atributo, y entonces se vería marcado uno y estaría activo el otro.
+ * ## El control segmentado (research D-09)
+ *
+ * Dos o más opciones pegadas dentro de un marco, la elegida rellena de acento. **Una sola apariencia
+ * para dos controles que no son el mismo**: el conmutador del acceso son dos `<button>` con
+ * `aria-pressed`, y el tipo de movimiento son dos `<input type="radio">`. Se ven igual porque hacen
+ * lo mismo a la vista —elegir una de dos—, y por debajo cada uno conserva su semántica: el primero
+ * cambia lo que hace el formulario, el segundo es un dato que se envía (`FR-034`).
+ *
+ * De ahí que esta clase no declare ni tipografía ni qué marca la opción elegida: eso lo pone cada
+ * variante colgando del atributo que ya tiene el estado.
  */
-.c-conmutador-acceso button[aria-pressed='true'] {
-  font-weight: bold;
-  text-decoration: underline;
+.c-segmentado {
+  display: flex;
+  /*
+   * **Se apila cuando sus opciones no entran en un renglón**, y la decisión la toma el navegador
+   * igual que en `l-par` (`FR-030`).
+   *
+   * Hace falta por el caso borde del texto al 200 %: con la letra al doble, "Iniciar sesión" y
+   * "Crear cuenta" no comparten renglón en 360 px por mucho que se encojan —las palabras miden lo
+   * que miden—, y el conmutador empujaba la tarjeta a 531 px dentro de una ventana de 360. Lo
+   * encontró `CasosBorde.navegador.test.tsx`, que es para esto que se escribió.
+   *
+   * Apilarse conserva las palabras enteras. La alternativa era partirlas con `overflow-wrap`, y
+   * "Inic-iar" en un control que la persona tiene que leer para elegir es peor que dos renglones.
+   */
+  flex-wrap: wrap;
+  gap: 0;
+  padding: var(--espacio-minimo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  /* El marco va sobre el fondo de la página y no sobre superficie: lo que tiene que resaltar es la
+     opción elegida, y un marco claro con una opción clara adentro no distingue nada. */
+  background-color: var(--color-fondo);
+}
+
+.c-segmentado button {
+  /*
+   * Las mitades se reparten el ancho en partes iguales y pueden encogerse: a 360 px "Iniciar
+   * sesión" y "Crear cuenta" entran juntas, y el marco no se ensancha por el texto.
+   *
+   * **El tamaño base es 7rem y no 0**, y es lo que hace que el envoltorio de arriba sirva para
+   * algo: con base cero, dos opciones nunca suman más que el renglón y la fila no se parte nunca.
+   * 7rem (112 px) es apenas más que el más largo de los cuatro rótulos, así que con la letra normal
+   * las dos entran juntas en la tarjeta y con la letra al doble no, que es exactamente cuándo se
+   * tienen que apilar.
+   */
+  flex: 1 1 7rem;
+  min-width: 0;
+
+  /* Adentro del marco no hay bordes propios ni relleno de botón: lo que se ve es un solo control
+     partido, no dos botones uno al lado del otro. */
+  border: none;
+  background-color: transparent;
+  color: var(--color-texto-secundario);
+  /* El radio de adentro es el de afuera menos el relleno del marco, para que las dos curvas sean
+     concéntricas en lugar de dejar un hueco en la esquina. */
+  border-radius: calc(var(--radio) - var(--espacio-minimo));
+}
+
+/*
+ * La opción elegida. **El estilo cuelga de `aria-pressed`**, que es el atributo que ya dice cuál de
+ * los dos modos está activo: una clase aparte podría quedar desincronizada del atributo, y entonces
+ * se vería marcado uno y estaría activo el otro (`FR-009`).
+ *
+ * Se distingue por **relleno y peso de letra**, no sólo por color: en escala de grises el relleno
+ * sigue estando y la letra sigue siendo más gruesa.
+ */
+.c-segmentado button[aria-pressed='true'] {
+  background-color: var(--color-acento);
+  color: var(--color-sobre-acento);
+  font-weight: 600;
+}
+
+.c-conmutador-acceso {
+  /* Ocupa el ancho de la tarjeta: las dos opciones se reparten el renglón entero en lugar de quedar
+     encogidas a la izquierda. */
+  width: 100%;
 }
 
 /*
@@ -151,6 +447,427 @@
   height: 1rem;
   border-radius: 0 4px 4px 0;
   background-color: var(--color-barra);
+}
+
+/*
+ * ## La barra de secciones (`FR-023`, `FR-024`, research D-05)
+ *
+ * **Un solo `<nav>` con dos aspectos.** Por debajo de 48rem está fija al pie de la ventana, al
+ * alcance del pulgar, con ícono arriba y palabra abajo; desde 48rem se apila en vertical dentro del
+ * panel lateral, con el ícono al lado de la palabra. El DOM es el mismo en los dos casos: no hay dos
+ * barras que puedan desincronizarse ni nada oculto que un lector de pantalla siga anunciando.
+ *
+ * Dónde la pone la grilla lo decide `l-marco`, en `disposicion.css`. Acá está sólo cómo se ve.
+ */
+.c-barra {
+  display: flex;
+  flex-direction: row;
+
+  /*
+   * `fixed` y no `sticky`: en el teléfono la barra tiene que quedarse pegada al borde inferior de
+   * la ventana sin importar dónde esté el desplazamiento. El alto que esto le roba al contenido lo
+   * devuelve el `padding-bottom` de `.l-marco__contenido`, que es la otra mitad de `FR-026`.
+   */
+  position: fixed;
+  inset: auto 0 0;
+  /* Por encima del contenido que pasa por debajo al desplazarse. Uno alcanza: no hay nada más
+     apilado en esta app. */
+  z-index: 1;
+
+  background-color: var(--color-superficie);
+  border-top: 1px solid var(--color-borde);
+
+  /*
+   * La franja que el sistema operativo del teléfono se reserva para sus gestos. Sin esto, en un
+   * teléfono sin botón de inicio la barra queda debajo de la zona de gestos y tocar una sección
+   * dispara el gesto del sistema.
+   *
+   * `env()` devuelve cero donde no hay nada reservado, así que en un escritorio no sobra espacio.
+   * Para que devuelva algo donde sí corresponde hace falta `viewport-fit=cover` en `index.html`.
+   */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.c-barra button {
+  /* Las secciones se reparten el ancho en partes iguales, y ninguna se ensancha por tener el
+     rótulo más largo. */
+  flex: 1 1 0;
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-minimo);
+
+  /* 44px de alto Y de ancho: es un control de sólo ícono con su palabra debajo, y a 360 px
+     repartido en tres el ancho queda justo (`FR-025`). */
+  min-height: var(--alto-tactil);
+  min-width: var(--alto-tactil);
+  padding: var(--espacio-chico) var(--espacio-minimo);
+
+  /* Dentro de la barra no son botones sueltos: sin borde, sin radio y sin relleno propio. */
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--color-texto-secundario);
+  font-size: var(--texto-chico);
+}
+
+/*
+ * **La sección actual** (`FR-024`).
+ *
+ * `aria-current` es el dato y también de donde el estilo lo toma: lo que se ve y lo que se anuncia
+ * no pueden desincronizarse porque son lo mismo.
+ *
+ * Se distingue por **tres** cosas y sólo una es el color: el relleno tenue, la marca de 3px sobre el
+ * borde superior y el peso de la letra. En escala de grises las tres últimas siguen leyéndose.
+ *
+ * La marca va con `box-shadow: inset` y no con `border-top`: un borde cambiaría el alto de la caja y
+ * el botón actual quedaría 3px más bajo que los otros dos, con el ícono corrido.
+ *
+ * `color-mix` tiñe el relleno con el acento sin declarar un color nuevo, así que no agrega un token
+ * que `Paleta.test.ts` tendría que medir contra algo.
+ */
+.c-barra button[aria-current='page'] {
+  background-color: color-mix(in srgb, var(--color-acento) 10%, var(--color-superficie));
+  box-shadow: inset 0 3px 0 0 var(--color-acento);
+  color: var(--color-acento);
+  font-weight: 600;
+}
+
+/* El rótulo de la sección se corta con puntos suspensivos antes que ensanchar la barra. */
+.c-barra button span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * La marca dentro del marco con sesión. Es la misma de la pantalla de acceso un escalón más abajo en
+ * la escala y alineada al inicio: acá encabeza una barra, no una pantalla.
+ */
+.c-marca--barra {
+  font-size: var(--texto-grande);
+  text-align: start;
+  padding: var(--espacio) var(--espacio) 0;
+}
+
+/* El bloque de la cuenta: el email y el cierre de sesión. */
+.c-cuenta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--espacio-chico);
+  padding: var(--espacio-chico) var(--espacio);
+  /* Sin esto el email largo estira el bloque y, con él, la barra entera. */
+  min-width: 0;
+}
+
+/*
+ * **El email se corta con puntos suspensivos y no ensancha la barra** (caso borde de la spec).
+ *
+ * Hacen falta las dos medidas: `min-width: 0` para que el elemento pueda encogerse por debajo de su
+ * ancho de contenido —sin eso el `overflow` no se activa nunca dentro de un flex—, y `max-width`
+ * para que no se pase del bloque. El completo queda disponible en el `title`.
+ */
+.c-cuenta__email {
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--texto-chico);
+  color: var(--color-texto-secundario);
+}
+
+/*
+ * ### Desde 48rem: la barra al costado
+ *
+ * El corte es el mismo que el de `l-marco`, y tiene que serlo: la barra pasa a vertical en el mismo
+ * ancho en que la grilla le da su columna. `Navegacion.navegador.test.tsx` mide los dos lados del
+ * corte —767 y 768— justamente para que escribir mal uno de los dos valores se vea.
+ */
+@media (width >= 48rem) {
+  .c-barra {
+    flex-direction: column;
+    gap: var(--espacio-minimo);
+
+    /* Deja de estar fija: la que queda a la vista mientras el contenido se desplaza es la caja del
+       panel (`.c-lateral`, en `disposicion.css`), que es una sola y se pega entera. */
+    position: static;
+
+    padding-inline: var(--espacio-chico);
+    /* Acá no hay zona de gestos que reservar ni borde que dibujar: el borde lo pone el panel. */
+    padding-bottom: 0;
+    border-top: none;
+  }
+
+  .c-barra button {
+    /* En vertical cada sección ocupa su alto y no se reparte el sobrante: estiradas, tres secciones
+       llenarían la barra de aire. */
+    flex: none;
+    flex-direction: row;
+    justify-content: start;
+    gap: var(--espacio-chico);
+    padding: var(--espacio-chico) var(--espacio);
+    border-radius: var(--radio);
+    /* Al costado hay ancho de sobra, así que el rótulo vuelve al tamaño del texto normal. */
+    font-size: var(--texto);
+  }
+
+  /* La marca de la sección actual se muda al borde izquierdo: es el que queda contra el contenido. */
+  .c-barra button[aria-current='page'] {
+    box-shadow: inset 3px 0 0 0 var(--color-acento);
+  }
+
+  .c-cuenta {
+    flex-direction: column;
+    align-items: start;
+  }
+}
+
+/*
+ * ## El botón de sólo ícono (`FR-042`, `FR-043`, `FR-045`)
+ *
+ * El lápiz y el tacho de cada fila. Sin borde ni relleno: en una fila, un botón con marco compite
+ * con el dato que la fila muestra, y son dos por fila.
+ *
+ * **Mide 44 px de alto Y de ancho** (`FR-043`). Es el único lugar de la app donde el ancho mínimo
+ * importa tanto como el alto: un botón con palabra llega a 44 px de ancho por el texto, y uno con un
+ * ícono de 1,25em no llega nunca.
+ */
+.c-boton-icono {
+  /* El rótulo se posiciona contra este botón, así que el botón es el origen. */
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: var(--alto-tactil);
+  min-width: var(--alto-tactil);
+  padding: var(--espacio-minimo);
+
+  border: none;
+  border-radius: var(--radio);
+  background-color: transparent;
+  color: var(--color-texto-secundario);
+}
+
+/*
+ * El ícono toma el acento cuando el botón está apuntado o enfocado. Es el único cambio de color del
+ * botón: el relleno se queda transparente, porque dos botones de fila rellenándose al pasar por
+ * encima se leen como si se hubieran activado.
+ */
+.c-boton-icono:hover,
+.c-boton-icono:focus-visible {
+  color: var(--color-acento);
+}
+
+/*
+ * **El rótulo de la acción** (`FR-042`): "Renombrar", "Eliminar".
+ *
+ * Está siempre en el DOM y se muestra al apoyar el puntero y al recibir el foco. Tres decisiones, y
+ * ninguna es de gusto:
+ *
+ *   1. **Posicionado absoluto**, fuera del flujo. Si ocupara lugar al aparecer, la fila se
+ *      reacomodaría cada vez que el puntero pasa por encima y los íconos se moverían debajo del
+ *      dedo. Además rompería `FR-043`: el renglón ya está medido al límite a 360 px.
+ *   2. **Oculto con `display: none` y no con `opacity: 0`.** Un rótulo transparente **sigue
+ *      maquetado**, y un elemento posicionado que se sale por la derecha de la ventana cuenta para
+ *      el desplazamiento horizontal de la página aunque no se vea. Con `opacity` puesta, los dos
+ *      rótulos de cada fila de categorías asomaban 16 px más allá de los 360 y la página se corría
+ *      de costado: `PantallasConSesion.navegador.test.tsx` lo encontró en tres anchos a la vez.
+ *      `display: none` no genera caja, así que no hay nada que desborde. Que el rótulo **aparezca**
+ *      se sigue pudiendo medir —`checkVisibility()` contesta exactamente eso— y lo mide
+ *      `FilasConIconos.navegador.test.tsx`.
+ *   3. **`pointer-events: none`**: el rótulo aparece justo encima del botón, y sin esto el puntero
+ *      pasaría a estar sobre el rótulo en lugar de sobre el botón. El `:hover` se apagaría, el
+ *      rótulo desaparecería, el puntero volvería al botón: un parpadeo infinito.
+ *
+ * Sobre superficie y con borde, como todo lo que se apoya encima en Lila. Un rótulo invertido —fondo
+ * del color del texto— se vería claro en modo oscuro, que es lo que `ModoOscuro.navegador.test.tsx`
+ * denuncia pantalla por pantalla.
+ */
+.c-boton-icono__rotulo {
+  display: none;
+
+  position: absolute;
+  /*
+   * Arriba del botón y alineado por su **borde derecho**, no centrado.
+   *
+   * Centrado, el rótulo de un botón pegado al borde derecho de la pantalla se sale de la ventana en
+   * el momento en que aparece, y la página gana una barra de desplazamiento mientras el puntero
+   * esté encima. Alineado por la derecha crece hacia la izquierda, que en una pantalla de
+   * izquierda a derecha es el lado que no se puede desplazar: lo que se sale por ahí queda
+   * recortado y no agrega desplazamiento. Y es el lado correcto igual, porque estos botones están
+   * siempre al final de su fila.
+   */
+  bottom: 100%;
+  right: 0;
+
+  padding: var(--espacio-minimo) var(--espacio-chico);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  background-color: var(--color-superficie);
+  color: var(--color-texto);
+  font-size: var(--texto-chico);
+  /* El rótulo es corto y no se parte: partido en dos líneas arriba de un ícono se lee peor que
+     ancho. */
+  white-space: nowrap;
+
+  pointer-events: none;
+}
+
+.c-boton-icono:hover .c-boton-icono__rotulo,
+.c-boton-icono:focus-visible .c-boton-icono__rotulo {
+  display: block;
+}
+
+/*
+ * ## La fila de una categoría (`FR-043`)
+ *
+ * El nombre, su tipo y los dos íconos, en **un** renglón, y el nombre largo cortado con puntos
+ * suspensivos antes de empujar a los íconos a otra línea.
+ *
+ * La fila es un `l-fila`, que se envuelve: hace falta que se envuelva, porque en modo renombre y en
+ * modo confirmación la misma fila lleva un campo o una advertencia de dos renglones. Lo que impide
+ * que el **nombre** provoque ese envoltorio es su tamaño base en cero, y la distinción es la que
+ * hace funcionar a esta regla:
+ *
+ *   - **Envolver o no** lo decide el tamaño **base** de cada elemento: se van poniendo en el
+ *     renglón hasta que la suma de los tamaños base lo pasa, y ahí se corta. Con `flex-basis: auto`
+ *     el tamaño base del nombre es el de su texto, así que un nombre de 50 caracteres pasa los
+ *     360 px solo y manda a los íconos a la línea siguiente.
+ *   - **Encogerse** es otra cosa, y es lo que habilita `min-width: 0`: ocurre **después**, ya
+ *     decidido el renglón.
+ *
+ * Con `flex-basis: 0` el nombre nunca provoca el corte, y después crece hasta ocupar lo que sobra.
+ * El comentario anterior le atribuía al `min-width: 0` las dos cosas; lo corrigió la medición a
+ * 360 px de `FilasConIconos.navegador.test.tsx`, que es para esto que se escribió primero.
+ */
+.c-categoria__nombre {
+  /* Tamaño base cero —así no fuerza el corte del renglón— y crece hasta quedarse con lo que sobra
+     después del tipo y los dos íconos. */
+  flex: 1 1 0;
+  min-width: 0;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * ## El tipo del movimiento, como control segmentado (`FR-034`, T076)
+ *
+ * **Siguen siendo radios.** El teclado —flechas para cambiar de opción—, lo que el lector de
+ * pantalla anuncia y lo que se envía no cambian: lo único que cambia es cómo se ve. De ahí que el
+ * radio no se reemplace por nada, sólo se esconda, y que lo que se pinta sea su `<label>`.
+ *
+ * Reusa `.c-segmentado`; acá está sólo lo que un `<fieldset>` necesita de más, porque el navegador
+ * le da borde, relleno y margen propios que hay que bajar.
+ */
+/*
+ * **El tipo del movimiento: en chico y pegado a la izquierda.**
+ *
+ * Ocupaba el ancho entero del formulario; desde el reordenamiento comparte el renglón de arriba con
+ * la fecha, así que ocupa lo que necesitan sus dos palabras y nada más.
+ *
+ * **Lo que NO baja es el alto**: los 44 px siguen ahí (`FR-010`, `FR-025`). Es el piso de área
+ * tocable sobre el que está construida la feature entera, y un control que se toca con el pulgar no
+ * puede ser más chico que el pulgar por una cuestión de aire en la pantalla. Lo que se achica es el
+ * ancho y el tamaño de la letra.
+ */
+.c-segmentado--radios {
+  margin: 0;
+  padding: var(--espacio-minimo);
+  border: 1px solid var(--color-borde);
+  min-width: 0;
+
+  /* Ni crece ni se estira: ocupa su contenido y deja la punta derecha para la fecha. */
+  flex: 0 0 auto;
+  align-self: end;
+
+  /*
+   * **Las dos opciones, siempre lado a lado.**
+   *
+   * `.c-segmentado` se envuelve —lo necesita el conmutador del acceso, que ocupa el ancho de la
+   * tarjeta y con la letra al doble no entra en un renglón—. Acá sobra, porque este control se
+   * encoge a su contenido y sus dos palabras entran siempre.
+   *
+   * **Y sobrando rompía.** Un contenedor que se envuelve **y** se encoge a su contenido resuelve su
+   * ancho mirando el tamaño base de lo que tiene adentro; con el base de 7rem que heredaba del otro
+   * segmentado, ese ancho daba el de **una sola columna** y "Gasto" quedaba encima de "Ingreso".
+   * Medido: 161 px de ancho, las dos opciones en renglones distintos.
+   *
+   * Lo que lo arregla de verdad es el tamaño base de la regla de abajo —`auto` en vez de 7rem—, y
+   * esto lo deja dicho: las dos opciones de este control no se separan. Hacen falta las dos cosas
+   * rotas a la vez para volver a romperlo, y `FormularioCompacto.navegador.test.tsx` lo comprueba.
+   */
+  flex-wrap: nowrap;
+}
+
+.c-segmentado--radios label {
+  padding-inline: var(--espacio);
+  font-size: var(--texto-chico);
+}
+
+.c-segmentado--radios > span {
+  /* Cada opción es un `<span>` con su radio y su etiqueta adentro, así que el reparto del renglón se
+     hace acá y no en el `<label>`. Cada una ocupa lo que mide su palabra: el control se encoge a su
+     contenido, así que no hay renglón que repartir. */
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/*
+ * **El radio se esconde, no se quita** (`FR-034`).
+ *
+ * Ni `display: none` ni `visibility: hidden`: los dos lo sacan del recorrido del teclado y del árbol
+ * de accesibilidad, que es justo lo que no puede pasar. Con opacidad cero y un punto de tamaño sigue
+ * siendo enfocable, sigue anunciándose y sigue respondiendo a las flechas; lo que se ve es su
+ * etiqueta, y el anillo de foco lo dibuja la regla de abajo.
+ */
+.c-segmentado--radios input[type='radio'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.c-segmentado--radios label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* La etiqueta es lo que se toca, así que es ella la que tiene que medir 44px (`FR-010`). */
+  min-height: var(--alto-tactil);
+  border-radius: calc(var(--radio) - var(--espacio-minimo));
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+}
+
+/* La opción elegida, con el mismo relleno y el mismo peso que la del conmutador: es el mismo
+   control a la vista, así que se marca igual. */
+.c-segmentado--radios input[type='radio']:checked + label {
+  background-color: var(--color-acento);
+  color: var(--color-sobre-acento);
+  font-weight: 600;
+}
+
+/*
+ * **El foco del radio escondido se dibuja sobre su etiqueta.**
+ *
+ * El `:focus-visible` de `base.css` se aplica al radio, que mide un punto y es invisible: el anillo
+ * quedaría dibujado alrededor de nada. Es el mismo anillo —`--color-foco`, 3px, 2px de separación—
+ * trasladado al elemento que sí se ve, y no una anulación del foco: `tests/Foco.test.ts` exige que
+ * ninguna regla anule el indicador sin reemplazo.
+ */
+.c-segmentado--radios input[type='radio']:focus-visible + label {
+  outline: 3px solid var(--color-foco);
+  outline-offset: 2px;
 }
 
 /* La columna de la nota (feature 012).

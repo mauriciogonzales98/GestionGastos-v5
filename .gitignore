@@ -12,6 +12,15 @@ dist/
 coverage/
 .vite/
 
+# Playwright: lo que deja el navegador que mide (feature 014). Los navegadores en sí viven fuera
+# del repo, en la caché de la máquina; esto es lo que el runner escribe acá si algo falla.
+test-results/
+playwright-report/
+blob-report/
+# Las capturas que Vitest adjunta cuando una prueba del navegador falla. Son 7 MB de PNG que
+# describen un rojo de hace un rato: se miran una vez y no vuelven a servir.
+.vitest/
+
 # Secretos: la cadena de conexión vive en user-secrets, nunca en el repo (RNF/R-11)
 appsettings.Development.json
 appsettings.Local.json

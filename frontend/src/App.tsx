@@ -14,6 +14,7 @@ import { PantallaCategorias } from './categorias/PantallaCategorias';
 import { PantallaDashboard } from './dashboard/PantallaDashboard';
 import type { Categoria, Moneda, NuevaCategoria, SesionActual } from './api/tipos';
 import { PantallaMovimientos } from './movimientos/PantallaMovimientos';
+import { MarcoDeLaApp } from './ui/MarcoDeLaApp';
 
 export interface PropsApp {
   /** El día de hoy en `YYYY-MM-DD`. Entra por prop para que los tests sean deterministas. */
@@ -282,41 +283,48 @@ export function App({ hoy }: PropsApp) {
   }
 
   if (estado === 'con-sesion' && sesion) {
-    if (vista === 'dashboard') {
-      return (
-        <PantallaDashboard
-          monedas={monedas}
-          onVolver={() => setVista('movimientos')}
-          onSesionVencida={alVencerLaSesion}
-        />
-      );
-    }
-
-    if (vista === 'categorias') {
-      return (
-        <PantallaCategorias
-          categorias={categorias}
-          onCrear={crear}
-          onRenombrar={renombrar}
-          onDarDeBaja={darDeBaja}
-          onVolver={() => setVista('movimientos')}
-        />
-      );
-    }
-
+    /*
+     * **Las tres pantallas viven dentro del mismo marco** (`FR-022`).
+     *
+     * Hasta la feature 014 cada una traía su propia navegación: movimientos tenía la cabecera con
+     * los tres botones y las otras dos un "Volver a movimientos". Eso hacía de movimientos el
+     * centro de un camino de ida y vuelta —para ir del dashboard a categorías había que pasar por
+     * ahí— y repartía la misma decisión en tres lugares.
+     *
+     * Ahora el marco es uno y lo elige acá, que es donde ya vivía `vista`. Las pantallas no saben
+     * que existe una barra: reciben su contenido y nada más.
+     */
     return (
-      <PantallaMovimientos
-        hoy={hoy}
+      <MarcoDeLaApp
+        seccion={vista}
         email={sesion.email}
-        categorias={categorias}
-        monedas={monedas}
-        errorDelCatalogo={errorDelCatalogo}
-        errorDelCatalogoDeMonedas={errorDelCatalogoDeMonedas}
+        onIrA={setVista}
         onCerrarSesion={() => void salir()}
-        onSesionVencida={alVencerLaSesion}
-        onGestionarCategorias={() => setVista('categorias')}
-        onVerDashboard={() => setVista('dashboard')}
-      />
+      >
+        {vista === 'dashboard' ? (
+          <PantallaDashboard monedas={monedas} onSesionVencida={alVencerLaSesion} />
+        ) : null}
+
+        {vista === 'categorias' ? (
+          <PantallaCategorias
+            categorias={categorias}
+            onCrear={crear}
+            onRenombrar={renombrar}
+            onDarDeBaja={darDeBaja}
+          />
+        ) : null}
+
+        {vista === 'movimientos' ? (
+          <PantallaMovimientos
+            hoy={hoy}
+            categorias={categorias}
+            monedas={monedas}
+            errorDelCatalogo={errorDelCatalogo}
+            errorDelCatalogoDeMonedas={errorDelCatalogoDeMonedas}
+            onSesionVencida={alVencerLaSesion}
+          />
+        ) : null}
+      </MarcoDeLaApp>
     );
   }
 

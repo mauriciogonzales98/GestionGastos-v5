@@ -1,5 +1,22 @@
 # PRD-001: Gestion de Gastos — Aplicacion para el registro y gestion de gastos personales
 
+> Versión 7 del PRD: una moneda sin ningún movimiento en el período deja de mostrarse con sus
+> totales en cero y pasa a mostrarse en una línea que lo dice (AC-31). **Es un cambio de
+> presentación, no de cálculo**, y corrige el PRD en vez de ampliarlo: la feature 014 lo decidió
+> así en 2026-10-01, porque el bloque de tres ceros ocupaba el mismo alto que una moneda con datos
+> y empujaba el formulario y el listado —lo que se usa todos los días— fuera de la pantalla.
+>
+> **La razón original se conserva entera**: la moneda **sigue apareciendo**, que es lo que la
+> versión anterior protegía — esconderla se leería como si no existiera en el catálogo. Lo que
+> cambia es cuánto ocupa.
+>
+> **Lo que NO cambia es la respuesta del servidor**: sigue componiendo las monedas desde el catálogo
+> y sigue devolviendo ceros para las que no tuvieron movimientos. AC-31 confundía las dos cosas
+> —describía la pantalla y lo verificaban pruebas de la API— y por eso queda **reescrito en su lugar
+> y partido en dos mitades**, en lugar de numerarse al final: era el único criterio que había pasado
+> a describir algo que la pantalla ya no hace. Las specs de las features 006 y 010 lo citan con su
+> texto viejo y **no se tocan**: son el registro de lo que se construyó entonces.
+>
 > Versión 6 del PRD: las categorías iniciales dejan de ser un catálogo del sistema de solo
 > lectura y pasan a ser propias de cada cuenta desde el alta (RF-06, AC-10, AC-11). **Es el único
 > cambio de esta versión que corrige el PRD en vez de ampliarlo**: la feature 013 lo implementó así
@@ -152,7 +169,8 @@ datos son privados y solo él los ve.
 - AC-28 (RF-20): Dados gastos e ingresos cargados, cuando el usuario abre el dashboard, entonces el balance mostrado para cada moneda es igual a la suma de los montos de los ingresos de esa moneda menos la suma de los montos de los gastos de esa moneda, dentro del período filtrado.
 - AC-29 (RF-21): Dado que el usuario selecciona un rango de fechas en el filtro del dashboard, cuando lo aplica, entonces los totales por categoría y el balance de cada moneda se calculan únicamente con los movimientos cuya fecha cae dentro de ese rango, incluidos sus extremos.
 - AC-30 (RF-22): Dados gastos e ingresos cargados en el mes actual, cuando el usuario entra a la pantalla principal, entonces el total ingresado y el total gastado de cada moneda son iguales a los que muestra el dashboard de esa moneda filtrado por el mes actual.
-- AC-31 (RF-19, RF-20, RF-22): Dado un usuario sin ningún movimiento en el período filtrado, cuando abre la pantalla principal y el dashboard, entonces el total ingresado, el total gastado y el balance se muestran en cero para cada moneda, el gráfico por categoría indica que no hay datos, y no se muestra ningún mensaje de error.
+- AC-31 (RF-19, RF-20, RF-22): Dado un usuario sin ningún movimiento en el período filtrado, cuando abre la pantalla principal y el dashboard, entonces **cada moneda del catálogo sigue apareciendo** —ninguna se esconde por no haber tenido movimientos—, cada una se muestra en una línea que dice que no tuvo movimientos en el período, el gráfico por categoría indica que no hay datos, y no se muestra ningún mensaje de error.
+- AC-31b (RF-19, RF-20, RF-22): Dado ese mismo usuario, cuando el sistema calcula el resumen del período, entonces la respuesta incluye una entrada por **cada** moneda del catálogo con el total ingresado, el total gastado y el balance en cero. Es la mitad de AC-31 que vive en el servidor y no en la pantalla: el cálculo no cambia, cambia cómo se presenta.
 
 ### Monedas
 

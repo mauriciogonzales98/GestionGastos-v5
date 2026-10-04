@@ -44,14 +44,10 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
     render(
       <PantallaMovimientos
         hoy="2026-08-23"
-        email="ana@ejemplo.com"
         categorias={CATEGORIAS}
         monedas={MONEDAS}
         errorDelCatalogo={null}
         errorDelCatalogoDeMonedas={null}
-        onCerrarSesion={() => {}}
-        onGestionarCategorias={() => {}}
-        onVerDashboard={() => {}}
         onSesionVencida={() => {}}
       />,
     );
@@ -59,43 +55,42 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
 
     // El orden del DOM es el orden de tabulación: no hay tabindex positivo que lo altere.
     //
-    // Los primeros controles de la pantalla son los tres de la cabecera —"Dashboard",
-    // "Categorías" y "Cerrar sesión"—, que van antes del formulario. Se verifican en vez de
-    // saltearlos: si alguno apareciera con `tabindex` para sacarlo del camino, quien navega con
-    // teclado no podría alcanzarlo. "Categorías" llega con la feature 007 y es la puerta a la
-    // pantalla de gestión; "Dashboard" llega con la 010 y es la puerta al análisis del período.
+    // **Los tres botones de la cabecera ya no están acá** (`FR-022`, feature 014). Hasta entonces
+    // esta pantalla empezaba con "Dashboard", "Categorías" y "Cerrar sesión", y este test los
+    // recorría antes del formulario. Esos controles se fueron al marco de la app, que es donde
+    // vive la navegación, y su recorrido con teclado lo verifica `MarcoDeLaApp.test.tsx` — que
+    // además comprueba lo que acá no se podía: que la barra se recorra **antes** del contenido,
+    // aunque en el teléfono se vea abajo (research D-05).
     //
-    // Que este test se haya puesto en rojo al agregar el botón es la señal de que sirve: un control
-    // nuevo en la cabecera no pasa sin que alguien confirme que se llega a él con el teclado.
-    await usuario.tab();
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Dashboard' }));
-
-    await usuario.tab();
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Categorías' }));
-
-    await usuario.tab();
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cerrar sesión' }));
-
+    // Lo que este test sigue siendo es lo que dice su nombre: que el **formulario** se recorra
+    // entero. Con la pantalla montada sola, el primer control es el primer campo.
     await usuario.tab();
     expect(document.activeElement).toBe(screen.getByRole('radio', { name: 'Gasto' }));
 
+    // **La fecha pasa a ir segunda** con el reordenamiento de la feature 014: comparte el renglón
+    // de arriba con el tipo, uno en cada punta. Primero lo que encuadra el movimiento —de qué tipo
+    // es y cuándo fue—, después en qué se gastó, y al final cuánto.
+    //
+    // El campo se movió **en el DOM** y no con `order` de CSS, igual que la moneda en su momento,
+    // y es por eso que este recorrido sigue coincidiendo con lo que se ve (`FR-031`). Con `order`,
+    // el orden visual y el de tabulación serían dos cosas distintas y este test habría seguido en
+    // verde mientras la pantalla decía otra cosa.
     await usuario.tab();
-    expect(document.activeElement).toBe(screen.getByLabelText('Monto'));
-    await usuario.keyboard('800');
+    expect(document.activeElement).toBe(screen.getByLabelText('Fecha'));
 
     await usuario.tab();
     expect(document.activeElement).toBe(screen.getByLabelText('Categoría'));
     await usuario.selectOptions(screen.getByLabelText('Categoría'), '1');
 
-    // La moneda entra acá con la feature 009, entre la categoría y la fecha. AC-55 no cambió de
-    // exigencia —el formulario se recorre entero con Tab— y ahora tiene un control más que
-    // recorrer: un campo nuevo que quedara fuera del orden de tabulación sería inalcanzable para
-    // quien no usa mouse, y eso es justo lo que este test existe para impedir.
+    await usuario.tab();
+    expect(document.activeElement).toBe(screen.getByLabelText('Monto'));
+    await usuario.keyboard('800');
+
+    // La moneda va pegada al monto, y ese par no se separa: se leen juntos —"1500 ARS"— y por eso
+    // comparten renglón en todo ancho (`FR-029`, `FR-030`). Entró al formulario con la feature 009,
+    // cuando iba entre categoría y fecha.
     await usuario.tab();
     expect(document.activeElement).toBe(screen.getByLabelText('Moneda'));
-
-    await usuario.tab();
-    expect(document.activeElement).toBe(screen.getByLabelText('Fecha'));
 
     // La nota entra acá con la feature 012, ÚLTIMA del formulario y antes del botón. `AC-55` no
     // cambió de exigencia —el formulario se recorre entero con Tab y se envía con Enter sobre el
@@ -140,14 +135,10 @@ describe('AC-55 — el formulario se usa entero con el teclado', () => {
     render(
       <PantallaMovimientos
         hoy="2026-08-23"
-        email="ana@ejemplo.com"
         categorias={CATEGORIAS}
         monedas={MONEDAS}
         errorDelCatalogo={null}
         errorDelCatalogoDeMonedas={null}
-        onCerrarSesion={() => {}}
-        onGestionarCategorias={() => {}}
-        onVerDashboard={() => {}}
         onSesionVencida={() => {}}
       />,
     );
