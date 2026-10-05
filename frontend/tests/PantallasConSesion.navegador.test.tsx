@@ -135,6 +135,44 @@ describe('FR-015 · ningún control queda fuera de la ventana por los costados',
 });
 
 /**
+ * **Todo control escribe con la letra de la app.**
+ *
+ * La causa de que esto haga falta: un control de formulario **no hereda `font-family`**. El navegador
+ * le pone la suya —y a `textarea` le pone `monospace`—, así que la tipografía de Lila llega a los
+ * campos sólo porque una regla se la da. Una regla que enumera elementos a mano se olvida de uno, y
+ * eso ya pasó: `textarea` no estaba, y la nota del movimiento era el único texto de la app fuera de
+ * Figtree.
+ *
+ * Se mide la fuente **efectiva** y no el texto del CSS: lo que importa es con qué letra se dibuja,
+ * no qué reglas se escribieron. Y se compara contra la del `body` en lugar de contra el nombre de la
+ * fuente, para que el día que Lila cambie de tipografía esta prueba siga diciendo la verdad sin que
+ * haya que tocarla.
+ *
+ * En un solo ancho: la tipografía no depende del ancho, y repetirlo seis veces sería medir seis
+ * veces lo mismo.
+ */
+describe('la tipografía de Lila llega a todos los controles', () => {
+  for (const { seccion, nombre, contenido } of PANTALLAS) {
+    it(`en ${nombre} ningún campo ni botón usa otra letra que la del documento`, async () => {
+      const raiz = await abrir(seccion, contenido(), 1440);
+      await document.fonts.ready;
+
+      const delDocumento = getComputedStyle(document.body).fontFamily;
+
+      const ajenos = [...raiz.querySelectorAll<HTMLElement>('button, input, select, textarea')]
+        .map((control) => ({ control, familia: getComputedStyle(control).fontFamily }))
+        .filter(({ familia }) => familia !== delDocumento)
+        .map(
+          ({ control, familia }) =>
+            `${control.tagName.toLowerCase()}${control.getAttribute('type') ? `[type=${control.getAttribute('type')}]` : ''} usa ${familia}`,
+        );
+
+      expect(ajenos).toEqual([]);
+    });
+  }
+});
+
+/**
  * `FR-026` — el `<main>` **reserva** el alto de la barra inferior.
  *
  * Es la invariante, no el síntoma. Que el último control quede por encima de la barra después de

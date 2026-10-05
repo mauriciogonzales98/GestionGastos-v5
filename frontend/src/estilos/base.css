@@ -266,10 +266,18 @@ th {
 /*
  * Los controles heredan la tipografía del documento. Sin esto, `input`, `select` y `button` usan la
  * fuente del sistema a 13,33 px, que es más chica que el texto de al lado y no la eligió nadie.
+ *
+ * **`textarea` faltaba en esta lista y figuraba en la de abajo**, así que el campo de la nota tomaba
+ * el tamaño y el borde de los demás campos pero no su letra: Chrome le da `monospace` por omisión, y
+ * la nota era el único texto de la app que no se escribía en Figtree. Se descubrió al revés de como
+ * se busca —"¿por qué sólo la nota tiene la fuente nueva?"—, porque el que se ve distinto parece el
+ * cambiado. `PantallasConSesion.navegador.test.tsx` mide ahora los cuatro controles de las tres
+ * pantallas contra la fuente del documento, en lugar de nombrarlos de nuevo acá.
  */
 input,
 select,
-button {
+button,
+textarea {
   font: inherit;
   color: inherit;
 }
