@@ -1,4 +1,21 @@
 /*
+ * # Lila — el sistema visual de la aplicación
+ *
+ * **Este archivo es la única fuente de cualquier aspecto visual de la app** (`FR-001` de la feature
+ * 014): colores con rol, escala tipográfica, escala de espaciado, radios y área tocable. Una
+ * pantalla que declare un color, un tamaño de letra o un espaciado propio en lugar de un token de
+ * Lila rompe el contrato de esa feature.
+ *
+ * El carácter es **sobrio, con un solo acento violeta sobre neutros**, en modo claro y oscuro
+ * (`FR-021`). Los neutros están teñidos apenas de violeta —el fondo claro es un blanco violáceo, el
+ * oscuro un casi negro violáceo— para que la app se lea violeta sin pintar superficies grandes. El
+ * error y el éxito conservan rojo y verde porque son **estados**, no decoración.
+ *
+ * Que el sistema tenga nombre no es cosmética: es para que la próxima feature pueda decir "usá
+ * Lila" en lugar de inventar un color. Está en el glosario de `AGENTS.md`.
+ *
+ * ---
+ *
  * Lo semántico: los elementos se estilan por su selector cuando la regla vale para todos, y la
  * clase se agrega sólo cuando hace falta distinguir un caso.
  *
@@ -19,36 +36,183 @@
  * en rojo, a propósito.
  */
 
-:root {
-  /* La paleta (FR-002, NFR-001). Los pares y sus umbrales están en `tests/Paleta.test.ts`. */
-  --color-fondo: #ffffff;
-  --color-texto: #1a1a1a;
+/*
+ * ## La fuente, servida desde el repositorio
+ *
+ * El archivo vive en `fuentes/` junto a su licencia (SIL Open Font License 1.1, que **exige** que la
+ * licencia acompañe al archivo — por eso `OFL.txt` está al lado y no se borra).
+ *
+ * **Es una sola fuente variable**: un archivo cubre todos los grosores de 300 a 900, así que la
+ * negrita de un título y la seminegrita de un botón no son dos descargas más. Son 20 KB para toda
+ * la tipografía de la app.
+ *
+ * **Sólo el subconjunto latino.** El castellano entra entero ahí —la eñe, las vocales con tilde, los
+ * signos de apertura— y el subconjunto extendido agregaría peso en caracteres que esta app no
+ * escribe. Si algún día el producto suma un idioma que los necesite, se agrega el archivo, no se
+ * cambia esta decisión.
+ *
+ * `font-display: swap`: mientras el archivo viaja se pinta con la fuente del sistema, que es el
+ * respaldo de `--familia`. La alternativa —`block`— deja el texto invisible hasta que llegue, y un
+ * texto que no está es peor que un texto con otra letra.
+ */
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('./fuentes/figtree-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
-  /* El acento: enlaces, el control activo, el énfasis. Llega a 4,5:1 para poder llevar texto. */
-  --color-acento: #1f5c8b;
+:root {
+  /*
+   * **El modo lo decide el dispositivo y lo resuelve el navegador** (`FR-017`, `FR-019`, D-03).
+   *
+   * Los dos modos son las mismas variables redefinidas dentro de `prefers-color-scheme`, sin una
+   * línea de JavaScript. Tres cosas salen gratis de hacerlo así:
+   *
+   *   1. La primera pintura ya es la correcta: el navegador resuelve la consulta antes de pintar.
+   *      Con JavaScript eligiendo el tema, la primera pintura sería clara hasta que React monte, y
+   *      ese destello blanco es justo lo que `FR-019` prohíbe.
+   *   2. El cambio en vivo lo hace el navegador (`FR-018`): al cambiar la preferencia se reevalúa la
+   *      consulta y cambian los colores. React no se entera, así que no se desmonta nada y un
+   *      formulario a medio llenar sigue igual.
+   *   3. `color-scheme` es lo que le dice al navegador que pinte **sus** controles en oscuro — el
+   *      selector de fecha, las listas desplegables, las barras de desplazamiento (`FR-020`). Sin
+   *      esto aparecen blancos en medio de una pantalla oscura.
+   */
+  color-scheme: light dark;
+
+  /*
+   * ## La paleta clara (FR-002, NFR-001)
+   *
+   * Cada color tiene **un** rol, el que dice su nombre, y no se reutiliza fuera de él aunque el
+   * valor coincida: `--color-barra` vale lo mismo que `--color-acento` y sigue siendo otro token,
+   * porque el día que las barras cambien no tiene que cambiar el botón principal.
+   *
+   * Los pares y sus umbrales están en `tests/Paleta.test.ts`, que los mide **en los dos modos**. Un
+   * color nuevo sin decir contra qué fondo se usa pone ese test en rojo, a propósito.
+   */
+
+  /* Los dos fondos. La página es apenas violácea; la superficie es lo que se apoya encima:
+     tarjetas, la barra de navegación, los bloques de mensaje. */
+  --color-fondo: #f8f7fb;
+  --color-superficie: #ffffff;
+
+  --color-texto: #1d1a24;
+
+  /* El texto que acompaña sin ser el dato: las etiquetas de las cifras del resumen, el período, las
+     ayudas. Llega a 4,5:1 igual que el principal — "secundario" es jerarquía, no menos legible. */
+  --color-texto-secundario: #5c5668;
+
+  /* El acento, único (FR-021): botón principal, sección actual, enlaces. Llega a 4,5:1 contra los
+     dos fondos, así que puede llevar texto y no sólo marcar componentes. */
+  --color-acento: #6b46b0;
+
+  /* El texto que va ENCIMA del acento, que es el único lugar donde el fondo es el acento. */
+  --color-sobre-acento: #ffffff;
 
   /* El anillo de foco. Es más oscuro que el acento a propósito: tiene que ganarle al fondo Y
      distinguirse del borde de un control que ya está pintado de acento. */
-  --color-foco: #0b4f7a;
+  --color-foco: #4a2b86;
 
+  /* Los dos estados. Conservan rojo y verde porque son estados y no decoración (FR-021), y son los
+     que hacen que un error y una confirmación no se confundan (FR-005). */
   --color-error: #b3261e;
+  --color-exito: #1d6b40;
 
-  /* Bordes y separadores: 4,5:1 contra el fondo, bastante más que el 3:1 que se les pide. Sale
-     gratis y hace legible la tabla del listado, que se apoya entera en su línea inferior. */
-  --color-borde: #767676;
+  /* Bordes y separadores. */
+  --color-borde: #817a8d;
 
   /* El desglose del dashboard. `--color-barra` es el relleno de TODAS las barras: una sola entrada
      y no una paleta categórica, porque las categorías no se codifican por color (D-04 de la 010).
      Si el color no lleva información, no hay nada que un daltonismo pueda quitarle. */
-  --color-barra: #1f5c8b;
-  --color-riel: #e8e8e8;
+  --color-barra: #6b46b0;
+  --color-riel: #e9e4f2;
 
-  /* Espaciado y tipografía. No son colores, así que el verificador de contraste no los toca. */
+  /*
+   * ## Tipografía (FR-006, FR-007)
+   *
+   * **Figtree**, geométrica y amable, servida **desde el repositorio**.
+   *
+   * Hasta acá era la del sistema operativo, con dos motivos escritos: no hay que descargarla y no
+   * le cuenta a ningún tercero quién abre la app. El primero se paga —20 KB, una vez— y **el
+   * segundo se conserva entero**: el archivo viaja con la app, así que no hay una petición a un
+   * servidor de fuentes que le diga a nadie quién la abrió ni desde dónde, y la app funciona igual
+   * sin internet. Un `<link>` a Google Fonts habría sido una línea y habría roto esa promesa en
+   * silencio.
+   *
+   * La del sistema queda de respaldo, y no es decoración: es lo que se ve durante los milisegundos
+   * que tarda en cargar el archivo, y lo que se ve para siempre si no carga.
+   */
+  --familia: 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Cinco niveles; `FR-001` pide al menos cuatro. El base es 1rem y NO baja en los campos: con
+     menos de 16px, Safari de iPhone agranda la página al tocar un campo (FR-007). */
+  --texto-chico: 0.875rem;
+  --texto: 1rem;
+  --texto-grande: 1.25rem;
+  --texto-titulo: 1.5rem;
+  --texto-marca: 1.75rem;
+
+  /* ## Espaciado. Los tres del medio vienen de la feature 011 y no cambian de valor. */
+  --espacio-minimo: 0.25rem;
   --espacio-chico: 0.5rem;
   --espacio: 0.75rem;
   --espacio-grande: 1.5rem;
+  --espacio-enorme: 2.5rem;
+
+  /* ## Forma */
+  --radio: 0.5rem;
+  --radio-grande: 0.75rem;
+
+  /*
+   * El área tocable mínima: 44px, que es lo que piden las guías de las dos plataformas mobile
+   * principales (`FR-010`, `FR-025`, `FR-043`). WCAG AA pide 24x24 y esto la supera. Se usa como
+   * `min-height` de todo control, y también como `min-width` en los de sólo ícono.
+   */
+  --alto-tactil: 2.75rem;
+
+  /* El ancho de la barra lateral de navegación, desde el corte de 48rem (FR-023, D-05). */
+  --ancho-barra-lateral: 14rem;
+
   --ancho-maximo: 60rem;
-  --radio: 0.25rem;
+}
+
+/*
+ * ## La paleta oscura (FR-017)
+ *
+ * Los **mismos roles** con otros valores. No es la clara invertida: el texto oscuro no es blanco
+ * puro y el acento sube de luminosidad, porque un violeta que contrasta sobre blanco no contrasta
+ * sobre negro. Cada par se mide otra vez acá, y `tests/Paleta.test.ts` exige que **todo** color
+ * tenga su versión oscura declarada: uno heredado del modo claro es un color que nadie eligió para
+ * el fondo oscuro, y se va a ver mal aunque la cuenta pase.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-fondo: #16141b;
+    --color-superficie: #211e29;
+
+    --color-texto: #ece9f2;
+    --color-texto-secundario: #b1abbd;
+
+    /* El acento sube de luminosidad y el texto que va encima se da vuelta: sobre un violeta claro,
+       el que contrasta es un violeta casi negro, no el blanco. */
+    --color-acento: #b89cf2;
+    --color-sobre-acento: #1b1328;
+
+    --color-foco: #d6c5fa;
+
+    --color-error: #f28b82;
+    --color-exito: #7fd3a2;
+
+    --color-borde: #7f788b;
+
+    --color-barra: #b89cf2;
+    --color-riel: #34303d;
+  }
 }
 
 *,
@@ -59,7 +223,7 @@
 
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  font-family: var(--familia);
   line-height: 1.5;
   color: var(--color-texto);
   background-color: var(--color-fondo);
@@ -102,33 +266,136 @@ th {
 /*
  * Los controles heredan la tipografía del documento. Sin esto, `input`, `select` y `button` usan la
  * fuente del sistema a 13,33 px, que es más chica que el texto de al lado y no la eligió nadie.
+ *
+ * **`textarea` faltaba en esta lista y figuraba en la de abajo**, así que el campo de la nota tomaba
+ * el tamaño y el borde de los demás campos pero no su letra: Chrome le da `monospace` por omisión, y
+ * la nota era el único texto de la app que no se escribía en Figtree. Se descubrió al revés de como
+ * se busca —"¿por qué sólo la nota tiene la fuente nueva?"—, porque el que se ve distinto parece el
+ * cambiado. `PantallasConSesion.navegador.test.tsx` mide ahora los cuatro controles de las tres
+ * pantallas contra la fuente del documento, en lugar de nombrarlos de nuevo acá.
  */
 input,
 select,
-button {
+button,
+textarea {
   font: inherit;
   color: inherit;
 }
 
+/*
+ * Los campos (`FR-004`, `FR-007`, `FR-010`).
+ *
+ * El tamaño de letra se fija en `--texto` (1rem = 16px) y **no baja nunca**: con menos, Safari de
+ * iPhone agranda la página al tocar un campo, y la persona termina desplazándose de costado en una
+ * pantalla que no desbordaba (`FR-007`).
+ *
+ * El alto mínimo es `--alto-tactil`, 44px, que es lo que piden las guías de las dos plataformas
+ * mobile (`FR-010`).
+ */
 input,
-select {
+select,
+textarea {
   padding: var(--espacio-chico);
   border: 1px solid var(--color-borde);
   border-radius: var(--radio);
-  background-color: var(--color-fondo);
+  background-color: var(--color-superficie);
+  font-size: var(--texto);
+  min-height: var(--alto-tactil);
   /* Quita el ancho mínimo intrínseco que el navegador le da a los controles de formulario. Sin
      esto, un `select` con opciones largas no se encoge y estira la fila que lo contiene más allá de
      los 360 px. */
   min-width: 0;
 }
 
+/*
+ * El campo con error (`FR-004`).
+ *
+ * **La distinción no es sólo el color**: el borde además pasa de 1px a 2px. Quien no distingue el
+ * rojo del gris ve un borde más grueso, y el motivo del rechazo está escrito al lado de todas
+ * formas. Cuelga de `aria-invalid`, que es el atributo que el campo ya pone para anunciarlo, así
+ * que lo que se ve y lo que se anuncia **no pueden desincronizarse**: es el mismo dato.
+ */
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: var(--color-error);
+  border-width: 2px;
+}
+
+/* El campo deshabilitado: se lee que está, y se lee que no se puede tocar. */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color: var(--color-texto-secundario);
+  background-color: var(--color-fondo);
+  cursor: not-allowed;
+}
+
+/*
+ * ## Los botones (`FR-003`)
+ *
+ * Dos variantes, y **el `<button>` pelado es la secundaria**. Es a propósito: la acción principal es
+ * una por formulario como máximo, así que lo que tiene que costar escribir es la principal, no la
+ * otra. Si el defecto fuera el principal, cada botón nuevo nacería compitiendo por la atención y
+ * habría que acordarse de bajarlo.
+ */
 button {
   padding: var(--espacio-chico) var(--espacio);
-  border: 1px solid var(--color-acento);
+  border: 1px solid var(--color-borde);
   border-radius: var(--radio);
-  background-color: var(--color-fondo);
+  background-color: var(--color-superficie);
   color: var(--color-acento);
+  /* 44px de alto también en los botones: son el control que más se toca (`FR-010`). */
+  min-height: var(--alto-tactil);
   cursor: pointer;
+}
+
+/*
+ * La acción principal: la que completa lo que la persona vino a hacer. Relleno de acento y el texto
+ * que contrasta sobre él. Como máximo una a la vista por formulario (`FR-003`).
+ */
+.c-boton--principal {
+  border-color: var(--color-acento);
+  background-color: var(--color-acento);
+  color: var(--color-sobre-acento);
+  font-weight: 600;
+}
+
+button:disabled {
+  color: var(--color-texto-secundario);
+  border-color: var(--color-borde);
+  background-color: var(--color-fondo);
+  cursor: progress;
+}
+
+/*
+ * El principal deshabilitado conserva el relleno de acento, apenas apagado por la opacidad.
+ *
+ * Es el estado "enviando" del formulario de acceso (`FR-012`): si al deshabilitarse perdiera el
+ * relleno, el botón cambiaría de aspecto completo en el momento en que la persona está esperando
+ * una respuesta, y eso se lee como que algo salió mal.
+ */
+.c-boton--principal:disabled {
+  border-color: var(--color-acento);
+  background-color: var(--color-acento);
+  color: var(--color-sobre-acento);
+  opacity: 0.7;
+}
+
+/*
+ * Las únicas transiciones de Lila: color y fondo, 120 ms, en botones. Ninguna de posición.
+ *
+ * Van **dentro** de la guardia y no sueltas con una anulación aparte (`FR-016`, research D-10): así
+ * una transición nueva escrita afuera pone `MovimientoReducido.test.ts` en rojo, en lugar de nacer
+ * animada y quedarse animada hasta que alguien se acuerde de anularla.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  button {
+    transition:
+      background-color 120ms,
+      color 120ms,
+      border-color 120ms;
+  }
 }
 
 /*
@@ -140,11 +407,62 @@ button {
 }
 
 /*
+ * ## Los mensajes de bloque (`FR-005`, `SC-004`)
+ *
+ * El error general del formulario y la confirmación del alta. Tienen que distinguirse **entre sí**
+ * y no sólo del texto normal, y vistos en escala de grises: `SC-004` lo exige.
+ *
+ * Tres cosas los separan, y sólo una es el color: el **borde lateral** de 4px, el **ícono** que cada
+ * uno lleva al lado del texto (`IconoError`, `IconoExito`) y el fondo tenue. Quien no distingue rojo
+ * de verde ve dos íconos distintos; quien no ve los íconos lee el texto, que dice qué pasó.
+ */
+.c-mensaje {
+  display: flex;
+  gap: var(--espacio-chico);
+  align-items: start;
+  padding: var(--espacio);
+  border-left: 4px solid;
+  border-radius: var(--radio);
+  /* El mensaje crece en alto y no en ancho: varios motivos del servidor juntos se parten en
+     líneas dentro del bloque en lugar de ensancharlo (caso borde de la spec). */
+  overflow-wrap: break-word;
+}
+
+.c-mensaje--error {
+  border-left-color: var(--color-error);
+  color: var(--color-error);
+  /* `color-mix` tiñe el fondo con el color del estado sin declarar un color nuevo, así que no
+     agrega un token que `Paleta.test.ts` tendría que medir contra algo. El texto se mide contra
+     `--color-fondo` y `--color-superficie`, que es sobre lo que este tinte se apoya. */
+  background-color: color-mix(in srgb, var(--color-error) 8%, var(--color-superficie));
+}
+
+.c-mensaje--exito {
+  border-left-color: var(--color-exito);
+  color: var(--color-exito);
+  background-color: color-mix(in srgb, var(--color-exito) 8%, var(--color-superficie));
+}
+
+/* El ícono del mensaje no se encoge cuando el texto es largo. */
+.c-mensaje svg {
+  flex-shrink: 0;
+}
+
+/*
  * Texto que sólo leen los lectores de pantalla.
  *
  * Es para encabezados que la vista no necesita —la columna de acciones de una tabla, cuyo botón ya
  * se anuncia solo— pero que la tabla sí necesita para seguir siendo regular. `display: none` no
  * sirve: eso lo saca también del árbol de accesibilidad, que es justo lo contrario.
+ *
+ * **Cuidado con dónde se usa, por el `position: absolute`.** Un elemento posicionado se ubica contra
+ * el bloque contenedor más cercano que esté **posicionado**; si no hay ninguno, ése es la página. El
+ * span queda entonces en su posición estática pero colgado de la página, así que **ningún
+ * `overflow` intermedio lo recorta** y su posición cuenta para el desplazamiento de la página. Pasó
+ * dentro de la tabla del listado, que se desplaza de costado a 360 px: el span del encabezado de
+ * acciones quedaba en x ≈ 675 y la página entera se corría. Se arregla en el contenedor que recorta
+ * —`.c-listado-movimientos__desborde` declara `position: relative` por esto—, no acá: el recorte es
+ * de quien recorta.
  */
 .u-solo-lectores {
   position: absolute;

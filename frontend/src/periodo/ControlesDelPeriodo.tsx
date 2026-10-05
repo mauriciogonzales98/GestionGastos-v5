@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 
 export interface PropsControlesDelPeriodo {
   /**
@@ -22,6 +22,19 @@ export interface PropsControlesDelPeriodo {
   onAplicar: (desde: string, hasta: string) => void;
   /** El mensaje del servidor cuando rechazó el rango, o `null`. Va al lado de los campos. */
   error: string | null;
+  /**
+   * Dónde va el rótulo de cada extremo: `'al-lado'` (lo de siempre) o `'encima'`.
+   *
+   * **Es presentación y está acá a propósito.** El listado pone los cuatro acotados y el botón en un
+   * solo renglón, y con los rótulos al lado no entran: las dos palabras "Desde" y "Hasta" más sus
+   * separaciones son ~110 px de los 888 que la barra tiene, y la fila se partía en dos. Con el
+   * rótulo encima entra, y además los dos extremos quedan igual que los dos selectores de al lado,
+   * que son `.c-campo`.
+   *
+   * El dashboard se queda con `'al-lado'`, que es el valor por omisión: ahí el rango convive con el
+   * acotado por moneda, que también lleva su rótulo al lado, y cambiarlo desalinearía los dos.
+   */
+  rotulos?: 'al-lado' | 'encima';
 }
 
 /**
@@ -41,11 +54,49 @@ export interface PropsControlesDelPeriodo {
  * `rango` — una clave que existe, según su propio comentario, *"porque el frontend la usa para poner
  * el mensaje al lado del control"*. Se escribió para este momento.
  */
+/**
+ * Un extremo con su rótulo, puesto donde `rotulos` diga.
+ *
+ * Con `'al-lado'` no envuelve en nada: el rótulo y el campo son hijos directos de la fila, que es
+ * exactamente el árbol que este componente tenía antes de que existiera la opción. Así el dashboard
+ * —y las pruebas que lo miden— no ven ningún cambio.
+ */
+function Extremo({
+  rotulos,
+  id,
+  nombre,
+  children,
+}: {
+  rotulos: 'al-lado' | 'encima';
+  id: string;
+  nombre: string;
+  children: ReactNode;
+}) {
+  const rotulo = <label htmlFor={id}>{nombre}</label>;
+
+  if (rotulos === 'al-lado') {
+    return (
+      <>
+        {rotulo}
+        {children}
+      </>
+    );
+  }
+
+  return (
+    <div className="l-pila c-campo">
+      {rotulo}
+      {children}
+    </div>
+  );
+}
+
 export function ControlesDelPeriodo({
   onAplicar,
   error,
   desdeInicial = '',
   hastaInicial = '',
+  rotulos = 'al-lado',
 }: PropsControlesDelPeriodo) {
   const idDesde = useId();
   const idHasta = useId();
@@ -64,23 +115,25 @@ export function ControlesDelPeriodo({
         onAplicar(desde, hasta);
       }}
     >
-      <label htmlFor={idDesde}>Desde</label>
-      <input
-        id={idDesde}
-        type="date"
-        value={desde}
-        aria-describedby={error ? idError : undefined}
-        onChange={(evento) => setDesde(evento.target.value)}
-      />
+      <Extremo rotulos={rotulos} id={idDesde} nombre="Desde">
+        <input
+          id={idDesde}
+          type="date"
+          value={desde}
+          aria-describedby={error ? idError : undefined}
+          onChange={(evento) => setDesde(evento.target.value)}
+        />
+      </Extremo>
 
-      <label htmlFor={idHasta}>Hasta</label>
-      <input
-        id={idHasta}
-        type="date"
-        value={hasta}
-        aria-describedby={error ? idError : undefined}
-        onChange={(evento) => setHasta(evento.target.value)}
-      />
+      <Extremo rotulos={rotulos} id={idHasta} nombre="Hasta">
+        <input
+          id={idHasta}
+          type="date"
+          value={hasta}
+          aria-describedby={error ? idError : undefined}
+          onChange={(evento) => setHasta(evento.target.value)}
+        />
+      </Extremo>
 
       <button type="submit">Aplicar</button>
 

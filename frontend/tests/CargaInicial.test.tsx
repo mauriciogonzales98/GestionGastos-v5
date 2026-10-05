@@ -47,14 +47,10 @@ describe('carga inicial que falla', () => {
     render(
       <PantallaMovimientos
         hoy="2026-08-23"
-        email="ana@ejemplo.com"
         categorias={[]}
         monedas={MONEDAS}
         errorDelCatalogo={ERROR_DEL_CATALOGO}
         errorDelCatalogoDeMonedas={null}
-        onCerrarSesion={() => {}}
-        onGestionarCategorias={() => {}}
-        onVerDashboard={() => {}}
         onSesionVencida={() => {}}
       />,
     );
@@ -89,14 +85,10 @@ describe('carga inicial que falla', () => {
     render(
       <PantallaMovimientos
         hoy="2026-08-23"
-        email="ana@ejemplo.com"
         categorias={CATEGORIAS}
         monedas={MONEDAS}
         errorDelCatalogo={null}
         errorDelCatalogoDeMonedas={null}
-        onCerrarSesion={() => {}}
-        onGestionarCategorias={() => {}}
-        onVerDashboard={() => {}}
         onSesionVencida={() => {}}
       />,
     );
@@ -116,14 +108,10 @@ describe('carga inicial que falla', () => {
     render(
       <PantallaMovimientos
         hoy="2026-08-23"
-        email="ana@ejemplo.com"
         categorias={[]}
         monedas={MONEDAS}
         errorDelCatalogo={ERROR_DEL_CATALOGO}
         errorDelCatalogoDeMonedas={null}
-        onCerrarSesion={() => {}}
-        onGestionarCategorias={() => {}}
-        onVerDashboard={() => {}}
         onSesionVencida={() => {}}
       />,
     );
@@ -156,14 +144,10 @@ describe('carga inicial que falla', () => {
     render(
       <PantallaMovimientos
         hoy="2026-08-23"
-        email="ana@ejemplo.com"
         categorias={CATEGORIAS}
         monedas={MONEDAS}
         errorDelCatalogo={null}
         errorDelCatalogoDeMonedas={null}
-        onCerrarSesion={NO_OP}
-        onGestionarCategorias={NO_OP}
-        onVerDashboard={NO_OP}
         onSesionVencida={NO_OP}
       />,
     );

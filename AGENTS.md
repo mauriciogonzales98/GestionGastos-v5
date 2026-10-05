@@ -48,8 +48,8 @@ en todos lados.
 | Install | `pnpm --dir frontend install --frozen-lockfile` |
 | Lint (frontend) | `pnpm --dir frontend lint` |
 | Format (frontend) | `pnpm --dir frontend format` — `prettier --check`: **verifica sin modificar archivos**, para que el paso del CI pueda ponerse en rojo. Para formatear de verdad: `pnpm --dir frontend format:fix` |
-| Typecheck | `pnpm --dir frontend exec tsc --noEmit` |
-| Test (frontend) | `pnpm --dir frontend test` |
+| Typecheck | `pnpm --dir frontend typecheck` — corre **dos** programas de TypeScript: `tsc --noEmit` (la app y la suite de siempre) y `tsc -p tsconfig.navegador.json --noEmit` (las pruebas que miden). Son dos y no uno porque importar `vitest/browser` reemplaza la interfaz `Assertion` por la del modo navegador, y entonces los `toHaveTextContent(/regex/)` de `@testing-library/jest-dom` dejan de compilar. El motivo completo, y lo que se descartó: `specs/014-identidad-visual/research.md`, D-12 |
+| Test (frontend) | `pnpm --dir frontend test` — corre **dos proyectos de Vitest**: `dom` (happy-dom, la suite de siempre) y `navegador` (Chromium sin ventana, los archivos `*.navegador.test.tsx`, que miden anchos, alturas, áreas tocables y el modo oscuro aplicado). El segundo necesita Chromium instalado: `pnpm --dir frontend exec playwright install chromium` y, una vez por máquina, `sudo env "PATH=$PATH" pnpm --dir frontend exec playwright install-deps chromium` —en el WSL de desarrollo falta `libnspr4.so`—. Si el navegador no arranca, el proyecto `navegador` **falla**; no se saltea, a propósito: una puerta que pasara en verde sin Chromium estaría diciendo que midió algo que no midió |
 | Lint (backend) | `dotnet format backend/GestionGastos.slnx --verify-no-changes` — espejo de `prettier --check`: verifica sin modificar archivos |
 | Build (backend) | `dotnet build backend/GestionGastos.slnx -warnaserror` — además de compilar corre los analizadores de Roslyn, así que un hallazgo de calidad rompe el build. Qué reglas se aplican y cuáles se apagan, con su motivo: `backend/.editorconfig` |
 | Cobertura (backend) | `dotnet test backend/GestionGastos.slnx --settings backend/cobertura.runsettings` — mide también el código de `Contrato/`, que vive en el proyecto de tests y que coverlet no instrumenta por defecto |
@@ -112,3 +112,8 @@ Los términos propios del producto, para que el agente los use bien en lugar de 
 
 - **Gasto:** dinero que salió de mi cuenta.
 - **Ingreso:** dinero que ingresó a mi cuenta.
+- **Lila:** el sistema visual de la app, estrenado por la feature 014. Es la única fuente de
+  cualquier aspecto visual —colores con rol, escala tipográfica, espaciado, radios, área tocable— y
+  vive en `frontend/src/estilos/base.css`. Una pantalla que declare un color o un tamaño propio en
+  lugar de un token de Lila rompe el contrato de esa feature. Carácter: sobrio, un solo acento
+  violeta sobre neutros, en modo claro y oscuro.

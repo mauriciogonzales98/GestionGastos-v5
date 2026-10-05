@@ -10,6 +10,7 @@ import {
   obtenerResumen,
 } from '../api/cliente';
 import type { AcotadoDelListado } from '../api/cliente';
+import { formatearFecha } from '../ui/formatearFecha';
 import type {
   Categoria,
   Moneda,
@@ -27,8 +28,6 @@ import { VentanaDeEdicion } from './VentanaDeEdicion';
 export interface PropsPantallaMovimientos {
   /** El día de hoy en `YYYY-MM-DD`. Entra por prop para que los tests sean deterministas. */
   hoy: string;
-  /** El email de la cuenta en sesión, para que se vea con cuál se está trabajando (FR-004). */
-  email: string;
   /**
    * El catálogo que alimenta el selector. **Baja por props y ya no se pide acá** (D-08): vive en la
    * raíz para que esta pantalla y la de gestión miren la misma lista, y para que se pida una sola
@@ -47,11 +46,6 @@ export interface PropsPantallaMovimientos {
    * tendría que mentir en uno de los dos casos.
    */
   errorDelCatalogoDeMonedas: string | null;
-  onCerrarSesion: () => void;
-  /** Lleva a la pantalla de gestión del catálogo (FR-017). */
-  onGestionarCategorias: () => void;
-  /** Lleva al dashboard, donde se elige el período y la moneda que se miran (FR-011b). */
-  onVerDashboard: () => void;
   /**
    * Se llama cuando una petición vuelve `401`, con el aviso que explica qué pasó y qué se perdió.
    *
@@ -92,14 +86,10 @@ export function esDelMesDe(fecha: string, hoy: string): boolean {
  */
 export function PantallaMovimientos({
   hoy,
-  email,
   categorias,
   monedas,
   errorDelCatalogo,
   errorDelCatalogoDeMonedas,
-  onCerrarSesion,
-  onGestionarCategorias,
-  onVerDashboard,
   onSesionVencida,
 }: PropsPantallaMovimientos) {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
@@ -405,7 +395,7 @@ export function PantallaMovimientos({
     // Se guardó igual, pero el listado sólo muestra el mes actual. Si la confirmación no lo
     // dijera, la persona vería que no aparece y creería que se perdió.
     setConfirmacion(
-      `Movimiento registrado con fecha ${creado.fecha}. Como no es de este mes, no aparece en el listado.`,
+      `Movimiento registrado con fecha ${formatearFecha(creado.fecha)}. Como no es de este mes, no aparece en el listado.`,
     );
   }
 
@@ -534,23 +524,9 @@ export function PantallaMovimientos({
 
   return (
     <main className="l-pila">
-      <div className="l-fila l-cabecera">
-        <h1>Mis movimientos</h1>
-        {/* Se ve con qué cuenta se está trabajando (FR-004): sin esto, dos cuentas en el mismo
-            navegador son indistinguibles hasta que alguien carga un gasto en la equivocada. */}
-        <p>{email}</p>
-        <button type="button" onClick={onVerDashboard}>
-          Dashboard
-        </button>
-        <button type="button" onClick={onGestionarCategorias}>
-          Categorías
-        </button>
-        {/* Un `<button>` y no un enlace: cambia estado del servidor, y los enlaces son para
-            navegar. Un enlace acá además sería seguible por un prefetch del navegador. */}
-        <button type="button" onClick={onCerrarSesion}>
-          Cerrar sesión
-        </button>
-      </div>
+      {/* El título queda; la cuenta y los tres botones de navegar se fueron al marco de la app
+          (`FR-022`, feature 014). La pantalla ya no sabe que existe una barra. */}
+      <h1>Mis movimientos</h1>
 
       {/* El resumen del mes, ARRIBA de todo (FR-011). Es lo primero que alguien quiere saber al
           entrar —cómo viene el mes— y ponerlo debajo del formulario lo dejaría fuera de la
@@ -561,6 +537,11 @@ export function PantallaMovimientos({
       {errorDelResumen ? <p role="alert">{errorDelResumen}</p> : null}
       {resumen ? (
         <ResumenDelPeriodo
+          /* **Sin desglose acá** (`FR-035`): esta pantalla muestra ingresado, gastado y balance,
+             que es lo que `PRD:RF-22` pide para la pantalla principal. El desglose por categoría es
+             `PRD:RF-19` y vive en el dashboard — así que sacarlo de acá no es una concesión:
+             alinea la app con el PRD, que venía describiendo otra cosa. */
+          conDesglose={false}
           resumen={resumen}
           titulo="Resumen del mes"
           monedas={monedas}
@@ -599,22 +580,13 @@ export function PantallaMovimientos({
       {/* `role="status"` y no `alert`: no impide trabajar, así que se anuncia sin interrumpir. */}
       {errorDelCatalogoDeMonedas ? <p role="status">{errorDelCatalogoDeMonedas}</p> : null}
 
-      {/* La barra de acotado, con los TRES controles (FR-014 a FR-016). Hasta la feature 011 acá
-          había un `<select>` de moneda suelto y el comentario decía que era "donde la barra va a
-          crecer": creció. Los tres se aplican juntos con un solo botón (D-06).
+      {/* La barra de acotado, con los TRES controles (FR-014 a FR-016), **se dibuja dentro del
+          listado**: ver la prop `filtros` de abajo.
 
           El período arranca con el que el servidor eligió, que llega en el `Resumen` del mes en
           curso: `GET /api/movimientos` no dice qué período aplicó, y calcularlo acá sería un segundo
           intérprete de "hoy" (FR-015, D-05). Mientras el resumen no haya llegado, los campos
           arrancan vacíos — que es lo mismo que el servidor entiende por "el mes en curso". */}
-      <FiltrosDelListado
-        categorias={categorias}
-        monedas={monedas}
-        desdeInicial={resumen?.desde}
-        hastaInicial={resumen?.hasta}
-        errorDelPeriodo={errorDelPeriodo}
-        onAplicar={setAcotado}
-      />
 
       {cargandoListado ? (
         <p>Cargando movimientos…</p>
@@ -625,6 +597,19 @@ export function PantallaMovimientos({
           onEditar={setEnEdicion}
           onEliminar={(m) => void eliminar(m)}
           refDelEncabezado={encabezadoDelListado}
+          /* La barra de acotado va DENTRO del listado, debajo de su encabezado: acota lo que esa
+             tabla muestra, así que pertenece a esa sección. Suelta acá arriba quedaba entre el
+             formulario de carga y la tabla, y se leía como un paso más del formulario. */
+          filtros={
+            <FiltrosDelListado
+              categorias={categorias}
+              monedas={monedas}
+              desdeInicial={resumen?.desde}
+              hastaInicial={resumen?.hasta}
+              errorDelPeriodo={errorDelPeriodo}
+              onAplicar={setAcotado}
+            />
+          }
         />
       )}
 

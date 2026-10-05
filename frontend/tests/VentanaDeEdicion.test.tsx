@@ -43,14 +43,10 @@ async function renderizar() {
   render(
     <PantallaMovimientos
       hoy={HOY}
-      email="ana@ejemplo.com"
       categorias={CATEGORIAS}
       monedas={MONEDAS}
       errorDelCatalogo={null}
       errorDelCatalogoDeMonedas={null}
-      onCerrarSesion={() => {}}
-      onGestionarCategorias={() => {}}
-      onVerDashboard={() => {}}
       onSesionVencida={() => {}}
     />,
   );
@@ -58,6 +54,15 @@ async function renderizar() {
 }
 
 /** Abre la ventana desde la fila del listado y devuelve el `userEvent` en uso. */
+/*
+ * **El botón de editar se busca por un nombre que empieza con "Editar" y no por "Editar" exacto.**
+ *
+ * Desde la feature 014 su nombre accesible dice de qué movimiento se trata —"Editar el gasto del
+ * 2026-09-02 en Comida"— porque con varias filas un lector de pantalla anunciaba varios "Editar"
+ * indistinguibles (`FR-047`). Es uno de los cambios de nombre accesible que `SC-006` autoriza, y
+ * este archivo es el que lo paga: era el único que buscaba el texto exacto.
+ */
+
 /** Abre la ventana sobre un movimiento concreto, para los casos que necesitan otro contenido. */
 async function abrirCon(movimiento: Movimiento) {
   vi.mocked(cliente.obtenerMovimientos).mockResolvedValue([movimiento]);
@@ -67,7 +72,7 @@ async function abrirCon(movimiento: Movimiento) {
   const fila = within(screen.getByRole('table', { name: /movimientos del mes/i })).getAllByRole(
     'row',
   )[1];
-  await usuario.click(within(fila).getByRole('button', { name: 'Editar' }));
+  await usuario.click(within(fila).getByRole('button', { name: /^Editar/ }));
 
   return usuario;
 }
@@ -79,7 +84,7 @@ async function abrir() {
   const fila = within(screen.getByRole('table', { name: /movimientos del mes/i })).getAllByRole(
     'row',
   )[1];
-  await usuario.click(within(fila).getByRole('button', { name: 'Editar' }));
+  await usuario.click(within(fila).getByRole('button', { name: /^Editar/ }));
 
   return usuario;
 }
@@ -96,6 +101,41 @@ async function abrir() {
  * El entorno de tests es happy-dom, y que implemente `showModal()` se verificó **antes** de elegir
  * el enfoque, no a mitad de la implementación (research.md D-07).
  */
+/**
+ * FR-033 — la ventana de edición usa **la misma agrupación** que el alta.
+ *
+ * No por una regla que haya que mantener de acuerdo, sino porque las dos pantallas renderizan el
+ * mismo `CamposDelMovimiento` desde la feature 009 (D-08). Esta prueba afirma esa consecuencia: si
+ * alguien partiera el componente en dos para "ajustar" la edición, el alta y la edición se irían
+ * separando sin que nada avisara.
+ */
+describe('FR-033 · la edición agrupa los campos igual que el alta', () => {
+  it('agrupa igual que el alta: tipo y fecha arriba, monto con su moneda (FR-033, US6:AC5)', async () => {
+    await abrir();
+
+    const ventana = screen.getByRole('dialog');
+
+    // El renglón de arriba: el tipo a la izquierda y la fecha a la derecha.
+    const arriba = ventana.querySelector('.l-extremos')!;
+    expect(arriba.querySelector('fieldset')).not.toBeNull();
+    expect([...arriba.querySelectorAll('label')].map((l) => l.textContent?.trim())).toEqual([
+      'Gasto',
+      'Ingreso',
+      'Fecha',
+    ]);
+
+    // Y el par que no se separa nunca: monto con su moneda. Se mira la estructura y no las
+    // posiciones: medir renglones es del proyecto `navegador`, y acá lo que importa es que la
+    // agrupación exista.
+    const pares = [...ventana.querySelectorAll('.l-par')];
+    expect(pares).toHaveLength(1);
+    expect([...pares[0].querySelectorAll('label')].map((l) => l.textContent?.trim())).toEqual([
+      'Monto',
+      'Moneda',
+    ]);
+  });
+});
+
 describe('VentanaDeEdicion', () => {
   /**
    * AC-10 del lado de la pantalla: la ventana se abre con **todo ya cargado**.
@@ -244,7 +284,7 @@ describe('VentanaDeEdicion', () => {
     const fila = within(screen.getByRole('table', { name: /movimientos del mes/i })).getAllByRole(
       'row',
     )[1];
-    await usuario.click(within(fila).getByRole('button', { name: 'Editar' }));
+    await usuario.click(within(fila).getByRole('button', { name: /^Editar/ }));
 
     const ventana = screen.getByRole('dialog');
     await usuario.selectOptions(within(ventana).getByLabelText('Moneda'), '1');

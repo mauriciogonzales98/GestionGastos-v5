@@ -12,8 +12,6 @@ export interface PropsPantallaDashboard {
    * que el usuario mira (FR-007).
    */
   monedas: Moneda[];
-  /** Vuelve a la pantalla principal. */
-  onVolver: () => void;
   onSesionVencida: (motivo: string) => void;
 }
 
@@ -32,7 +30,7 @@ const SESION_VENCIDA = 'Tu sesión venció. Volvé a entrar.';
  * raíz haría que elegir un trimestre acá cambiara los números de allá, que es lo que `FR-012`
  * prohíbe y sería invisible en la pantalla donde se produce.
  */
-export function PantallaDashboard({ monedas, onVolver, onSesionVencida }: PropsPantallaDashboard) {
+export function PantallaDashboard({ monedas, onSesionVencida }: PropsPantallaDashboard) {
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null);
 
@@ -148,11 +146,8 @@ export function PantallaDashboard({ monedas, onVolver, onSesionVencida }: PropsP
 
   return (
     <main className="l-pila">
-      <div className="l-fila l-cabecera">
+      <div className="l-fila">
         <h1>Dashboard</h1>
-        <button type="button" onClick={onVolver}>
-          Volver a movimientos
-        </button>
       </div>
 
       <ControlesDelPeriodo

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { ErrorDeValidacion } from '../api/cliente';
 import type { Categoria, NuevaCategoria, TipoMovimiento } from '../api/tipos';
+import { BotonIcono } from '../ui/BotonIcono';
 import { CampoConError } from '../ui/CampoConError';
+import { IconoEditar, IconoEliminar } from '../ui/iconos';
 
 export interface PropsPantallaCategorias {
   /**
@@ -14,7 +16,6 @@ export interface PropsPantallaCategorias {
   onCrear: (nueva: NuevaCategoria) => Promise<void>;
   onRenombrar: (id: number, nombre: string) => Promise<void>;
   onDarDeBaja: (id: number) => Promise<void>;
-  onVolver: () => void;
 }
 
 const ERROR_GENERICO = 'No se pudo completar la operación. Volvé a intentarlo.';
@@ -40,7 +41,6 @@ export function PantallaCategorias({
   onCrear,
   onRenombrar,
   onDarDeBaja,
-  onVolver,
 }: PropsPantallaCategorias) {
   const [nombre, setNombre] = useState('');
   const [tipo, setTipo] = useState<TipoMovimiento>('gasto');
@@ -147,11 +147,8 @@ export function PantallaCategorias({
 
   return (
     <main className="l-pila">
-      <div className="l-fila l-cabecera">
+      <div className="l-fila">
         <h1>Mis categorías</h1>
-        <button type="button" onClick={onVolver}>
-          Volver a movimientos
-        </button>
       </div>
 
       <form className="l-pila" onSubmit={(e) => void crear(e)} noValidate>
@@ -190,8 +187,11 @@ export function PantallaCategorias({
         {categorias.map((categoria) => (
           // `aria-label` en el `<li>`: es lo que le da nombre accesible a la fila, y lo que
           // permite hablar de "la fila de Gimnasio" en vez de "la tercera".
-          <li key={categoria.id} aria-label={categoria.nombre}>
-            <span>{categoria.nombre}</span>
+          <li key={categoria.id} className="l-fila" aria-label={categoria.nombre}>
+            {/* La clase es lo que permite que un nombre largo se corte con puntos suspensivos en
+                lugar de empujar los íconos a otra línea (`FR-043`). El tipo no la necesita: son
+                dos palabras de largo fijo. */}
+            <span className="c-categoria__nombre">{categoria.nombre}</span>
             <span>{categoria.tipo === 'gasto' ? 'Gasto' : 'Ingreso'}</span>
 
             {/* FR-017: **todas** las filas ofrecen renombrar y dar de baja. Hasta la feature 013
@@ -237,16 +237,19 @@ export function PantallaCategorias({
               </>
             ) : (
               <>
-                <button
-                  type="button"
+                {/* **El nombre accesible es el mismo de siempre**: el ícono reemplaza la
+                    palabra visible, no lo que se anuncia (`FR-042`). Es por eso que las pruebas de
+                    esta pantalla siguieron en verde sin editarse, que es lo que `SC-006` pide. */}
+                <BotonIcono
+                  nombre={`Renombrar ${categoria.nombre}`}
+                  accion="Renombrar"
+                  icono={IconoEditar}
                   onClick={() => {
                     limpiarErrores();
                     setConfirmandoLaBaja(null);
                     setRenombrando({ id: categoria.id, nombre: categoria.nombre });
                   }}
-                >
-                  Renombrar {categoria.nombre}
-                </button>
+                />
                 {confirmandoLaBaja === categoria.id ? (
                   <>
                     {/* Dicho entero y no "¿Seguro?": lo que hay que saber antes de apretar es
@@ -264,15 +267,19 @@ export function PantallaCategorias({
                     </button>
                   </>
                 ) : (
-                  <button
-                    type="button"
+                  /* El tacho y no una cruz: en esta misma fila, al renombrar, aparece
+                     "Cancelar", y una cruz se lee como cerrar o cancelar antes que como eliminar
+                     (`FR-046`). Lo que sigue llevando palabra es la confirmación de abajo: ahí la
+                     palabra dice exactamente qué pasa (`FR-044`, `FR-045`). */
+                  <BotonIcono
+                    nombre={`Dar de baja ${categoria.nombre}`}
+                    accion="Dar de baja"
+                    icono={IconoEliminar}
                     onClick={() => {
                       limpiarErrores();
                       setConfirmandoLaBaja(categoria.id);
                     }}
-                  >
-                    Dar de baja {categoria.nombre}
-                  </button>
+                  />
                 )}
               </>
             )}

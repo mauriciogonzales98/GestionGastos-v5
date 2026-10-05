@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { ListadoMovimientos } from '../src/movimientos/ListadoMovimientos';
 import type { Movimiento } from '../src/api/tipos';
 import { SIN_CENTAVOS } from './monedas.fixture';
+import { IconoEditar, IconoEliminar } from '../src/ui/iconos';
+import { formatearFecha } from '../src/ui/formatearFecha';
 
 const MOVIMIENTOS: Movimiento[] = [
   {
@@ -80,6 +82,22 @@ describe('ListadoMovimientos', () => {
     ]);
     // scope="col" es lo que permite a un lector de pantalla anunciar la columna de cada celda.
     encabezados.forEach((e) => expect(e).toHaveAttribute('scope', 'col'));
+  });
+
+  it('muestra la fecha en dd/MM/yyyy y no en el ISO que manda la API', () => {
+    render(
+      <ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} onEliminar={() => {}} />,
+    );
+
+    const filas = screen.getAllByRole('row').slice(1);
+    expect(within(filas[0]).getByText('20/08/2026')).toBeInTheDocument();
+    expect(within(filas[1]).getByText('10/08/2026')).toBeInTheDocument();
+
+    // Y el ISO ya no aparece: ni en la celda ni en ninguna otra parte de la fila, que es donde
+    // seguiría si el nombre de sus botones lo dijera.
+    const celdas = within(filas[0]).getAllByRole('cell');
+    expect(celdas[0]).toHaveTextContent('20/08/2026');
+    expect(filas[0]).not.toHaveTextContent('2026-08-20');
   });
 
   it('muestra el tipo como texto y no sólo por color', () => {
@@ -227,5 +245,89 @@ describe('ListadoMovimientos — la escala del monto FR-019', () => {
     );
 
     expect(screen.getByRole('cell', { name: /1\.250/ })).toBeInTheDocument();
+  });
+});
+
+/**
+ * FR-041, FR-047, US8:AC6 — **lápiz y tacho en el listado, y editar dice de qué movimiento**.
+ *
+ * El de eliminar ya decía sobre qué actuaba desde la feature 005; el de editar decía sólo "Editar",
+ * y con seis movimientos en la tabla un lector de pantalla anunciaba seis botones indistinguibles.
+ * `FR-047` lo arregla, y es uno de los cambios de nombre accesible que `SC-006` autoriza: por eso
+ * `VentanaDeEdicion.test.tsx` sí se tocó y `EliminarMovimiento.test.tsx` no.
+ */
+describe('FR-041, FR-047 · los botones de fila son íconos y dicen sobre qué actúan', () => {
+  function dibujoDe(Icono: () => React.JSX.Element): string {
+    const { container, unmount } = render(<Icono />);
+    const dibujo = container.querySelector('svg')!.innerHTML;
+    unmount();
+
+    return dibujo;
+  }
+
+  it('cada movimiento tiene el lápiz y el tacho (FR-041, US8:AC6)', () => {
+    const lapiz = dibujoDe(IconoEditar);
+    const tacho = dibujoDe(IconoEliminar);
+
+    expect(lapiz).not.toBe(tacho);
+
+    render(
+      <ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} onEliminar={() => {}} />,
+    );
+
+    const filas = screen.getAllByRole('row').slice(1);
+    expect(filas).toHaveLength(MOVIMIENTOS.length);
+
+    for (const fila of filas) {
+      const botones = within(fila).getAllByRole('button');
+
+      expect(botones).toHaveLength(2);
+      expect(botones[0].querySelector('svg')?.innerHTML).toBe(lapiz);
+      expect(botones[1].querySelector('svg')?.innerHTML).toBe(tacho);
+    }
+  });
+
+  it('el nombre de editar dice de qué movimiento se trata (FR-047, US8:AC6)', () => {
+    render(
+      <ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} onEliminar={() => {}} />,
+    );
+
+    // **Uno por movimiento y todos distintos**, que es el requisito: con el nombre viejo había
+    // tantos "Editar" como filas y ninguno se podía elegir sin verlo.
+    const nombres = screen
+      .getAllByRole('button', { name: /^Editar/ })
+      .map((boton) => boton.getAttribute('aria-label'));
+
+    expect(nombres).toHaveLength(MOVIMIENTOS.length);
+    expect(new Set(nombres).size).toBe(MOVIMIENTOS.length);
+
+    // Y cada uno nombra su fila con la fecha y la categoría, igual que el de eliminar.
+    for (const movimiento of MOVIMIENTOS) {
+      expect(
+        screen.getByRole('button', {
+          name: new RegExp(
+            `^Editar .*${formatearFecha(movimiento.fecha)}.*${movimiento.categoriaNombre}`,
+          ),
+        }),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it('el nombre de eliminar es el mismo de antes (FR-042, SC-006)', () => {
+    render(
+      <ListadoMovimientos movimientos={MOVIMIENTOS} onEditar={() => {}} onEliminar={() => {}} />,
+    );
+
+    // Lo que `EliminarMovimiento.test.tsx` busca sigue existiendo con el mismo texto: el tacho
+    // reemplaza la palabra visible, no el nombre accesible.
+    for (const movimiento of MOVIMIENTOS) {
+      expect(
+        screen.getByRole('button', {
+          name: new RegExp(
+            `^Eliminar .*${formatearFecha(movimiento.fecha)}.*${movimiento.categoriaNombre}`,
+          ),
+        }),
+      ).toBeInTheDocument();
+    }
   });
 });

@@ -6,6 +6,7 @@ import {
   clasesSinRegla,
   codigoDeLasPantallas,
   hojaDeEstilos,
+  reglasSinUso,
 } from './fuentes';
 
 /**
@@ -40,6 +41,25 @@ describe('FR-001 · las clases que el código nombra tienen una regla', () => {
  * `clasesSinRegla` devolvería `[]` por no haber encontrado ninguna clase, y el test de arriba
  * pasaría en verde sin haber verificado nada.
  */
+/**
+ * FR-009 — la contracara del atributo: lo que el componente **anuncia** también tiene regla.
+ *
+ * Vive en este archivo y no con las pruebas del conmutador porque es la misma idea que el resto del
+ * archivo —lo que el código nombra tiene que tener una regla que lo respalde— sólo que el nombre es
+ * un atributo en lugar de una clase. Y porque lee del disco, así que necesita entorno `node`: una
+ * prueba de componente no puede hacerlo.
+ *
+ * **Por qué importa**: `FR-009` exige que el modo elegido del conmutador se vea y se anuncie desde
+ * el **mismo** dato, para que no puedan desincronizarse. El lado "se anuncia" lo verifica
+ * `ConmutadorDeAcceso.test.tsx`; el lado "se ve" es esta regla. Sin ella, `aria-pressed` quedaría
+ * puesto y la opción elegida no se distinguiría de la otra.
+ */
+describe('FR-009 · el estado elegido tiene regla propia en la hoja', () => {
+  it('declara el aspecto de [aria-pressed=true] (FR-009)', () => {
+    expect(hojaDeEstilos()).toMatch(/\[aria-pressed=['"]?true['"]?\]/);
+  });
+});
+
 describe('D-03 · el verificador de clases sabe fallar', () => {
   it('detecta una clase referenciada que la hoja no declara', () => {
     const codigo = `<div className="l-pila c-inventada">`;
@@ -74,5 +94,68 @@ describe('D-03 · el verificador de clases sabe fallar', () => {
     const css = `.otra { gap: 0.75rem; }`;
 
     expect(clasesSinRegla(codigo, css)).toEqual(['c-real']);
+  });
+});
+
+/**
+ * FR-042 — **el rótulo del botón de sólo ícono tiene regla para el puntero y para el foco**.
+ *
+ * Misma idea que el bloque de arriba y mismo motivo para vivir acá: lo que el código nombra tiene
+ * que tener una regla que lo respalde, y comprobarlo exige leer el disco.
+ *
+ * `BotonIcono` pone el rótulo en el DOM y lo deja oculto; **mostrarlo es responsabilidad de la
+ * hoja**. Si la regla de `:hover` faltara, el componente seguiría siendo correcto y el rótulo no
+ * aparecería nunca: un botón sin palabra y sin forma de averiguarla, que es justo lo que `FR-042`
+ * vino a impedir.
+ *
+ * Las dos hacen falta por separado: `:hover` sirve a quien usa un puntero y `:focus-visible` a quien
+ * llega con el teclado, que es la mitad que el `title` del navegador no cubre y el motivo por el que
+ * research D-06 lo descartó. Que el rótulo efectivamente se vea lo mide
+ * `FilasConIconos.navegador.test.tsx`; esto dice qué falta y dónde.
+ */
+describe('FR-042 · el rótulo de la acción tiene regla para el puntero y para el foco', () => {
+  it.each([':hover', ':focus-visible'])('muestra el rótulo en %s (FR-042, US8:AC3)', (estado) => {
+    const queMuestran = [...hojaDeEstilos().matchAll(/([^{}]+)\{/g)]
+      .map(([, selector]) => selector.trim())
+      .filter(
+        (selector) =>
+          selector.includes('c-boton-icono__rotulo') && selector.includes(`c-boton-icono${estado}`),
+      );
+
+    expect(
+      queMuestran,
+      `ninguna regla muestra el rótulo cuando el botón está en ${estado}`,
+    ).not.toEqual([]);
+  });
+});
+
+/**
+ * FR-001 — **la dirección que faltaba: ninguna regla sin nadie que la nombre.**
+ *
+ * El bloque de arriba mira que toda clase usada tenga regla. Esto mira lo contrario, y es la mitad
+ * que estuvo ciega hasta la feature 014: `l-cabecera` sobrevivió a la mudanza de la cuenta y el
+ * cierre de sesión al marco de la app, con su regla escrita y dos `className` nombrándola, alineando
+ * un segundo hijo que ya no existía en ninguna de las dos cabeceras. Las dos comprobaciones de
+ * arriba la daban por buena: estaba usada **y** tenía regla. Lo único que no hacía era algo.
+ *
+ * Esta comprobación no habría atrapado ese caso —la clase estaba nombrada— y sí atrapa el siguiente:
+ * la regla que queda cuando el `className` se va. Se adopta ahora porque hoy la lista está vacía, y
+ * una barrera que nace en rojo no es una barrera, es una deuda con nombre nuevo.
+ */
+describe('FR-001 · la hoja no declara reglas que nadie use', () => {
+  it('ninguna clase l-, c- o u- declarada queda sin un className que la nombre (FR-001)', () => {
+    expect(reglasSinUso(codigoDeLasPantallas(), hojaDeEstilos())).toEqual([]);
+  });
+
+  it('el verificador sabe fallar (principio V)', () => {
+    // Una clase declarada que ningún código nombra: es exactamente el CSS muerto que busca.
+    expect(
+      reglasSinUso('<div className="l-pila">', '.l-pila {} .c-fantasma { color: red; }'),
+    ).toEqual(['c-fantasma']);
+
+    // Y no denuncia lo que se estila por selector de elemento, que nadie nombra en un className.
+    expect(reglasSinUso('<div className="l-pila">', '.l-pila {} button { border: none; }')).toEqual(
+      [],
+    );
   });
 });

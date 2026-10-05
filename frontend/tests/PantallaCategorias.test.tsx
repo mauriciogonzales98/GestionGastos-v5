@@ -5,6 +5,7 @@ import { ErrorDeValidacion } from '../src/api/cliente';
 import { PantallaCategorias } from '../src/categorias/PantallaCategorias';
 import type { Categoria } from '../src/api/tipos';
 import { CATEGORIAS } from './categorias.fixture';
+import { IconoEditar, IconoEliminar } from '../src/ui/iconos';
 
 /** Las diez del catálogo inicial más dos creadas a mano: doce filas y ninguna diferencia entre ellas. */
 const CON_PROPIAS: Categoria[] = [
@@ -20,7 +21,6 @@ function renderizar(props: Partial<Parameters<typeof PantallaCategorias>[0]> = {
       onCrear={vi.fn()}
       onRenombrar={vi.fn()}
       onDarDeBaja={vi.fn()}
-      onVolver={vi.fn()}
       {...props}
     />,
   );
@@ -161,16 +161,18 @@ describe('PantallaCategorias — renombrar y dar de baja', () => {
     expect(onDarDeBaja).toHaveBeenCalledWith(43);
   });
 
-  it('vuelve a movimientos cuando se lo piden', async () => {
-    const usuario = userEvent.setup();
-    const onVolver = vi.fn();
-
-    renderizar({ onVolver });
-
-    await usuario.click(screen.getByRole('button', { name: 'Volver a movimientos' }));
-
-    expect(onVolver).toHaveBeenCalled();
-  });
+  /*
+   * **El caso "vuelve a movimientos" se borró, no se perdió** (`FR-022`, feature 014).
+   *
+   * Esta pantalla ya no navega: el botón "Volver a movimientos" y su prop `onVolver` se fueron al
+   * marco de la app, que es el único lugar donde vive la navegación. Lo que el caso verificaba
+   * —que desde acá se pueda llegar a movimientos— ahora lo verifica `MarcoDeLaApp.test.tsx`, y
+   * mejor: comprueba las seis transiciones posibles entre las tres secciones, no sólo ésta
+   * (`SC-009`).
+   *
+   * Se deja escrito en lugar de borrar la prueba en silencio, porque una prueba que desaparece sin
+   * explicación se lee como cobertura perdida.
+   */
 });
 
 describe('PantallaCategorias — cada rechazo al lado del control que lo produjo', () => {
@@ -281,5 +283,67 @@ describe('PantallaCategorias — la baja se confirma antes de ejecutarse', () =>
     expect(
       within(fila('Gimnasio')).getByRole('button', { name: 'Dar de baja Gimnasio' }),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * FR-041, FR-042, US8:AC1, AC2, AC4 — **lápiz y tacho en cada fila**, sin cambiar lo que se anuncia.
+ *
+ * El nombre accesible de los dos botones es **el mismo de siempre** —"Renombrar X", "Dar de baja
+ * X"—, y eso es lo que hace que las pruebas de arriba de este archivo no hayan tenido que tocarse:
+ * `SC-006` lo exige, y una prueba que siga pasando sin editarse es la mejor evidencia de que el
+ * comportamiento no cambió. Lo único que cambió es qué se dibuja adentro del botón.
+ *
+ * Por eso lo que se agrega acá es sólo lo nuevo: que el dibujo sea **el lápiz y el tacho** y no
+ * cualquier ícono. Se compara contra el SVG que cada componente produce por su cuenta, en lugar de
+ * mirar que "haya un svg": con eso, dos lápices pasarían igual, y la spec dice tacho por un motivo
+ * —al renombrar aparece "Cancelar" en la misma fila, y una cruz se confunde con eso—.
+ */
+describe('FR-041 · cada fila ofrece el lápiz y el tacho', () => {
+  /** El dibujo que un componente de ícono produce, para comparar contra el que está en el botón. */
+  function dibujoDe(Icono: () => React.JSX.Element): string {
+    const { container, unmount } = render(<Icono />);
+    const dibujo = container.querySelector('svg')!.innerHTML;
+    unmount();
+
+    return dibujo;
+  }
+
+  it('el de renombrar lleva el lápiz y el de dar de baja el tacho (FR-041, US8:AC1)', () => {
+    const lapiz = dibujoDe(IconoEditar);
+    const tacho = dibujoDe(IconoEliminar);
+
+    // Premisa: son dos dibujos distintos. Si alguien hiciera que `IconoEliminar` devolviera el
+    // lápiz, las aserciones de abajo pasarían las dos y esta prueba no diría nada.
+    expect(lapiz).not.toBe(tacho);
+
+    renderizar();
+
+    screen.getAllByRole('listitem').forEach((fila, i) => {
+      const nombre = CON_PROPIAS[i].nombre;
+
+      const renombrar = within(fila).getByRole('button', { name: `Renombrar ${nombre}` });
+      const darDeBaja = within(fila).getByRole('button', { name: `Dar de baja ${nombre}` });
+
+      expect(renombrar.querySelector('svg')?.innerHTML, `el lápiz de ${nombre}`).toBe(lapiz);
+      expect(darDeBaja.querySelector('svg')?.innerHTML, `el tacho de ${nombre}`).toBe(tacho);
+    });
+  });
+
+  it('los dos botones de la fila ya no llevan texto a la vista (FR-041, US8:AC1)', () => {
+    renderizar();
+
+    const fila = screen.getAllByRole('listitem')[0];
+    const nombre = CON_PROPIAS[0].nombre;
+
+    for (const accion of [`Renombrar ${nombre}`, `Dar de baja ${nombre}`]) {
+      const boton = within(fila).getByRole('button', { name: accion });
+
+      // El rótulo corto está en el DOM —tiene que estar, para poder aparecer al apoyar el puntero
+      // sin que React monte nada— pero oculto al árbol de accesibilidad, así que el nombre sigue
+      // siendo uno solo.
+      expect(boton).toHaveAccessibleName(accion);
+      expect(boton.querySelector('span')).toHaveAttribute('aria-hidden', 'true');
+    }
   });
 });

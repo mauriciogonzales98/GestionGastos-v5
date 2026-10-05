@@ -1,6 +1,9 @@
-import { useState, type RefObject } from 'react';
+import { useState, type ReactNode, type RefObject } from 'react';
 import type { Moneda, Movimiento } from '../api/tipos';
+import { BotonIcono } from '../ui/BotonIcono';
+import { IconoEditar, IconoEliminar } from '../ui/iconos';
 import { decimalesDe, formatearMonto } from '../ui/formatearMonto';
+import { formatearFecha } from '../ui/formatearFecha';
 
 export interface PropsListadoMovimientos {
   movimientos: Movimiento[];
@@ -21,6 +24,17 @@ export interface PropsListadoMovimientos {
    * hacía hasta la feature 011. Es la degradación correcta mientras el catálogo no haya llegado.
    */
   monedas?: Moneda[];
+  /**
+   * La barra de acotado, que se dibuja **debajo del encabezado de esta sección**.
+   *
+   * Entra por prop y no se arma acá porque el acotado no es cosa del listado: lo decide la pantalla,
+   * que es la que pide los datos. Lo que el listado aporta es **dónde va**, y eso sí es suyo: los
+   * filtros acotan lo que esta tabla muestra, así que viven dentro de su sección y debajo de su
+   * título. Antes estaban sueltos arriba, donde se leían como parte del formulario de carga.
+   *
+   * Opcional: la ventana de edición y las pruebas que sólo miran la tabla no la pasan.
+   */
+  filtros?: ReactNode;
 }
 
 /**
@@ -32,11 +46,15 @@ export interface PropsListadoMovimientos {
  * la gestión de categorías usa desde la feature 007 con `Renombrar {nombre}`.
  */
 function describir(m: Movimiento): string {
+  // La fecha va como se ve en la celda, en `dd/MM/yyyy`: el nombre de un botón es texto para la
+  // persona —lo lee o lo escucha— y no un identificador, así que no hay motivo para que diga una
+  // fecha en un formato que la pantalla no usa en ningún otro lado.
+
   // **Sin el monto, a propósito.** Sería más preciso, y hace que el nombre del botón contenga el
   // mismo texto que la celda del monto: dos aserciones del listado que buscaban ese número pasaban
   // a encontrar dos elementos. La fecha y la categoría alcanzan para distinguir una fila de otra, y
   // no ensucian lo que ya estaba (FR-020).
-  return `${m.tipo === 'gasto' ? 'el gasto' : 'el ingreso'} del ${m.fecha} en ${m.categoriaNombre}`;
+  return `${m.tipo === 'gasto' ? 'el gasto' : 'el ingreso'} del ${formatearFecha(m.fecha)} en ${m.categoriaNombre}`;
 }
 
 /**
@@ -51,6 +69,7 @@ export function ListadoMovimientos({
   onEliminar,
   refDelEncabezado,
   monedas,
+  filtros,
 }: PropsListadoMovimientos) {
   /**
    * Qué fila está pidiendo confirmación para eliminarse. `null` = ninguna.
@@ -69,6 +88,10 @@ export function ListadoMovimientos({
         <h2 ref={refDelEncabezado} tabIndex={-1}>
           Movimientos del mes
         </h2>
+        {/* Los filtros también acá, y es el caso que más los necesita: si el acotado no devolvió
+            nada, lo único que se puede hacer es ensancharlo, y para eso tienen que estar a la
+            vista. */}
+        {filtros}
         <p>No hay movimientos registrados este mes.</p>
       </section>
     );
@@ -79,6 +102,7 @@ export function ListadoMovimientos({
       <h2 ref={refDelEncabezado} tabIndex={-1}>
         Movimientos del mes
       </h2>
+      {filtros}
       {/* El envoltorio que se desplaza: seis columnas no entran en 360 px, y lo que no puede pasar
           es que desborde la página (FR-004). La regla vive en `componentes.css`. */}
       <div className="c-listado-movimientos__desborde">
@@ -108,7 +132,10 @@ export function ListadoMovimientos({
           <tbody>
             {movimientos.map((m) => (
               <tr key={m.id}>
-                <td>{m.fecha}</td>
+                {/* En `dd/MM/yyyy`, que es como se escribe una fecha acá. El `yyyy-MM-dd` que
+                    manda la API es el formato del dato, no el de la pantalla, y ninguna fecha sale a
+                    la pantalla en ISO: el nombre de los botones de esta fila tampoco. */}
+                <td>{formatearFecha(m.fecha)}</td>
                 {/* Como texto y no sólo por color: el color solo no es accesible. */}
                 <td>{m.tipo === 'gasto' ? 'Gasto' : 'Ingreso'}</td>
                 <td>{m.categoriaNombre}</td>
@@ -150,15 +177,27 @@ export function ListadoMovimientos({
                     </>
                   ) : (
                     <>
-                      {/* "Editar" se queda como estaba: renombrarlo tocaría tests que están fuera
-                          del presupuesto de D-12, y FR-020 sólo habilita lo que esta feature
-                          agrega. El botón nuevo sí nace con el nombre completo. */}
-                      <button type="button" onClick={() => onEditar(m)}>
-                        Editar
-                      </button>
-                      <button type="button" onClick={() => setConfirmando(m.id)}>
-                        Eliminar {describir(m)}
-                      </button>
+                      {/* **"Editar" pasa a decir de qué movimiento se trata** (`FR-047`).
+                          Decía sólo "Editar", y con seis filas en la tabla un lector de pantalla
+                          anunciaba seis botones indistinguibles. La feature 012 lo había dejado
+                          así a propósito, porque renombrarlo tocaba pruebas fuera de su
+                          presupuesto; `SC-006` autoriza ese cambio acá y lo paga
+                          `VentanaDeEdicion.test.tsx`, que era la que buscaba 'Editar'. */}
+                      <BotonIcono
+                        nombre={`Editar ${describir(m)}`}
+                        accion="Editar"
+                        icono={IconoEditar}
+                        onClick={() => onEditar(m)}
+                      />
+                      {/* El nombre de eliminar **no cambia**: el tacho reemplaza la palabra
+                          visible y nada más, así que `EliminarMovimiento.test.tsx` sigue en verde
+                          sin tocarse (`FR-042`). */}
+                      <BotonIcono
+                        nombre={`Eliminar ${describir(m)}`}
+                        accion="Eliminar"
+                        icono={IconoEliminar}
+                        onClick={() => setConfirmando(m.id)}
+                      />
                     </>
                   )}
                 </td>

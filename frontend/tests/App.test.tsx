@@ -257,7 +257,10 @@ describe('App — el catálogo de categorías', () => {
     await usuario.click(await screen.findByRole('button', { name: 'Categorías' }));
     await screen.findByRole('heading', { name: 'Mis categorías' });
 
-    await usuario.click(screen.getByRole('button', { name: 'Volver a movimientos' }));
+    // Desde la feature 014 se vuelve por la sección "Movimientos" de la barra, no por un botón
+    // "Volver" de la pantalla: la navegación vive en el marco (`FR-022`). Lo que estos casos
+    // verifican —que el catálogo se comparta— no cambió; cambió cómo se llega.
+    await usuario.click(screen.getByRole('button', { name: 'Movimientos' }));
     await screen.findByRole('heading', { name: 'Mis movimientos' });
 
     expect(vi.mocked(cliente.obtenerCategorias)).toHaveBeenCalledTimes(1);
@@ -293,7 +296,7 @@ describe('App — el catálogo se comparte entre las dos pantallas', () => {
       tipo: 'gasto',
     });
 
-    await usuario.click(screen.getByRole('button', { name: 'Volver a movimientos' }));
+    await usuario.click(screen.getByRole('button', { name: 'Movimientos' }));
 
     const selector = await screen.findByLabelText('Categoría');
     expect(selector).toContainHTML('<option value="43">Mascotas</option>');
@@ -324,7 +327,7 @@ describe('App — el catálogo se comparte entre las dos pantallas', () => {
     await usuario.type(campo, 'Gimnasio y pileta');
     await usuario.click(screen.getByRole('button', { name: 'Guardar' }));
 
-    await usuario.click(screen.getByRole('button', { name: 'Volver a movimientos' }));
+    await usuario.click(screen.getByRole('button', { name: 'Movimientos' }));
 
     const selector = await screen.findByLabelText('Categoría');
     expect(selector).toContainHTML('<option value="43">Gimnasio y pileta</option>');
@@ -512,7 +515,7 @@ describe('App — el dashboard', () => {
     await usuario.click(screen.getByRole('button', { name: /dashboard/i }));
     expect(await screen.findByRole('heading', { level: 1, name: /dashboard/i })).toBeVisible();
 
-    await usuario.click(screen.getByRole('button', { name: /volver/i }));
+    await usuario.click(screen.getByRole('button', { name: 'Movimientos' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' })).toBeVisible();
   });
 
@@ -601,7 +604,7 @@ describe('App — el dashboard no mueve el resumen de la pantalla principal FR-0
     render(<App hoy="2026-08-24" />);
     await screen.findByRole('heading', { level: 1, name: 'Mis movimientos' });
     await screen.findByRole('region', { name: /resumen del mes/i });
-    expect(screen.getByText(/2026-08-31/)).toBeVisible();
+    expect(screen.getByText(/31\/08\/2026/)).toBeVisible();
 
     await usuario.click(screen.getByRole('button', { name: /dashboard/i }));
     await screen.findByRole('heading', { level: 1, name: /dashboard/i });
@@ -613,14 +616,14 @@ describe('App — el dashboard no mueve el resumen de la pantalla principal FR-0
     await usuario.clear(screen.getByLabelText(/hasta/i));
     await usuario.type(screen.getByLabelText(/hasta/i), '2026-08-31');
     await usuario.click(screen.getByRole('button', { name: /aplicar/i }));
-    await screen.findByText(/2026-06-01/);
+    await screen.findByText(/01\/06\/2026/);
 
     // Al volver, la principal vuelve a pedir LO SUYO: sin período, o sea el mes en curso.
     vi.mocked(cliente.obtenerResumen).mockResolvedValue(DEL_MES);
-    await usuario.click(screen.getByRole('button', { name: /volver/i }));
+    await usuario.click(screen.getByRole('button', { name: 'Movimientos' }));
     await screen.findByRole('region', { name: /resumen del mes/i });
 
-    expect(screen.getByText(/2026-08-01/)).toBeVisible();
+    expect(screen.getByText(/01\/08\/2026/)).toBeVisible();
     // El total del trimestre no aparece por ningún lado de la pantalla principal.
     expect(screen.queryByText(/88\.888/)).not.toBeInTheDocument();
   });
@@ -669,7 +672,7 @@ describe('App — el filtro de moneda no se contagia a la pantalla principal FR-
     await usuario.selectOptions(screen.getByLabelText(/ver sólo la moneda/i), '1');
     expect(screen.queryByRole('region', { name: /USD/ })).not.toBeInTheDocument();
 
-    await usuario.click(screen.getByRole('button', { name: /volver/i }));
+    await usuario.click(screen.getByRole('button', { name: 'Movimientos' }));
     await screen.findByRole('region', { name: /resumen del mes/i });
 
     expect(screen.getByRole('region', { name: /ARS/ })).toBeVisible();

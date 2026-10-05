@@ -20,6 +20,31 @@ function renderizar(onGuardar = vi.fn(), monedas = MONEDAS) {
   return onGuardar;
 }
 
+/**
+ * FR-003 — el envío es la acción principal del formulario, y la única.
+ *
+ * Registrar un movimiento es lo que la persona vino a hacer, que es la definición de "principal"
+ * del sistema visual. Que sea **una sola** es la otra mitad: un formulario con dos botones
+ * rellenos no tiene acción principal, tiene dos cosas gritando.
+ */
+describe('FR-003 · el formulario tiene una acción principal y es el envío', () => {
+  it('el botón de envío es el único principal (FR-003)', () => {
+    const { container } = render(
+      <FormularioMovimiento
+        categorias={CATEGORIAS}
+        monedas={MONEDAS}
+        hoy="2026-08-23"
+        onGuardar={vi.fn()}
+      />,
+    );
+
+    const principales = container.querySelectorAll('.c-boton--principal');
+
+    expect(principales).toHaveLength(1);
+    expect(principales[0]).toHaveAttribute('type', 'submit');
+  });
+});
+
 describe('FormularioMovimiento', () => {
   it('arranca en gasto y con la fecha de hoy puesta', () => {
     renderizar();

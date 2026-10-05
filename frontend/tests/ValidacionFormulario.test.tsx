@@ -82,8 +82,21 @@ describe('validación en el formulario', () => {
     expect(alerta).not.toHaveBeenCalled();
 
     // Tampoco un bloque de errores agrupado arriba: cada mensaje va al lado de su campo.
-    const formulario = screen.getByRole('button', { name: 'Registrar' }).closest('form');
-    expect(formulario?.firstElementChild?.tagName).toBe('FIELDSET');
+    //
+    // **Se afirma sobre lo que no puede haber, no sobre qué elemento es el primero.** La versión
+    // anterior exigía que el primer hijo del formulario fuera el `<fieldset>` del tipo, que era un
+    // sustituto de "no hay un bloque de errores arriba": se rompió el día que el formulario cambió
+    // de orden, sin que nada de lo que la prueba cuida hubiera cambiado. Lo que importa es que
+    // ningún aviso se agrupe antes del primer campo.
+    const formulario = screen.getByRole('button', { name: 'Registrar' })!.closest('form')!;
+    const primerCampo = formulario.querySelector('input, select, textarea')!;
+    const avisos = [...formulario.querySelectorAll('[role="alert"], [role="status"]')];
+
+    const antesDelPrimerCampo = avisos.filter(
+      (aviso) => primerCampo.compareDocumentPosition(aviso) & Node.DOCUMENT_POSITION_PRECEDING,
+    );
+
+    expect(antesDelPrimerCampo).toEqual([]);
 
     window.alert = original;
   });

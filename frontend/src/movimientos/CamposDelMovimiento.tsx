@@ -268,48 +268,64 @@ export function CamposDelMovimiento({
 
   return (
     <form className="l-pila c-formulario-movimiento" onSubmit={(e) => void enviar(e)} noValidate>
-      <fieldset className="l-fila">
-        <legend>Tipo</legend>
-        {(['gasto', 'ingreso'] as const).map((valor) => (
-          <span key={valor}>
-            <input
-              type="radio"
-              id={`${grupoTipo}-${valor}`}
-              name={`${grupoTipo}-tipo`}
-              value={valor}
-              checked={tipo === valor}
-              onChange={() => cambiarTipo(valor)}
-              aria-invalid={errores.tipo ? 'true' : undefined}
-              aria-describedby={errores.tipo ? 'tipo-error' : undefined}
-              ref={valor === 'gasto' ? primerCampo : undefined}
-            />
-            <label htmlFor={`${grupoTipo}-${valor}`}>
-              {valor === 'gasto' ? 'Gasto' : 'Ingreso'}
-            </label>
-          </span>
-        ))}
+      {/*
+        **El encabezado del formulario: el tipo a la izquierda y la fecha a la derecha** (`FR-033`).
 
-        {/* El backend puede rechazar por `tipo` (ValidacionDelMovimiento lo produce). Sin este
+        El orden de los campos cambió en la feature 014 y lo pidió quien usa la app: primero lo que
+        encuadra el movimiento —de qué tipo es y cuándo fue—, después en qué se gastó, y al final
+        cuánto. Research D-07 había puesto el monto segundo por ser el dato principal; la práctica
+        dijo otra cosa, y entre una cuenta y alguien cargando sus gastos todos los días gana el
+        segundo.
+
+        **El orden del DOM es el orden visual**, acá y en todo el formulario (`FR-031`): nada se
+        reubica con `order` de CSS, así que lo que se recorre con Tab y lo que lee un lector de
+        pantalla coinciden con lo que se ve **por construcción**, sin que haya que mantenerlos de
+        acuerdo.
+      */}
+      <div className="l-extremos">
+        <fieldset className="c-segmentado c-segmentado--radios">
+          <legend className="u-solo-lectores">Tipo</legend>
+          {(['gasto', 'ingreso'] as const).map((valor) => (
+            <span key={valor}>
+              <input
+                type="radio"
+                id={`${grupoTipo}-${valor}`}
+                name={`${grupoTipo}-tipo`}
+                value={valor}
+                checked={tipo === valor}
+                onChange={() => cambiarTipo(valor)}
+                aria-invalid={errores.tipo ? 'true' : undefined}
+                aria-describedby={errores.tipo ? 'tipo-error' : undefined}
+                ref={valor === 'gasto' ? primerCampo : undefined}
+              />
+              <label htmlFor={`${grupoTipo}-${valor}`}>
+                {valor === 'gasto' ? 'Gasto' : 'Ingreso'}
+              </label>
+            </span>
+          ))}
+
+          {/* El backend puede rechazar por `tipo` (ValidacionDelMovimiento lo produce). Sin este
             lugar, ese mensaje llegaba al navegador y no se mostraba en ninguna parte. */}
-        {errores.tipo?.[0] ? (
-          <p id="tipo-error" role="alert" className="c-campo__error">
-            {errores.tipo[0]}
-          </p>
-        ) : null}
-      </fieldset>
+          {errores.tipo?.[0] ? (
+            <p id="tipo-error" role="alert" className="c-campo__error">
+              {errores.tipo[0]}
+            </p>
+          ) : null}
+        </fieldset>
+        <CampoConError campo="fecha" etiqueta="Fecha" error={errores.fecha?.[0]}>
+          {(props) => (
+            <input
+              {...props}
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+            />
+          )}
+        </CampoConError>
+      </div>
 
-      <CampoConError campo="monto" etiqueta="Monto" error={errores.monto?.[0]}>
-        {(props) => (
-          <input
-            {...props}
-            type="number"
-            step="0.01"
-            value={monto}
-            onChange={(e) => setMonto(e.target.value)}
-          />
-        )}
-      </CampoConError>
-
+      {/* La categoría, a lo ancho: es un `<select>` con nombres que pueden ser largos, y es lo que
+          más se mira al revisar un movimiento cargado. */}
       <CampoConError campo="categoriaId" etiqueta="Categoría" error={errores.categoriaId?.[0]}>
         {(props) => (
           // `<select>` nativo: un combo propio tendría que reimplementar teclado, foco y anuncio,
@@ -329,26 +345,45 @@ export function CamposDelMovimiento({
         )}
       </CampoConError>
 
-      <CampoConError campo="monedaId" etiqueta="Moneda" error={errores.monedaId?.[0]}>
-        {(props) => (
-          // Sin opción vacía, a diferencia de categoría: la moneda SIEMPRE tiene un valor. Un
-          // "elegí una moneda" obligaría a tocar el control, y PRD:NFR-01 exige poder guardar sin
-          // tocarlo — cero interacciones adicionales para quien usa una sola moneda.
-          <select {...props} value={monedaVigente} onChange={(e) => setMonedaId(e.target.value)}>
-            {monedas.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nombre}
-              </option>
-            ))}
-          </select>
-        )}
-      </CampoConError>
+      {/*
+        **Monto y moneda comparten renglón, y la moneda se movió EN EL DOM** (`FR-029`, `FR-031`,
+        research D-07).
 
-      <CampoConError campo="fecha" etiqueta="Fecha" error={errores.fecha?.[0]}>
-        {(props) => (
-          <input {...props} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-        )}
-      </CampoConError>
+        Se movió acá y no con `order` de CSS a propósito: así el orden de tabulación y el de lectura
+        de un lector de pantalla coinciden con el visual **por construcción**, sin que haya que
+        acordarse de mantenerlos de acuerdo. Con `order`, lo que se ve y lo que se recorre son dos
+        cosas distintas y nada impide que se separen.
+
+        Se leen juntos —"1500 ARS"— y por eso este par no se apila en ningún ancho: la moneda es un
+        código de tres letras y entra siempre.
+      */}
+      <div className="l-par l-par--monto">
+        <CampoConError campo="monto" etiqueta="Monto" error={errores.monto?.[0]}>
+          {(props) => (
+            <input
+              {...props}
+              type="number"
+              step="0.01"
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+            />
+          )}
+        </CampoConError>
+        <CampoConError campo="monedaId" etiqueta="Moneda" error={errores.monedaId?.[0]}>
+          {(props) => (
+            // Sin opción vacía, a diferencia de categoría: la moneda SIEMPRE tiene un valor. Un
+            // "elegí una moneda" obligaría a tocar el control, y PRD:NFR-01 exige poder guardar sin
+            // tocarlo — cero interacciones adicionales para quien usa una sola moneda.
+            <select {...props} value={monedaVigente} onChange={(e) => setMonedaId(e.target.value)}>
+              {monedas.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+        </CampoConError>
+      </div>
 
       {/* La nota va ÚLTIMA, y eso es la decisión (D-07 de la feature 012): es el único campo
           opcional del formulario, así que ponerlo al final deja intacto el camino rápido de carga —
@@ -384,7 +419,12 @@ export function CamposDelMovimiento({
         </p>
       ) : null}
 
-      <button type="submit" disabled={enviando}>
+      {/* **El único botón principal del formulario** (`FR-003`): es la acción que completa lo que
+          la persona vino a hacer. Vale para los dos usos de este componente — "Registrar" en el
+          alta y "Guardar" en la edición, donde "Cancelar" queda secundario al lado.
+
+          Conserva la palabra y no pasa a ser un ícono: envía un formulario (`FR-046`). */}
+      <button type="submit" className="c-boton--principal" disabled={enviando}>
         {enviando ? 'Enviando…' : etiquetaDeEnvio}
       </button>
     </form>

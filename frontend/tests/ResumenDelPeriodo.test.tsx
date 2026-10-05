@@ -48,21 +48,51 @@ describe('ResumenDelPeriodo', () => {
   });
 
   /**
-   * FR-009: la moneda del catálogo sin movimientos aparece igual, en cero.
+   * FR-038 de la feature 014 — la moneda sin movimientos aparece **en una sola línea**.
    *
-   * El servidor la manda a propósito —compone desde el catálogo y no desde el agregado— y la
-   * pantalla no puede esconderla: una moneda que desaparece del resumen se lee como si no
-   * existiera en el catálogo.
+   * **Esto cambia una decisión de la feature 006** (su `FR-009`, y `PRD:AC-31`), que pedía mostrarla
+   * con sus totales en cero *para que la moneda no pareciera inexistente*. La razón se conserva
+   * entera —la moneda **sigue apareciendo**, que era el punto— y lo que cambia es la forma: un
+   * bloque de tres ceros ocupaba el mismo alto que una moneda con datos y empujaba el formulario y
+   * el listado muy abajo. Lo decidió el usuario.
+   *
+   * La deducción vale porque `PRD:RF-13` exige montos mayores a cero: con un solo movimiento en esa
+   * moneda, alguno de los dos totales deja de ser cero. "Sin movimientos" e "ingresado y gastado en
+   * cero" son la misma cosa.
    */
-  it('una moneda sin movimientos aparece con sus totales en cero y sin ningún error', () => {
+  it('una moneda sin movimientos aparece en una línea que lo dice (FR-038, PRD:AC-31)', () => {
     render(<ResumenDelPeriodo resumen={RESUMEN} />);
 
     const sinMovimientos = screen.getByRole('region', {
       name: new RegExp(SIN_MOVIMIENTOS.monedaCodigo),
     });
 
-    expect(within(sinMovimientos).getByTestId('balance')).toHaveTextContent('0');
+    // Sigue apareciendo, que es lo que la 006 quería proteger.
+    expect(sinMovimientos).toBeVisible();
+    expect(within(sinMovimientos).getByText(/sin movimientos en el período/i)).toBeVisible();
+
+    // Y ya no ocupa un bloque de tres cifras.
+    expect(within(sinMovimientos).queryByTestId('balance')).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  /**
+   * FR-035, FR-036 — el desglose por categoría sale de la pantalla de movimientos y queda sólo en
+   * el dashboard, que es donde `PRD:RF-19` lo ubica.
+   *
+   * Por defecto se muestra, así que **el dashboard no cambia su llamada**: lo que cambia es la
+   * pantalla que lo apaga.
+   */
+  it('con conDesglose={false} no muestra el desglose por categoría (FR-035)', () => {
+    render(<ResumenDelPeriodo resumen={RESUMEN} conDesglose={false} />);
+
+    expect(screen.queryByText(/Vivienda/)).not.toBeInTheDocument();
+  });
+
+  it('sin la prop lo muestra, que es lo que hace el dashboard (FR-036)', () => {
+    render(<ResumenDelPeriodo resumen={RESUMEN} />);
+
+    expect(screen.getByText(/Vivienda/)).toBeVisible();
   });
 
   it('el período que muestra es el que vino del servidor, no uno calculado acá', () => {
@@ -71,8 +101,8 @@ describe('ResumenDelPeriodo', () => {
     // `desde` y `hasta` viajan siempre justamente para esto (D-06 de la feature 006): sin ellos, la
     // pantalla tendría que calcular el mes en curso en la zona horaria del navegador, y volverían a
     // existir dos criterios de "hoy".
-    expect(screen.getByText(/2026-09-01/)).toBeVisible();
-    expect(screen.getByText(/2026-09-30/)).toBeVisible();
+    expect(screen.getByText(/01\/09\/2026/)).toBeVisible();
+    expect(screen.getByText(/30\/09\/2026/)).toBeVisible();
   });
 
   it('un balance en cero con movimientos no se confunde con una moneda sin movimientos', () => {
@@ -82,6 +112,10 @@ describe('ResumenDelPeriodo', () => {
 
     const region = screen.getByRole('region', { name: new RegExp(empatada.monedaCodigo) });
 
+    // **Este caso es el que separa los dos**, y desde la feature 014 pesa más que antes: con la
+    // moneda vacía mostrándose en una línea, lo que distingue "sin movimientos" de "balance cero
+    // con movimientos" es exactamente esta prueba. Si la deducción de `FR-038` se hiciera por el
+    // balance en lugar de por los dos totales, acá se rompería.
     expect(within(region).getByTestId('balance')).toHaveTextContent('0');
     // Y sus gastos por categoría siguen estando: el balance en cero no vacía el desglose.
     expect(within(region).getByText(/Vivienda/)).toBeVisible();
@@ -115,7 +149,7 @@ describe('ResumenDelPeriodo — sin ninguna moneda que mostrar', () => {
   it('el período se sigue viendo: es lo que explica sobre qué no hay nada', () => {
     render(<ResumenDelPeriodo resumen={{ ...RESUMEN, monedas: [] }} />);
 
-    expect(screen.getByText(/2026-09-01/)).toBeVisible();
+    expect(screen.getByText(/01\/09\/2026/)).toBeVisible();
   });
 });
 

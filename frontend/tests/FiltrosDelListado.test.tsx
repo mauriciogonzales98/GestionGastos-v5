@@ -53,14 +53,10 @@ async function renderizar(monedas = MONEDAS) {
   render(
     <PantallaMovimientos
       hoy="2026-09-08"
-      email="ana@ejemplo.com"
       categorias={CATEGORIAS}
       monedas={monedas}
       errorDelCatalogo={null}
       errorDelCatalogoDeMonedas={null}
-      onCerrarSesion={() => {}}
-      onGestionarCategorias={() => {}}
-      onVerDashboard={() => {}}
       onSesionVencida={() => {}}
     />,
   );

@@ -2,7 +2,23 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      `viewport-fit=cover` hace que `env(safe-area-inset-bottom)` devuelva algo en los teléfonos con
+      zona de gestos o esquinas redondeadas. Sin esto devuelve cero, y la barra de navegación
+      inferior queda debajo de la franja que el sistema operativo usa para sus gestos — que es lo
+      que `FR-026` prohíbe.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!--
+      Le dice al navegador que la página sabe pintarse en los dos modos ANTES de que cargue el CSS
+      (`FR-019`, `FR-020`). Con esto, el fondo que el navegador pinta mientras la hoja viaja ya es
+      el oscuro, así que no hay destello blanco; y sus propios controles —selector de fecha, listas,
+      barras de desplazamiento— siguen el modo desde la primera pintura.
+
+      Está acá Y en `:root` de base.css a propósito: la etiqueta vale antes del CSS, la declaración
+      del CSS vale para la cascada. No es duplicación, son dos momentos distintos.
+    -->
+    <meta name="color-scheme" content="light dark" />
     <title>Gestión de gastos</title>
   </head>
   <body>
